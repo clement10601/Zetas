@@ -1,0 +1,4 @@
+.godot/
+addons/zeworld/
+__pycache__/
+*.import
