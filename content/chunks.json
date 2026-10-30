@@ -1,0 +1,9 @@
+{
+  "_comment": "地圖區塊庫。內容包的 map.chunks 只能引用這裡的區塊；points 的 x 是區塊內的位置（像素）。M0 用色塊代替美術。",
+  "chunk.qingyun_road": { "name": "青雲山道", "width": 960, "color": "#3d5a3a", "tags": ["forest"], "points": { "pt.home_start": 120 } },
+  "chunk.qingyun_woods": { "name": "青雲密林", "width": 960, "color": "#2f4a33", "tags": ["forest"], "points": {} },
+  "chunk.forest_clearing_a": { "name": "林間空地", "width": 1100, "color": "#425e4a", "tags": ["forest"], "points": { "pt.clearing_left": 120, "pt.clearing_center": 560, "pt.clearing_right": 960 } },
+  "chunk.illusion_entry": { "name": "心魔幻境・入口", "width": 700, "color": "#3a1f2b", "tags": ["illusion"], "points": { "pt.illusion_start": 100 } },
+  "chunk.illusion_qingyun_town": { "name": "心魔幻境・青雲鎮", "width": 1000, "color": "#4a2232", "tags": ["illusion"], "points": { "pt.memory_square": 500 } },
+  "chunk.illusion_arena": { "name": "心魔幻境・血月台", "width": 900, "color": "#5a1a24", "tags": ["illusion"], "points": { "pt.arena_center": 450, "pt.exit": 820 } }
+}

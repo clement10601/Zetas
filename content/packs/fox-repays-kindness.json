@@ -1,0 +1,296 @@
+{
+  "schema_version": "0.2",
+  "id": "pack.fox_repays_kindness.s001",
+  "kind": "event",
+  "meta": {
+    "title": "白狐報恩",
+    "summary": "玩家曾放過受傷的白狐，三日後夜裡在山林遇到化形的狐女，送上妖丹線索，也帶來追殺她的獵妖人。",
+    "tags": [
+      "因果",
+      "妖族",
+      "報恩",
+      "選擇"
+    ],
+    "region": "region.qingyun_foothills",
+    "author": "director",
+    "personalized_for": "save.001",
+    "tier_range": {
+      "min": "煉氣",
+      "max": "築基"
+    }
+  },
+  "trigger": {
+    "all": [
+      {
+        "type": "flag",
+        "key": "spared_white_fox",
+        "equals": true
+      },
+      {
+        "type": "days_since_flag",
+        "key": "spared_white_fox",
+        "days": 3
+      },
+      {
+        "type": "enter_map",
+        "map_tag": "forest"
+      },
+      {
+        "type": "time_of_day",
+        "in": [
+          "暮",
+          "夜"
+        ]
+      }
+    ],
+    "once": true,
+    "priority": 80,
+    "expires_after_days": 30
+  },
+  "requires_assets": [
+    {
+      "id": "npc.fox_girl",
+      "type": "sprite",
+      "fallback": "npc.generic_female_cultivator"
+    },
+    {
+      "id": "portrait.fox_girl",
+      "type": "portrait",
+      "fallback": "portrait.silhouette"
+    },
+    {
+      "id": "mob.demon_hunter",
+      "type": "sprite"
+    }
+  ],
+  "map": {
+    "base_map": "map.qingyun_forest_02",
+    "chunks": [
+      {
+        "chunk": "chunk.qingyun_road",
+        "order": 0
+      },
+      {
+        "chunk": "chunk.forest_clearing_a",
+        "order": 1
+      }
+    ],
+    "spawn": "pt.clearing_left",
+    "points": [
+      "pt.clearing_left",
+      "pt.clearing_center",
+      "pt.clearing_right"
+    ],
+    "ambience": "霧"
+  },
+  "actors": [
+    {
+      "id": "fox",
+      "template": "npc.fox_girl",
+      "name": "白蘅",
+      "title": "青丘遺狐",
+      "disposition": "friendly",
+      "spawn_at": "pt.clearing_center",
+      "persona": "三日前被玩家放走的白狐化形。說話輕柔帶點狡黠，對人類戒心重，但對玩家心懷感激。知道附近有一處妖丹洞府。",
+      "memory_key": "npc.baiheng"
+    },
+    {
+      "id": "hunter",
+      "template": "mob.demon_hunter",
+      "name": "獵妖人",
+      "title": "鎮妖司",
+      "disposition": "hostile",
+      "power": 1.2,
+      "spawn_at": "pt.clearing_right",
+      "spawn": "on_effect"
+    }
+  ],
+  "dialogue": {
+    "entry": "d1",
+    "nodes": {
+      "d1": {
+        "speaker": "fox",
+        "text": "恩公，三日前山崖下，是你放了我一命。",
+        "live_rewrite": true,
+        "next": "d2"
+      },
+      "d2": {
+        "speaker": "fox",
+        "text": "我無以為報，只知道東邊石洞裡藏著一枚無主妖丹。",
+        "live_rewrite": true,
+        "next": "d3"
+      },
+      "d3": {
+        "speaker": "hunter",
+        "text": "原來躲在這裡！小子，閃開，這狐妖歸鎮妖司處置。",
+        "effects": [
+          {
+            "type": "spawn_actor",
+            "actor": "hunter"
+          }
+        ],
+        "next": "d4"
+      },
+      "d4": {
+        "speaker": "narrator",
+        "text": "獵妖人拔刀逼近，白蘅退到你身後。",
+        "choices": [
+          {
+            "text": "護住白蘅",
+            "next": "d_protect",
+            "effects": [
+              {
+                "type": "add_karma",
+                "axis": "仁殺",
+                "delta": 5
+              }
+            ]
+          },
+          {
+            "text": "讓開，不插手",
+            "next": "d_step_aside",
+            "effects": [
+              {
+                "type": "change_relation",
+                "npc": "npc.baiheng",
+                "delta": -30
+              }
+            ]
+          },
+          {
+            "text": "親手擒下狐妖交給鎮妖司",
+            "next": "d_betray",
+            "show_if": [
+              {
+                "type": "karma",
+                "axis": "正邪",
+                "op": ">=",
+                "value": 30
+              }
+            ]
+          }
+        ]
+      },
+      "d_protect": {
+        "speaker": "player",
+        "text": "她是我放走的，要動她，先問過我。"
+      },
+      "d_step_aside": {
+        "speaker": "fox",
+        "text": "……原來人類終究都一樣。",
+        "effects": [
+          {
+            "type": "end_pack",
+            "result": "abandon"
+          }
+        ]
+      },
+      "d_betray": {
+        "speaker": "fox",
+        "text": "你！",
+        "effects": [
+          {
+            "type": "add_karma",
+            "axis": "正邪",
+            "delta": 10
+          },
+          {
+            "type": "add_karma",
+            "axis": "仁殺",
+            "delta": -10
+          },
+          {
+            "type": "end_pack",
+            "result": "fail"
+          }
+        ]
+      }
+    }
+  },
+  "stages": [
+    {
+      "id": "s1",
+      "objective": "聽白蘅說話",
+      "complete_when": [
+        {
+          "type": "dialogue_reached",
+          "node": "d_protect"
+        }
+      ],
+      "on_enter": [
+        {
+          "type": "start_dialogue",
+          "node": "d1"
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "objective": "擊退獵妖人",
+      "complete_when": [
+        {
+          "type": "actor_defeated",
+          "actor": "hunter"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "on_complete": [
+      {
+        "type": "change_relation",
+        "npc": "npc.baiheng",
+        "delta": 25
+      },
+      {
+        "type": "remember",
+        "npc": "npc.baiheng",
+        "text": "恩公為我與鎮妖司動手。"
+      },
+      {
+        "type": "set_flag",
+        "key": "baiheng_ally",
+        "value": true
+      },
+      {
+        "type": "give_loot",
+        "loot_table": "loot.yao_dan_cave",
+        "tier": "rare"
+      },
+      {
+        "type": "request_followup",
+        "hint": "鎮妖司記下玩家，之後在城中刁難；白蘅可能再出現求助或報信。",
+        "after_days": 5
+      }
+    ],
+    "on_fail": [
+      {
+        "type": "set_flag",
+        "key": "baiheng_captured",
+        "value": true
+      },
+      {
+        "type": "give_loot",
+        "loot_table": "loot.zhenyao_bounty",
+        "tier": "common"
+      },
+      {
+        "type": "request_followup",
+        "hint": "青丘狐族得知白蘅被擒，對玩家結下仇怨。",
+        "after_days": 7
+      }
+    ],
+    "on_abandon": [
+      {
+        "type": "remember",
+        "npc": "npc.baiheng",
+        "text": "那個人類袖手旁觀。"
+      },
+      {
+        "type": "request_followup",
+        "hint": "白蘅下落不明，可能日後以敵對身分出現。",
+        "after_days": 10
+      }
+    ]
+  }
+}
