@@ -106,6 +106,8 @@ var player: CharacterBody2D
 var points: Dictionary = {}       # point id -> x
 var map_width := 0.0
 var chunk_x: Dictionary = {}      # chunk id -> 地圖上的起點 x
+var chunk_spans: Array = []       # [{x0, x1, tags}]：氛圍粒子依玩家所在的區塊切換
+var _ambience_span := -1
 var portals: Array = []           # 落腳地圖兩端的傳送點 {x, to, view}
 var residents: Dictionary = {}    # 常駐 NPC id -> {view, info, said}
 var caches: Dictionary = {}       # 這張地圖上還沒拿的寶物 id -> {view, info}
@@ -321,6 +323,8 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	move_child(level, 0)
 	points.clear()
 	chunk_x.clear()
+	chunk_spans = []
+	_ambience_span = -1
 	camera_zones = []
 	portals = []
 	residents.clear()
@@ -353,6 +357,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		level.add_child(bg)
 		backgrounds.append({"id": entry["chunk"], "x": x, "width": width, "tex": tex, "tags": info.get("tags", [])})
 		chunk_x[entry["chunk"]] = x
+		chunk_spans.append({"x0": x, "x1": x + width, "tags": info.get("tags", [])})
 		if info.has("camera"):
 			var cz: Dictionary = info["camera"]
 			var zone := {"x0": x + float(cz.get("x0", 0)), "x1": x + float(cz.get("x1", width)), "zoom": float(cz.get("zoom", 0.9))}
@@ -404,8 +409,10 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		level.add_child(_edge_mist(0.0 if side < 0 else x, side))
 	level.add_child(ground)
 	map_width = x
-	_set_ambience(tags)
-	Scenery.add_layers(level, FLOOR_Y, tags, hash(ordered.map(func(e): return e["chunk"])))
+	# 落腳地圖會串起不同區塊（林間、石洞、獸穴）：景深層照第一個區塊的樣子，氛圍粒子跟著玩家所在的區塊換
+	var look_tags: Array = chunk_spans[0]["tags"] if not chunk_spans.is_empty() else tags
+	_set_ambience(look_tags)
+	Scenery.add_layers(level, FLOOR_Y, look_tags, hash(ordered.map(func(e): return e["chunk"])))
 	state.map_tags = tags
 	if audio != null:
 		audio.play_music(audio.music_key(state.region, tags), state.region)
@@ -486,6 +493,17 @@ func _chunk_ground_tone(b: Dictionary) -> Color:
 
 ## 氛圍粒子：依地圖標籤飄落葉、花瓣、洞裡的浮塵、心魔幻境的餘燼。粒子掛在鏡頭上、用世界座標，
 ## 所以走動時會自然被拋在後面。
+## 玩家走進另一個區塊時換氛圍粒子（洞裡是浮塵、山上是落葉）
+func _update_ambience() -> void:
+	for i in chunk_spans.size():
+		var span: Dictionary = chunk_spans[i]
+		if player.position.x >= span["x0"] and player.position.x < span["x1"]:
+			if i != _ambience_span:
+				_ambience_span = i
+				_set_ambience(span["tags"])
+			return
+
+
 func _set_ambience(tags: Array) -> void:
 	if ambience == null:
 		ambience = CPUParticles2D.new()
@@ -1590,6 +1608,7 @@ func _process(delta: float) -> void:
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	player_invuln = maxf(0.0, player_invuln - delta)
 	player.camera_zone = active_camera_zone()
+	_update_ambience()
 	# 受傷後無敵時閃爍
 	player.modulate.a = 0.35 if player_invuln > 0.0 and fmod(player_invuln, 0.14) < 0.07 else 1.0
 	audio.set_mood(absf(player.velocity.x) > 10.0 or player.climbing, in_danger(), dialogue_panel.visible, delta)
