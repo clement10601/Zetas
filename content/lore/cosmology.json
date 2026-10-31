@@ -4,96 +4,311 @@
     "name": "仙",
     "kind": "faction",
     "summary": "修道而長生的人。古書裡的仙是可以學成的：服食、導引、煉丹，分天仙、地仙、尸解仙。遊戲的仙緣線偏「得」：遺府、靈獸、天材地寶。",
-    "basis": {"source": "src.baopuzi", "note": "《抱朴子內篇·論仙》主張仙可學致；《列仙傳》收錄早期仙人。"},
-    "tags": ["仙緣", "長生", "飛升"],
-    "hooks": {"fate": "xian", "uses": ["勢力", "緣分"], "idea": "仙緣事件取材：蓬萊、崑崙、鳳皇、鸞鳥、玉膏。"}
+    "basis": {
+      "source": "src.baopuzi",
+      "note": "《抱朴子內篇·論仙》主張仙可學致；《列仙傳》收錄早期仙人。"
+    },
+    "tags": [
+      "仙緣",
+      "長生",
+      "飛升"
+    ],
+    "hooks": {
+      "fate": "xian",
+      "uses": [
+        "勢力",
+        "緣分"
+      ],
+      "idea": "仙緣事件取材：蓬萊、崑崙、鳳皇、鸞鳥、玉膏。",
+      "request_tags": [
+        "fate_xian"
+      ]
+    }
   },
   "lore.faction.mo": {
     "name": "魔",
     "kind": "faction",
     "summary": "「魔」字是梵語魔羅（māra）的譯音，佛經裡是擾亂修行、奪人慧命者，有煩惱魔、五陰魔、死魔、天魔四種。道教借用，指阻礙修道的邪力。小說的魔道是走捷徑、以殺伐取力的修行。遊戲魔緣線偏「取」。",
-    "basis": {"source": "src.xinjing", "note": "魔為佛教譯詞；四魔之說見大乘論書。"},
-    "tags": ["魔緣", "心魔", "捷徑"],
-    "hooks": {"fate": "mo", "uses": ["勢力", "緣分"], "idea": "魔緣事件取材：窮奇、狍鴞、相繇、共工殘魂。魔不一定是惡：魔緣線也要有善惡難斷的選擇。"}
+    "basis": {
+      "source": "src.xinjing",
+      "note": "魔為佛教譯詞；四魔之說見大乘論書。"
+    },
+    "tags": [
+      "魔緣",
+      "心魔",
+      "捷徑"
+    ],
+    "hooks": {
+      "fate": "mo",
+      "uses": [
+        "勢力",
+        "緣分"
+      ],
+      "idea": "魔緣事件取材：窮奇、狍鴞、相繇、共工殘魂。魔不一定是惡：魔緣線也要有善惡難斷的選擇。",
+      "request_tags": [
+        "fate_mo"
+      ]
+    }
   },
   "lore.faction.fo": {
     "name": "佛",
     "kind": "faction",
     "summary": "覺悟者。佛門不求長生而求解脫，看破色空、放下執念。遊戲的佛緣線是仙魔之外的第三條路：放下、渡化、了結因果。",
-    "quote": {"text": "色不異空，空不異色，色即是空，空即是色。", "source": "src.xinjing", "chapter": "", "verified": false},
-    "tags": ["佛緣", "放下", "渡化"],
-    "hooks": {"fate": "fo", "planned_regions": ["region.thousand_buddha", "region.lingshan"], "uses": ["勢力", "緣分"], "idea": "佛緣事件取材：精衛的執念、女魃的放逐、心魔試煉的「放下」選項。"}
+    "quote": {
+      "text": "色不異空，空不異色，色即是空，空即是色。",
+      "source": "src.xinjing",
+      "chapter": "",
+      "verified": false
+    },
+    "tags": [
+      "佛緣",
+      "放下",
+      "渡化"
+    ],
+    "hooks": {
+      "fate": "fo",
+      "planned_regions": [
+        "region.thousand_buddha",
+        "region.lingshan"
+      ],
+      "uses": [
+        "勢力",
+        "緣分"
+      ],
+      "idea": "佛緣事件取材：精衛的執念、女魃的放逐、心魔試煉的「放下」選項。",
+      "request_tags": [
+        "fate_fo"
+      ]
+    }
   },
   "lore.concept.wuzhangai": {
     "name": "心無罣礙",
     "kind": "concept",
     "summary": "心裡沒有牽掛障礙，就沒有恐懼，遠離顛倒夢想。心魔試煉中「放下」選項的依據。",
-    "quote": {"text": "心無罣礙，無罣礙故，無有恐怖，遠離顛倒夢想，究竟涅槃。", "source": "src.xinjing", "chapter": "", "verified": false},
-    "tags": ["心魔", "放下", "破幻"],
-    "hooks": {"fate": "fo", "uses": ["心魔", "對話"], "idea": "佛心分支：心魔試煉多一個選項，唸出這句即可不戰而散。"}
+    "quote": {
+      "text": "心無罣礙，無罣礙故，無有恐怖，遠離顛倒夢想，究竟涅槃。",
+      "source": "src.xinjing",
+      "chapter": "",
+      "verified": false
+    },
+    "tags": [
+      "心魔",
+      "放下",
+      "破幻"
+    ],
+    "hooks": {
+      "fate": "fo",
+      "uses": [
+        "心魔",
+        "對話"
+      ],
+      "idea": "佛心分支：心魔試煉多一個選項，唸出這句即可不戰而散。",
+      "request_tags": [
+        "fate_fo"
+      ]
+    }
   },
   "lore.concept.menghuan": {
     "name": "如夢幻泡影",
     "kind": "concept",
     "summary": "一切因緣造作的事物，都像夢、幻、泡、影、露、電，應當這樣看待。看破幻境的用語。",
-    "quote": {"text": "一切有為法，如夢幻泡影，如露亦如電，應作如是觀。", "source": "src.jingangjing", "chapter": "", "verified": false},
-    "tags": ["幻境", "破執"],
-    "hooks": {"uses": ["事件", "秘境"], "idea": "幻境秘境的出口條件：承認眼前是幻。"}
+    "quote": {
+      "text": "一切有為法，如夢幻泡影，如露亦如電，應作如是觀。",
+      "source": "src.jingangjing",
+      "chapter": "",
+      "verified": false
+    },
+    "tags": [
+      "幻境",
+      "破執"
+    ],
+    "hooks": {
+      "uses": [
+        "事件",
+        "秘境"
+      ],
+      "idea": "幻境秘境的出口條件：承認眼前是幻。"
+    }
   },
   "lore.faction.yao_fox": {
     "name": "狐修",
     "kind": "faction",
     "summary": "《玄中記》說狐五十歲能變化成婦人，百歲成美女、神巫，或變丈夫與女人交合，能知千里外的事，善於蠱惑；千歲與天相通，成為天狐。妖修行而化形、通天的典型。",
-    "quote": {"text": "狐五十歲，能變化為婦人；百歲為美女，為神巫，或為丈夫與女人交接，能知千里外事，善蠱魅，使人迷惑失智；千歲即與天通，為天狐。", "source": "src.xuanzhongji", "chapter": "", "verified": false},
-    "tags": ["狐", "妖", "化形", "天狐"],
-    "hooks": {"regions": ["region.qingyun_foothills"], "actor": "npc.fox_girl", "uses": ["勢力", "角色"], "idea": "青丘狐族的境界：五十歲化形、百歲成美女、千歲天狐。白蘅可設定為剛過百歲，正卡在成仙還是入魔的路口。"}
+    "quote": {
+      "text": "狐五十歲，能變化為婦人；百歲為美女，為神巫，或為丈夫與女人交接，能知千里外事，善蠱魅，使人迷惑失智；千歲即與天通，為天狐。",
+      "source": "src.xuanzhongji",
+      "chapter": "",
+      "verified": false
+    },
+    "tags": [
+      "狐",
+      "妖",
+      "化形",
+      "天狐"
+    ],
+    "hooks": {
+      "regions": [
+        "region.qingyun_foothills"
+      ],
+      "actor": "npc.fox_girl",
+      "uses": [
+        "勢力",
+        "角色"
+      ],
+      "idea": "青丘狐族的境界：五十歲化形、百歲成美女、千歲天狐。白蘅可設定為剛過百歲，正卡在成仙還是入魔的路口。"
+    }
   },
   "lore.faction.gui": {
     "name": "鬼",
     "kind": "faction",
     "summary": "人死為鬼。《山海經》已有群鬼依類聚居恒山四層的記載。後世道教有酆都、冥府審判，佛教有地獄與輪迴。",
-    "basis": {"source": "src.shanhaijing", "note": "西山經「東望恒山四成，有窮鬼居之，各在一搏」（見 lore.place.hengshan_ghosts）。"},
-    "tags": ["鬼", "冥府", "輪迴"],
-    "hooks": {"planned_regions": ["region.ghost_city", "region.blood_sea"], "fate": "mo", "uses": ["勢力", "怪物"], "idea": "鬼市的居民；死在玩家手下的 NPC 可能以鬼的身分再出現，延續因果。"}
+    "basis": {
+      "source": "src.shanhaijing",
+      "note": "西山經「東望恒山四成，有窮鬼居之，各在一搏」（見 lore.place.hengshan_ghosts）。"
+    },
+    "tags": [
+      "鬼",
+      "冥府",
+      "輪迴"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.ghost_city",
+        "region.blood_sea"
+      ],
+      "fate": "mo",
+      "uses": [
+        "勢力",
+        "怪物"
+      ],
+      "idea": "鬼市的居民；死在玩家手下的 NPC 可能以鬼的身分再出現，延續因果。",
+      "request_tags": [
+        "fate_mo"
+      ]
+    }
   },
   "lore.myth.nvwa": {
     "name": "女媧補天",
     "kind": "myth",
     "summary": "遠古時四根天柱崩壞，九州裂開，天不能全覆，地不能全載，大火洪水不止，猛獸吃人。女媧煉五色石補天，斬巨鼇的腳立為四極。",
-    "quote": {"text": "往古之時，四極廢，九州裂，天不兼覆，地不周載。", "source": "src.huainanzi", "chapter": "覽冥訓", "verified": false},
-    "tags": ["創世", "天柱", "五色石"],
-    "hooks": {"planned_regions": ["region.kunlun_ruins"], "tier_min": "大乘", "uses": ["主線", "掉落"], "idea": "終局主線的伏筆：天柱（不周山）又要斷了。五色石是渡劫前的天材地寶。"}
+    "quote": {
+      "text": "往古之時，四極廢，九州裂，天不兼覆，地不周載。",
+      "source": "src.huainanzi",
+      "chapter": "覽冥訓",
+      "verified": false
+    },
+    "tags": [
+      "創世",
+      "天柱",
+      "五色石"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.kunlun_ruins"
+      ],
+      "tier_min": "大乘",
+      "uses": [
+        "主線",
+        "掉落"
+      ],
+      "idea": "終局主線的伏筆：天柱（不周山）又要斷了。五色石是渡劫前的天材地寶。"
+    }
   },
   "lore.myth.kunpeng": {
     "name": "鯤鵬",
     "kind": "myth",
     "summary": "北海有大魚叫鯤，大到不知有幾千里，化成鳥叫鵬。逍遙的象徵，也是「化形」的最高範例。",
-    "quote": {"text": "北冥有魚，其名為鯤。鯤之大，不知其幾千里也。化而為鳥，其名為鵬。", "source": "src.zhuangzi", "chapter": "逍遙遊", "verified": false},
-    "tags": ["化形", "逍遙", "北海"],
-    "hooks": {"tier_min": "渡劫", "uses": ["傳說", "首領"], "idea": "飛升前最後的引路者或考驗。"}
+    "quote": {
+      "text": "北冥有魚，其名為鯤。鯤之大，不知其幾千里也。化而為鳥，其名為鵬。",
+      "source": "src.zhuangzi",
+      "chapter": "逍遙遊",
+      "verified": false
+    },
+    "tags": [
+      "化形",
+      "逍遙",
+      "北海"
+    ],
+    "hooks": {
+      "tier_min": "渡劫",
+      "uses": [
+        "傳說",
+        "首領"
+      ],
+      "idea": "飛升前最後的引路者或考驗。"
+    }
   },
   "lore.immortal.chisongzi": {
     "name": "赤松子",
     "kind": "immortal",
     "summary": "神農時的雨師，服食水玉並傳給神農，能入火自焚而不死。常到崑崙山，住在西王母的石室，隨風雨上下。",
-    "quote": {"text": "赤松子者，神農時雨師也。服水玉以教神農，能入火自燒。", "source": "src.liexianzhuan", "chapter": "赤松子", "verified": false},
-    "tags": ["仙人", "雨師", "服食", "水玉"],
-    "hooks": {"tier_min": "金丹", "fate": "xian", "uses": ["角色", "事件"], "idea": "散仙 NPC 的原型。郭璞注《南山經》也提到赤松子服水玉（水晶），可當服食類丹藥的出處。"}
+    "quote": {
+      "text": "赤松子者，神農時雨師也。服水玉以教神農，能入火自燒。",
+      "source": "src.liexianzhuan",
+      "chapter": "赤松子",
+      "verified": false
+    },
+    "tags": [
+      "仙人",
+      "雨師",
+      "服食",
+      "水玉"
+    ],
+    "hooks": {
+      "tier_min": "金丹",
+      "fate": "xian",
+      "uses": [
+        "角色",
+        "事件"
+      ],
+      "idea": "散仙 NPC 的原型。郭璞注《南山經》也提到赤松子服水玉（水晶），可當服食類丹藥的出處。",
+      "request_tags": [
+        "fate_xian"
+      ]
+    }
   },
   "lore.faction.chanjie": {
     "name": "闡教與截教",
     "kind": "faction",
     "summary": "《封神演義》的兩大仙門，同出鴻鈞道人門下。闡教元始天尊門下多是人身修道者，截教通天教主門下廣收妖獸草木成精者，主張有教無類。兩教因封神之劫大戰，截教落敗。",
-    "basis": {"source": "src.fengshen", "note": "明代小說設定，人物、門派、法寶皆可借用。"},
-    "tags": ["仙門", "封神", "人妖之辨"],
-    "hooks": {"uses": ["勢力", "主線"], "idea": "青雲宗與青丘狐族的矛盾可借闡截之爭：妖能不能修正道。不必照搬名號，借的是「人妖之辨」這個衝突。"}
+    "basis": {
+      "source": "src.fengshen",
+      "note": "明代小說設定，人物、門派、法寶皆可借用。"
+    },
+    "tags": [
+      "仙門",
+      "封神",
+      "人妖之辨"
+    ],
+    "hooks": {
+      "uses": [
+        "勢力",
+        "主線"
+      ],
+      "idea": "青雲宗與青丘狐族的矛盾可借闡截之爭：妖能不能修正道。不必照搬名號，借的是「人妖之辨」這個衝突。"
+    }
   },
   "lore.god.siming": {
     "name": "司命與奪算",
     "kind": "god",
     "summary": "《太上感應篇》說天地有司過之神，依人所犯輕重奪其壽算；三台北斗神君在人頭上記錄罪惡，三尸、灶神也會上告。善惡最後都會算到壽命上。",
-    "quote": {"text": "天地有司過之神，依人所犯輕重，以奪人算。", "source": "src.ganyingpian", "chapter": "", "verified": false},
-    "tags": ["因果", "壽元", "天曹"],
-    "hooks": {"uses": ["系統", "事件"], "idea": "壽元系統：大惡事扣壽元，壽元不足時突破更難。司命星君可做天劫前的審判者。"}
+    "quote": {
+      "text": "天地有司過之神，依人所犯輕重，以奪人算。",
+      "source": "src.ganyingpian",
+      "chapter": "",
+      "verified": false
+    },
+    "tags": [
+      "因果",
+      "壽元",
+      "天曹"
+    ],
+    "hooks": {
+      "uses": [
+        "系統",
+        "事件"
+      ],
+      "idea": "壽元系統：大惡事扣壽元，壽元不足時突破更難。司命星君可做天劫前的審判者。"
+    }
   }
 }

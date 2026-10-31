@@ -5,130 +5,353 @@
     "kind": "realm",
     "tier": "煉氣",
     "summary": "吐納導引，把散亂的氣收攝起來。內丹家說「煉精化氣」是第一步。古書裡的導引吐納原是養生延壽的法子。",
-    "quote": {"text": "吹呴呼吸，吐故納新，熊經鳥申，為壽而已矣。", "source": "src.zhuangzi", "chapter": "刻意", "verified": false},
-    "basis": {"source": "src.wuzhenpian", "note": "內丹以煉精化氣為初關。"},
-    "tags": ["吐納", "導引", "入門"],
-    "hooks": {"uses": ["境界", "技能"], "idea": "打坐（M）的說法用吐納；功法選擇事件裡師父可引莊子這句提醒「只為長壽就停在這裡了」。"}
+    "quote": {
+      "text": "吹呴呼吸，吐故納新，熊經鳥申，為壽而已矣。",
+      "source": "src.zhuangzi",
+      "chapter": "刻意",
+      "verified": false
+    },
+    "basis": {
+      "source": "src.wuzhenpian",
+      "note": "內丹以煉精化氣為初關。"
+    },
+    "tags": [
+      "吐納",
+      "導引",
+      "入門"
+    ],
+    "hooks": {
+      "uses": [
+        "境界",
+        "技能"
+      ],
+      "idea": "打坐（M）的說法用吐納；功法選擇事件裡師父可引莊子這句提醒「只為長壽就停在這裡了」。"
+    }
   },
   "lore.realm.zhuji": {
     "name": "築基",
     "kind": "realm",
     "tier": "築基",
     "summary": "內丹家講「百日築基」：先補足精氣、穩住身體這座爐鼎，才能結丹。遊戲裡是第一道大關，突破時遇到第一個心魔。",
-    "basis": {"source": "src.wuzhenpian", "note": "「築基」是內丹修煉補足精氣的階段，常說百日築基。"},
-    "tags": ["爐鼎", "根基", "第一關"],
-    "hooks": {"uses": ["境界", "心魔"], "idea": "築基心魔可問「根基」：你修道是為了什麼。"}
+    "basis": {
+      "source": "src.wuzhenpian",
+      "note": "「築基」是內丹修煉補足精氣的階段，常說百日築基。"
+    },
+    "tags": [
+      "爐鼎",
+      "根基",
+      "第一關"
+    ],
+    "hooks": {
+      "uses": [
+        "境界",
+        "心魔"
+      ],
+      "idea": "築基心魔可問「根基」：你修道是為了什麼。"
+    }
   },
   "lore.realm.jindan": {
     "name": "金丹",
     "kind": "realm",
     "tier": "金丹",
     "summary": "葛洪說金丹越燒越妙，黃金百煉不消，服之可不老不死；這是外丹。內丹家把它轉成在體內凝結的「金丹」，即結丹。",
-    "quote": {"text": "夫金丹之為物，燒之愈久，變化愈妙。黃金入火，百鍊不消，埋之，畢天不朽。服此二物，鍊人身體，故能令人不老不死。", "source": "src.baopuzi", "chapter": "金丹", "verified": false},
-    "basis": {"source": "src.wuzhenpian", "note": "內丹以結丹為中關。"},
-    "tags": ["結丹", "外丹", "內丹"],
-    "hooks": {"uses": ["境界", "掉落", "事件"], "idea": "金丹期可開放煉丹（外丹）玩法；丹爐、丹砂、黃金都是材料。"}
+    "quote": {
+      "text": "夫金丹之為物，燒之愈久，變化愈妙。黃金入火，百鍊不消，埋之，畢天不朽。服此二物，鍊人身體，故能令人不老不死。",
+      "source": "src.baopuzi",
+      "chapter": "金丹",
+      "verified": false
+    },
+    "basis": {
+      "source": "src.wuzhenpian",
+      "note": "內丹以結丹為中關。"
+    },
+    "tags": [
+      "結丹",
+      "外丹",
+      "內丹"
+    ],
+    "hooks": {
+      "uses": [
+        "境界",
+        "掉落",
+        "事件"
+      ],
+      "idea": "金丹期可開放煉丹（外丹）玩法；丹爐、丹砂、黃金都是材料。"
+    }
   },
   "lore.realm.yuanying": {
     "name": "元嬰",
     "kind": "realm",
     "tier": "元嬰",
     "summary": "內丹家說丹成之後溫養「聖胎」，像懷胎十月，生出「嬰兒」，即陽神，可以離開肉身。小說叫元嬰，肉身毀了元嬰還能逃。",
-    "basis": {"source": "src.wuzhenpian", "note": "內丹以結胎、出神為上關；嬰兒、聖胎是丹經常用比喻。"},
-    "tags": ["聖胎", "陽神", "出竅"],
-    "hooks": {"uses": ["境界", "技能"], "idea": "元嬰出竅可做成一種身法：靈體穿過肉身過不去的地方。"}
+    "basis": {
+      "source": "src.wuzhenpian",
+      "note": "內丹以結胎、出神為上關；嬰兒、聖胎是丹經常用比喻。"
+    },
+    "tags": [
+      "聖胎",
+      "陽神",
+      "出竅"
+    ],
+    "hooks": {
+      "uses": [
+        "境界",
+        "技能"
+      ],
+      "idea": "元嬰出竅可做成一種身法：靈體穿過肉身過不去的地方。"
+    }
   },
   "lore.realm.huashen": {
     "name": "化神",
     "kind": "realm",
     "tier": "化神",
     "summary": "內丹「煉氣化神」：氣歸於神，神識大開。遊戲裡可感應天地、看見因果線。",
-    "basis": {"source": "src.wuzhenpian", "note": "內丹三關：煉精化氣、煉氣化神、煉神還虛。"},
-    "tags": ["神識", "還虛"],
-    "hooks": {"uses": ["境界", "介面"], "idea": "化神後介面可顯示 NPC 對玩家的因果（記仇、記恩）。"}
+    "basis": {
+      "source": "src.wuzhenpian",
+      "note": "內丹三關：煉精化氣、煉氣化神、煉神還虛。"
+    },
+    "tags": [
+      "神識",
+      "還虛"
+    ],
+    "hooks": {
+      "uses": [
+        "境界",
+        "介面"
+      ],
+      "idea": "化神後介面可顯示 NPC 對玩家的因果（記仇、記恩）。"
+    }
   },
   "lore.realm.heti": {
     "name": "合體",
     "kind": "realm",
     "tier": "合體",
     "summary": "古書沒有這個境界，是後世小說的設定。可借道教常說的「形神俱妙，與道合真」解釋：肉身與元神合而為一。",
-    "basis": {"source": "src.wuzhenpian", "note": "後世小說設定；內丹講性命雙修、形神俱妙，可借來解釋。"},
-    "tags": ["形神合一", "後世設定"],
-    "hooks": {"uses": ["境界"], "idea": "合體後肉身與元嬰不再分離，失去出竅身法，換來不死不滅的肉身。"}
+    "basis": {
+      "source": "src.wuzhenpian",
+      "note": "後世小說設定；內丹講性命雙修、形神俱妙，可借來解釋。"
+    },
+    "tags": [
+      "形神合一",
+      "後世設定"
+    ],
+    "hooks": {
+      "uses": [
+        "境界"
+      ],
+      "idea": "合體後肉身與元嬰不再分離，失去出竅身法，換來不死不滅的肉身。"
+    }
   },
   "lore.realm.dacheng": {
     "name": "大乘",
     "kind": "realm",
     "tier": "大乘",
     "summary": "「大乘」原是佛教用語（大車乘，普度眾生），小說借來指飛升前的圓滿境界。遊戲裡可用來呼應佛緣：到此境界要渡人，不只渡己。",
-    "basis": {"source": "src.jingangjing", "note": "佛教大乘之名；修仙境界的用法是後世小說的借用。"},
-    "tags": ["圓滿", "佛教借詞", "渡人"],
-    "hooks": {"fate": "fo", "uses": ["境界", "事件"], "idea": "大乘突破條件可要求「渡化」過若干 NPC。"}
+    "basis": {
+      "source": "src.jingangjing",
+      "note": "佛教大乘之名；修仙境界的用法是後世小說的借用。"
+    },
+    "tags": [
+      "圓滿",
+      "佛教借詞",
+      "渡人"
+    ],
+    "hooks": {
+      "fate": "fo",
+      "uses": [
+        "境界",
+        "事件"
+      ],
+      "idea": "大乘突破條件可要求「渡化」過若干 NPC。",
+      "request_tags": [
+        "fate_fo"
+      ]
+    }
   },
   "lore.realm.dujie": {
     "name": "渡劫",
     "kind": "realm",
     "tier": "渡劫",
     "summary": "「劫」來自佛教的劫波（極長的時間與毀壞），道教借用為天地的災厄。小說的天劫、雷劫是飛升前的考驗。遊戲終局在雷池。",
-    "basis": {"source": "src.jingangjing", "note": "劫是佛教詞；雷劫、天劫是後世小說設定。"},
-    "tags": ["天劫", "雷劫", "終局"],
-    "hooks": {"planned_regions": ["region.thunder_pool"], "uses": ["境界", "首領"], "idea": "雷劫的每一道雷，是玩家一路上做過的一件惡事或善事。"}
+    "basis": {
+      "source": "src.jingangjing",
+      "note": "劫是佛教詞；雷劫、天劫是後世小說設定。"
+    },
+    "tags": [
+      "天劫",
+      "雷劫",
+      "終局"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.thunder_pool"
+      ],
+      "uses": [
+        "境界",
+        "首領"
+      ],
+      "idea": "雷劫的每一道雷，是玩家一路上做過的一件惡事或善事。"
+    }
   },
   "lore.concept.xian_grades": {
     "name": "天仙、地仙、尸解仙",
     "kind": "concept",
     "summary": "葛洪引仙經：上士連肉身升天，叫天仙；中士遊於名山，叫地仙；下士先死後像蟬蛻一樣脫去肉身，叫尸解仙。",
-    "quote": {"text": "按仙經云：上士舉形昇虛，謂之天仙；中士遊於名山，謂之地仙；下士先死後蛻，謂之尸解仙。", "source": "src.baopuzi", "chapter": "論仙", "verified": false},
-    "tags": ["仙", "飛升", "尸解"],
-    "hooks": {"uses": ["結局", "角色"], "idea": "可做三種結局：飛升（天仙）、留在人間守護（地仙）、肉身死去但道果留存（尸解）。散仙 NPC 多是地仙。"}
+    "quote": {
+      "text": "按仙經云：上士舉形昇虛，謂之天仙；中士遊於名山，謂之地仙；下士先死後蛻，謂之尸解仙。",
+      "source": "src.baopuzi",
+      "chapter": "論仙",
+      "verified": false
+    },
+    "tags": [
+      "仙",
+      "飛升",
+      "尸解"
+    ],
+    "hooks": {
+      "uses": [
+        "結局",
+        "角色"
+      ],
+      "idea": "可做三種結局：飛升（天仙）、留在人間守護（地仙）、肉身死去但道果留存（尸解）。散仙 NPC 多是地仙。"
+    }
   },
   "lore.concept.sanshi": {
     "name": "三尸",
     "kind": "concept",
     "summary": "道教說人身中有三尸神，盼人早死好去享祭，每逢庚申日上天向司命告發人的過失，司命據此削減壽命。修道者在庚申夜不睡「守庚申」。",
-    "quote": {"text": "又有三尸神，在人身中，每到庚申日，輒上詣天曹，言人罪過。", "source": "src.ganyingpian", "chapter": "", "verified": false},
-    "basis": {"source": "src.baopuzi", "note": "《抱朴子內篇·微旨》也記三尸庚申上天白司命。"},
-    "tags": ["因果", "司命", "庚申", "心魔"],
-    "hooks": {"uses": ["事件", "系統"], "idea": "每 60 天一個庚申夜：玩家可選擇守夜（打坐不睡）壓下近期惡行的影響，或睡去，讓三尸把惡行報上去（之後的心魔與天劫變強）。"}
+    "quote": {
+      "text": "又有三尸神，在人身中，每到庚申日，輒上詣天曹，言人罪過。",
+      "source": "src.ganyingpian",
+      "chapter": "",
+      "verified": false
+    },
+    "basis": {
+      "source": "src.baopuzi",
+      "note": "《抱朴子內篇·微旨》也記三尸庚申上天白司命。"
+    },
+    "tags": [
+      "因果",
+      "司命",
+      "庚申",
+      "心魔"
+    ],
+    "hooks": {
+      "uses": [
+        "事件",
+        "系統"
+      ],
+      "idea": "每 60 天一個庚申夜：玩家可選擇守夜（打坐不睡）壓下近期惡行的影響，或睡去，讓三尸把惡行報上去（之後的心魔與天劫變強）。"
+    }
   },
   "lore.concept.ganying": {
     "name": "感應與報應",
     "kind": "concept",
     "summary": "禍福沒有固定的門路，都是人自己招來的；善惡的報應像影子跟著身體。這是遊戲因果系統最直接的古典說法。",
-    "quote": {"text": "禍福無門，惟人自召；善惡之報，如影隨形。", "source": "src.ganyingpian", "chapter": "", "verified": false},
-    "tags": ["因果", "善惡", "報應"],
-    "hooks": {"uses": ["系統", "對話"], "idea": "師父青玄真人的口頭禪；導演生成後續事件時的原則。"}
+    "quote": {
+      "text": "禍福無門，惟人自召；善惡之報，如影隨形。",
+      "source": "src.ganyingpian",
+      "chapter": "",
+      "verified": false
+    },
+    "tags": [
+      "因果",
+      "善惡",
+      "報應"
+    ],
+    "hooks": {
+      "uses": [
+        "系統",
+        "對話"
+      ],
+      "idea": "師父青玄真人的口頭禪；導演生成後續事件時的原則。"
+    }
   },
   "lore.concept.bigu": {
     "name": "辟穀",
     "kind": "concept",
     "summary": "不吃五穀，靠吸風飲露、服氣或靈草維生。藐姑射神人「不食五穀，吸風飲露」是最早的形象。",
-    "basis": {"source": "src.zhuangzi", "note": "逍遙遊藐姑射神人；《抱朴子》亦有斷穀之論。"},
-    "tags": ["服氣", "靈草", "閉關"],
-    "hooks": {"uses": ["系統", "掉落"], "idea": "築基後不必吃東西；閉關事件時間越長收穫越多，祝餘草可延長。"}
+    "basis": {
+      "source": "src.zhuangzi",
+      "note": "逍遙遊藐姑射神人；《抱朴子》亦有斷穀之論。"
+    },
+    "tags": [
+      "服氣",
+      "靈草",
+      "閉關"
+    ],
+    "hooks": {
+      "uses": [
+        "系統",
+        "掉落"
+      ],
+      "idea": "築基後不必吃東西；閉關事件時間越長收穫越多，祝餘草可延長。"
+    }
   },
   "lore.concept.wuxing": {
     "name": "五行",
     "kind": "concept",
     "summary": "《尚書·洪範》最早列出水火木金土五行：水向下滋潤，火向上燃燒，木可曲可直，金可熔鑄變形，土可耕種收成。後來發展出相生相剋。",
-    "quote": {"text": "一曰水，二曰火，三曰木，四曰金，五曰土。水曰潤下，火曰炎上，木曰曲直，金曰從革，土爰稼穡。", "source": "src.shangshu", "chapter": "洪範", "verified": false},
-    "tags": ["五行", "相生相剋", "術法"],
-    "hooks": {"uses": ["技能", "戰鬥"], "idea": "五行法訣的屬性相剋：水剋火、火剋金、金剋木、木剋土、土剋水。怪物標屬性，畢方屬火、旋龜屬水。"}
+    "quote": {
+      "text": "一曰水，二曰火，三曰木，四曰金，五曰土。水曰潤下，火曰炎上，木曰曲直，金曰從革，土爰稼穡。",
+      "source": "src.shangshu",
+      "chapter": "洪範",
+      "verified": false
+    },
+    "tags": [
+      "五行",
+      "相生相剋",
+      "術法"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "戰鬥"
+      ],
+      "idea": "五行法訣的屬性相剋：水剋火、火剋金、金剋木、木剋土、土剋水。怪物標屬性，畢方屬火、旋龜屬水。"
+    }
   },
   "lore.concept.three_treasures": {
     "name": "精氣神",
     "kind": "concept",
     "summary": "內丹家稱精、氣、神為人身三寶，是煉丹的藥材。修煉就是把精煉成氣、氣煉成神、神還歸虛無。",
-    "basis": {"source": "src.wuzhenpian", "note": "內丹以精氣神為藥物，三關次第。"},
-    "tags": ["三寶", "內丹", "數值"],
-    "hooks": {"uses": ["系統"], "idea": "可對應遊戲數值：精＝氣血、氣＝靈力、神＝神識（抗心魔）。"}
+    "basis": {
+      "source": "src.wuzhenpian",
+      "note": "內丹以精氣神為藥物，三關次第。"
+    },
+    "tags": [
+      "三寶",
+      "內丹",
+      "數值"
+    ],
+    "hooks": {
+      "uses": [
+        "系統"
+      ],
+      "idea": "可對應遊戲數值：精＝氣血、氣＝靈力、神＝神識（抗心魔）。"
+    }
   },
   "lore.concept.daoyi": {
     "name": "道生萬物",
     "kind": "concept",
     "summary": "道生出一，一生出二，二生出三，三生出萬物；萬物背陰向陽，陰陽二氣交沖而和。",
-    "quote": {"text": "道生一，一生二，二生三，三生萬物。萬物負陰而抱陽，沖氣以為和。", "source": "src.daodejing", "chapter": "第四十二章", "verified": false},
-    "tags": ["道", "陰陽", "宇宙觀"],
-    "hooks": {"uses": ["對話", "技能"], "idea": "青雲宗山門匾額或傳功開場白。"}
+    "quote": {
+      "text": "道生一，一生二，二生三，三生萬物。萬物負陰而抱陽，沖氣以為和。",
+      "source": "src.daodejing",
+      "chapter": "第四十二章",
+      "verified": false
+    },
+    "tags": [
+      "道",
+      "陰陽",
+      "宇宙觀"
+    ],
+    "hooks": {
+      "uses": [
+        "對話",
+        "技能"
+      ],
+      "idea": "青雲宗山門匾額或傳功開場白。"
+    }
   }
 }

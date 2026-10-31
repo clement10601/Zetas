@@ -4,128 +4,444 @@
     "name": "青丘之山",
     "kind": "place",
     "summary": "南山經第一列山的第八座，南坡多玉，北坡多青色顏料，九尾狐、灌灌、赤鱬都住在這裡。",
-    "quote": {"text": "又東三百里，曰青丘之山，其陽多玉，其陰多青雘。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
-    "tags": ["青丘", "狐", "玉"],
-    "hooks": {"regions": ["region.qingyun_foothills"], "tier_min": "煉氣", "uses": ["地圖", "勢力"], "idea": "青丘狐族的故地。可在青雲山腳深處放一處「青丘遺址」秘境。"}
+    "quote": {
+      "text": "又東三百里，曰青丘之山，其陽多玉，其陰多青雘。",
+      "source": "src.shanhaijing",
+      "chapter": "南山經",
+      "verified": true
+    },
+    "tags": [
+      "青丘",
+      "狐",
+      "玉"
+    ],
+    "hooks": {
+      "regions": [
+        "region.qingyun_foothills"
+      ],
+      "tier_min": "煉氣",
+      "uses": [
+        "地圖",
+        "勢力"
+      ],
+      "idea": "青丘狐族的故地。可在青雲山腳深處放一處「青丘遺址」秘境。"
+    }
   },
   "lore.place.zhaoyao": {
     "name": "招搖之山",
     "kind": "place",
     "summary": "南山經的第一座山，臨西海，多桂樹與金玉，長著祝餘草、迷穀樹，有狌狌。",
-    "quote": {"text": "南山經之首曰䧿山。其首曰招搖之山，臨於西海之上，多桂，多金玉。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
-    "tags": ["桂", "靈草", "起點"],
-    "hooks": {"tier_min": "煉氣", "uses": ["地圖", "秘境"], "idea": "新手秘境：桂林、發光的迷穀樹、跑得飛快的狌狌。"}
+    "quote": {
+      "text": "南山經之首曰䧿山。其首曰招搖之山，臨於西海之上，多桂，多金玉。",
+      "source": "src.shanhaijing",
+      "chapter": "南山經",
+      "verified": true
+    },
+    "tags": [
+      "桂",
+      "靈草",
+      "起點"
+    ],
+    "hooks": {
+      "tier_min": "煉氣",
+      "uses": [
+        "地圖",
+        "秘境"
+      ],
+      "idea": "新手秘境：桂林、發光的迷穀樹、跑得飛快的狌狌。"
+    }
   },
   "lore.place.danxue": {
     "name": "丹穴之山",
     "kind": "place",
     "summary": "多金玉，丹水從這裡流向渤海，是鳳皇的居所。",
-    "quote": {"text": "又東五百里，曰丹穴之山，其上多金玉。丹水出焉，而南流注于渤海。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
-    "tags": ["鳳", "丹", "仙地"],
-    "hooks": {"planned_regions": ["region.cloud_palace"], "tier_min": "元嬰", "fate": "xian", "uses": ["秘境", "事件"], "idea": "鳳皇巢穴，仙緣秘境。"}
+    "quote": {
+      "text": "又東五百里，曰丹穴之山，其上多金玉。丹水出焉，而南流注于渤海。",
+      "source": "src.shanhaijing",
+      "chapter": "南山經",
+      "verified": true
+    },
+    "tags": [
+      "鳳",
+      "丹",
+      "仙地"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.cloud_palace"
+      ],
+      "tier_min": "元嬰",
+      "fate": "xian",
+      "uses": [
+        "秘境",
+        "事件"
+      ],
+      "idea": "鳳皇巢穴，仙緣秘境。",
+      "request_tags": [
+        "fate_xian"
+      ]
+    }
   },
   "lore.place.kunlun": {
     "name": "崑崙之丘",
     "kind": "place",
     "summary": "天帝在人間的都城，陸吾看守。河水、赤水、洋水、黑水四條大河從這裡流出，多怪鳥怪獸。",
-    "quote": {"text": "河水出焉，而南流注于無逹。赤水出焉，而東南流注于氾天之水。洋水出焉，而西南流注于醜塗之水。黑水出焉，而西流于大杅。是多怪鳥獸。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["崑崙", "天帝下都", "四水"],
-    "hooks": {"planned_regions": ["region.kunlun_snow", "region.jade_pool", "region.kunlun_ruins"], "tier_min": "合體", "uses": ["地圖", "主線"], "idea": "崑崙墟大區的總設定。四條水各通往一個區塊群。"}
+    "quote": {
+      "text": "河水出焉，而南流注于無逹。赤水出焉，而東南流注于氾天之水。洋水出焉，而西南流注于醜塗之水。黑水出焉，而西流于大杅。是多怪鳥獸。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "崑崙",
+      "天帝下都",
+      "四水"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.kunlun_snow",
+        "region.jade_pool",
+        "region.kunlun_ruins"
+      ],
+      "tier_min": "合體",
+      "uses": [
+        "地圖",
+        "主線"
+      ],
+      "idea": "崑崙墟大區的總設定。四條水各通往一個區塊群。"
+    }
   },
   "lore.place.yushan": {
     "name": "玉山",
     "kind": "place",
     "summary": "西王母住的山，在崑崙以西。山上有狡（見則豐收）與胜遇（見則大水）。",
-    "quote": {"text": "又西三百五十里，曰玉山，是西王母所居也。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["西王母", "瑤池"],
-    "hooks": {"planned_regions": ["region.jade_pool"], "tier_min": "大乘", "uses": ["地圖", "主線"], "idea": "瑤池地區的原型。"}
+    "quote": {
+      "text": "又西三百五十里，曰玉山，是西王母所居也。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "西王母",
+      "瑤池"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.jade_pool"
+      ],
+      "tier_min": "大乘",
+      "uses": [
+        "地圖",
+        "主線"
+      ],
+      "idea": "瑤池地區的原型。"
+    }
   },
   "lore.place.buzhou": {
     "name": "不周之山",
     "kind": "place",
     "summary": "山形有缺口不周全，因而得名。東望泑澤，黃河在此潛流；有像桃子的嘉果，吃了不覺疲勞。傳說共工怒觸不周山，天柱折斷。",
-    "quote": {"text": "又西北三百七十里，曰不周之山。北望諸毗之山，臨彼嶽崇之山，東望泑澤，河水所潛也，其原渾渾泡泡。爰有嘉果，其實如桃，其葉如棗，黃華而赤柎，食之不勞。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["天柱", "共工", "斷裂"],
-    "hooks": {"planned_regions": ["region.kunlun_ruins"], "tier_min": "大乘", "uses": ["地圖", "傳說"], "idea": "「斷裂的天柱」就是不周山。崑崙古神遺跡的核心地標。"}
+    "quote": {
+      "text": "又西北三百七十里，曰不周之山。北望諸毗之山，臨彼嶽崇之山，東望泑澤，河水所潛也，其原渾渾泡泡。爰有嘉果，其實如桃，其葉如棗，黃華而赤柎，食之不勞。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "天柱",
+      "共工",
+      "斷裂"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.kunlun_ruins"
+      ],
+      "tier_min": "大乘",
+      "uses": [
+        "地圖",
+        "傳說"
+      ],
+      "idea": "「斷裂的天柱」就是不周山。崑崙古神遺跡的核心地標。"
+    }
   },
   "lore.place.mishan": {
     "name": "峚山",
     "kind": "place",
     "summary": "山上有丹木，吃了不饑。有玉膏湧出，黃帝以它為食；玉膏灌溉丹木，五年後五色鮮明、五味芬芳。天地鬼神都享用它，君子佩玉可以抵禦不祥。",
-    "quote": {"text": "是有玉膏，其原沸沸湯湯，黃帝是食是饗。是生玄玉。玉膏所出，以灌丹木，丹木五歲，五色乃清，五味乃馨。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["玉膏", "丹木", "天材地寶", "修煉資源"],
-    "hooks": {"planned_regions": ["region.kunlun_ruins"], "tier_min": "化神", "fate": "xian", "uses": ["掉落", "事件", "洞府"], "idea": "玉膏是突破高境界的天材地寶；丹木種子可種在洞府，五年（遊戲天數）才成熟。"}
+    "quote": {
+      "text": "是有玉膏，其原沸沸湯湯，黃帝是食是饗。是生玄玉。玉膏所出，以灌丹木，丹木五歲，五色乃清，五味乃馨。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "玉膏",
+      "丹木",
+      "天材地寶",
+      "修煉資源"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.kunlun_ruins"
+      ],
+      "tier_min": "化神",
+      "fate": "xian",
+      "uses": [
+        "掉落",
+        "事件",
+        "洞府"
+      ],
+      "idea": "玉膏是突破高境界的天材地寶；丹木種子可種在洞府，五年（遊戲天數）才成熟。",
+      "request_tags": [
+        "fate_xian"
+      ]
+    }
   },
   "lore.place.huaijiang": {
     "name": "槐江之山",
     "kind": "place",
     "summary": "天帝的花園平圃，英招看守。南望崑崙光氣熊熊；東望恒山四層，有窮鬼住著，各占一層山脅。",
-    "quote": {"text": "南望昆侖，其光熊熊，其氣魂魂。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["平圃", "窮鬼", "崑崙"],
-    "hooks": {"planned_regions": ["region.kunlun_ruins"], "tier_min": "合體", "uses": ["地圖"], "idea": "從槐江遠望崑崙光氣，是進入崑崙墟前的景觀區塊。"}
+    "quote": {
+      "text": "南望昆侖，其光熊熊，其氣魂魂。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "平圃",
+      "窮鬼",
+      "崑崙"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.kunlun_ruins"
+      ],
+      "tier_min": "合體",
+      "uses": [
+        "地圖"
+      ],
+      "idea": "從槐江遠望崑崙光氣，是進入崑崙墟前的景觀區塊。"
+    }
   },
   "lore.place.hengshan_ghosts": {
     "name": "恒山窮鬼",
     "kind": "place",
     "summary": "槐江山東望的恒山有四層，窮鬼依類聚居，各占一層。",
-    "quote": {"text": "東望恒山四成，有窮鬼居之，各在一搏。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["鬼", "分層", "鬼域"],
-    "hooks": {"planned_regions": ["region.ghost_city"], "tier_min": "元嬰", "fate": "mo", "uses": ["地圖", "秘境"], "idea": "鬼市可依此分四層：越往下越窮凶。橫軸地圖正好做成上下四層。"}
+    "quote": {
+      "text": "東望恒山四成，有窮鬼居之，各在一搏。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "鬼",
+      "分層",
+      "鬼域"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.ghost_city"
+      ],
+      "tier_min": "元嬰",
+      "fate": "mo",
+      "uses": [
+        "地圖",
+        "秘境"
+      ],
+      "idea": "鬼市可依此分四層：越往下越窮凶。橫軸地圖正好做成上下四層。",
+      "request_tags": [
+        "fate_mo"
+      ]
+    }
   },
   "lore.place.taihua": {
     "name": "太華之山",
     "kind": "place",
     "summary": "今西嶽華山。山形如刀削四方，高五千仞，鳥獸都不住。郭璞注說山上有明星玉女，持玉漿，服之成仙。",
-    "quote": {"text": "又西六十里，曰太華之山，削成而四方，其高五千仞，其廣十里，鳥獸莫居。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["華山", "絕壁", "攀登"],
-    "hooks": {"tier_min": "築基", "uses": ["地圖", "秘境"], "idea": "垂直攀爬秘境：考驗二段跳、牆跳、御風，山頂有玉女玉漿。"}
+    "quote": {
+      "text": "又西六十里，曰太華之山，削成而四方，其高五千仞，其廣十里，鳥獸莫居。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "華山",
+      "絕壁",
+      "攀登"
+    ],
+    "hooks": {
+      "tier_min": "築基",
+      "uses": [
+        "地圖",
+        "秘境"
+      ],
+      "idea": "垂直攀爬秘境：考驗二段跳、牆跳、御風，山頂有玉女玉漿。"
+    }
   },
   "lore.place.jishi": {
     "name": "積石之山",
     "kind": "place",
     "summary": "山下有石門，黃河從這裡往西湧流；這座山萬物無不具備。",
-    "quote": {"text": "又西三百里，曰積石之山，其下有石門，河水冒以西流，是山也，萬物無不有焉。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["石門", "黃河", "萬物"],
-    "hooks": {"tier_min": "金丹", "uses": ["地圖", "市集"], "idea": "「萬物無不有」：可做散修市集或什麼都能採到的採集地。"}
+    "quote": {
+      "text": "又西三百里，曰積石之山，其下有石門，河水冒以西流，是山也，萬物無不有焉。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "石門",
+      "黃河",
+      "萬物"
+    ],
+    "hooks": {
+      "tier_min": "金丹",
+      "uses": [
+        "地圖",
+        "市集"
+      ],
+      "idea": "「萬物無不有」：可做散修市集或什麼都能採到的採集地。"
+    }
   },
   "lore.place.youshan": {
     "name": "泑山",
     "kind": "place",
     "summary": "金神蓐收住的山，向西望得見太陽落下之處，日落的光氣是圓的，由神紅光掌管。",
-    "quote": {"text": "是山也，西望日之所入，其氣員，神紅光之所司也。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["日落", "金神", "西方"],
-    "hooks": {"planned_regions": ["region.desert_road"], "tier_min": "化神", "uses": ["地圖", "時辰"], "idea": "西漠盡頭的落日之山，「暮」時辰限定事件的舞台。"}
+    "quote": {
+      "text": "是山也，西望日之所入，其氣員，神紅光之所司也。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "日落",
+      "金神",
+      "西方"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.desert_road"
+      ],
+      "tier_min": "化神",
+      "uses": [
+        "地圖",
+        "時辰"
+      ],
+      "idea": "西漠盡頭的落日之山，「暮」時辰限定事件的舞台。"
+    }
   },
   "lore.place.yanzi": {
     "name": "崦嵫之山",
     "kind": "place",
     "summary": "郭璞注說是太陽落入的山。山上有丹木，果實大如瓜，吃了治黃疸、能防火；有馬身鳥翼人面蛇尾、喜歡把人抱起來的孰湖。",
-    "quote": {"text": "西南三百六十里，曰崦嵫之山，其上多丹木，其葉如穀，其實大如瓜，赤符而黑理，食之已癉，可以禦火。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
-    "tags": ["日落", "丹木", "防火"],
-    "hooks": {"tier_min": "金丹", "uses": ["地圖", "掉落"], "idea": "丹木果可做防火藥，對付畢方之火。"}
+    "quote": {
+      "text": "西南三百六十里，曰崦嵫之山，其上多丹木，其葉如穀，其實大如瓜，赤符而黑理，食之已癉，可以禦火。",
+      "source": "src.shanhaijing",
+      "chapter": "西山經",
+      "verified": true
+    },
+    "tags": [
+      "日落",
+      "丹木",
+      "防火"
+    ],
+    "hooks": {
+      "tier_min": "金丹",
+      "uses": [
+        "地圖",
+        "掉落"
+      ],
+      "idea": "丹木果可做防火藥，對付畢方之火。"
+    }
   },
   "lore.place.gongong_terrace": {
     "name": "共工之臺",
     "kind": "place",
     "summary": "係昆之山上有共工之臺，射箭的人不敢朝北射。同一段記載了黃帝女魃止雨殺蚩尤的故事。",
-    "quote": {"text": "有係昆之山者，有共工之臺，射者不敢北鄉。", "source": "src.shanhaijing", "chapter": "大荒北經", "verified": true},
-    "tags": ["共工", "禁忌", "古戰場"],
-    "hooks": {"tier_min": "化神", "fate": "mo", "uses": ["地圖", "事件"], "idea": "古戰場遺跡的禁忌：不能向北出手。違反就觸發共工殘魂。"}
+    "quote": {
+      "text": "有係昆之山者，有共工之臺，射者不敢北鄉。",
+      "source": "src.shanhaijing",
+      "chapter": "大荒北經",
+      "verified": true
+    },
+    "tags": [
+      "共工",
+      "禁忌",
+      "古戰場"
+    ],
+    "hooks": {
+      "tier_min": "化神",
+      "fate": "mo",
+      "uses": [
+        "地圖",
+        "事件"
+      ],
+      "idea": "古戰場遺跡的禁忌：不能向北出手。違反就觸發共工殘魂。",
+      "request_tags": [
+        "fate_mo"
+      ]
+    }
   },
   "lore.place.miaoguye": {
     "name": "藐姑射之山",
     "kind": "place",
     "summary": "莊子筆下神人住的山。神人肌膚像冰雪，姿態像少女，不吃五穀，吸風飲露，乘雲御龍遊於四海之外。仙人形象的原型。",
-    "quote": {"text": "藐姑射之山，有神人居焉，肌膚若冰雪，綽約若處子。不食五穀，吸風飲露。乘雲氣，御飛龍，而遊乎四海之外。", "source": "src.zhuangzi", "chapter": "逍遙遊", "verified": false},
-    "tags": ["神人", "辟穀", "仙人原型"],
-    "hooks": {"planned_regions": ["region.cloud_palace"], "tier_min": "元嬰", "fate": "xian", "uses": ["地圖", "角色"], "idea": "雲中仙府主人的形象依據。"}
+    "quote": {
+      "text": "藐姑射之山，有神人居焉，肌膚若冰雪，綽約若處子。不食五穀，吸風飲露。乘雲氣，御飛龍，而遊乎四海之外。",
+      "source": "src.zhuangzi",
+      "chapter": "逍遙遊",
+      "verified": false
+    },
+    "tags": [
+      "神人",
+      "辟穀",
+      "仙人原型"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.cloud_palace"
+      ],
+      "tier_min": "元嬰",
+      "fate": "xian",
+      "uses": [
+        "地圖",
+        "角色"
+      ],
+      "idea": "雲中仙府主人的形象依據。",
+      "request_tags": [
+        "fate_xian"
+      ]
+    }
   },
   "lore.place.penglai": {
     "name": "蓬萊五山",
     "kind": "place",
     "summary": "《列子》說渤海以東有五座仙山：岱輿、員嶠、方壺、瀛洲、蓬萊。山上住著仙聖，山根不連海底，隨波漂流，天帝命十五隻巨鼇以頭頂住。後來岱輿、員嶠被龍伯國巨人釣走巨鼇，漂到北極沉沒。",
-    "quote": {"text": "其中有五山焉：一曰岱輿，二曰員嶠，三曰方壺，四曰瀛洲，五曰蓬萊。", "source": "src.liezi", "chapter": "湯問", "verified": false},
-    "tags": ["仙島", "東海", "巨鼇"],
-    "hooks": {"planned_regions": ["region.penglai_shore", "region.cloud_palace"], "tier_min": "元嬰", "fate": "xian", "uses": ["地圖", "主線"], "idea": "東海蓬萊大區的總設定。沉沒的岱輿、員嶠可做海底秘境。"}
+    "quote": {
+      "text": "其中有五山焉：一曰岱輿，二曰員嶠，三曰方壺，四曰瀛洲，五曰蓬萊。",
+      "source": "src.liezi",
+      "chapter": "湯問",
+      "verified": false
+    },
+    "tags": [
+      "仙島",
+      "東海",
+      "巨鼇"
+    ],
+    "hooks": {
+      "planned_regions": [
+        "region.penglai_shore",
+        "region.cloud_palace"
+      ],
+      "tier_min": "元嬰",
+      "fate": "xian",
+      "uses": [
+        "地圖",
+        "主線"
+      ],
+      "idea": "東海蓬萊大區的總設定。沉沒的岱輿、員嶠可做海底秘境。",
+      "request_tags": [
+        "fate_xian"
+      ]
+    }
   }
 }
