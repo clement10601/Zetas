@@ -399,10 +399,39 @@ func test_combat() -> void:
 	main.attack()
 	main.attack()
 	expect(main.actor_hp["hunter"] == 3, "attack has a cooldown")
+	main.player_invuln = 0.0
+	hunter.position.x = main.player.position.x + 30  # 擊退過了，拉回眼前
+	main._process(0.1)
+	expect(main.enemy_windup.has("hunter") and hunter.winding, "hunter in reach winds up first (red omen)")
+	expect(main.hp() == 30, "no damage during the wind-up")
+	main._process(0.5)
+	expect(main.hp() == 30 - 5, "hunter in reach hits for 5 after the wind-up")
+	expect(main.player_invuln > 0.0, "getting hit gives a moment of invulnerability")
+	expect(main.player.velocity.x < 0.0 and main.player.velocity.y < 0.0, "getting hit knocks the player away from the enemy")
+	expect(main.enemy_cooldown["hunter"] > 0.0 and not main.enemy_windup.has("hunter"), "hunter recovers after striking")
+	# 看到紅字往後閃就躲得掉
 	main._process(1.0)
-	expect(main.hp() == 30 - 5, "hunter in reach hits for 5")
-	for i in 6:
-		main._process(1.0)
+	main._process(0.1)
+	expect(main.enemy_windup.has("hunter"), "hunter winds up again")
+	main.player.position.x = hunter.position.x - 120
+	var hp_dodge: int = main.hp()
+	main._process(0.5)
+	expect(main.hp() == hp_dodge, "stepping back during the wind-up dodges the strike")
+	main.player.position.x = hunter.position.x - 30
+	# 打斷：前搖時被砍中就收招
+	main._process(1.0)
+	main._process(0.1)
+	main.attack_cooldown = 0.0
+	var hx: float = hunter.position.x
+	main.attack()
+	expect(not main.enemy_windup.has("hunter") and not hunter.winding, "hitting a winding-up enemy interrupts it")
+	expect(hunter.position.x - hx >= 28.0, "hit knocks the enemy back about 30")
+	expect(Engine.time_scale < 1.0, "hit-stop freezes the game for a moment")
+	await create_timer(0.2, true, false, true).timeout
+	expect(Engine.time_scale == 1.0, "hit-stop ends")
+	for i in 40:
+		main.player.position.x = hunter.position.x - 30
+		main._process(0.5)
 		if main.runner == null:
 			break
 	expect(main.runner == null and main.state.flags.get("baiheng_captured") == true, "falling in battle settles the event as fail")

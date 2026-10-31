@@ -47,7 +47,14 @@ const PORTAL_INSET := 50.0        # 傳送點離地圖邊緣多遠
 const INTERACT_RANGE := 40.0
 const ATTACK_COOLDOWN := 0.35
 const ENEMY_REACH := 44.0
+const ENEMY_STRIKE_REACH := 60.0  # 前搖結束時玩家還在這個距離內才算打中（看到紅字往後閃就躲得掉）
 const ENEMY_HIT_INTERVAL := 1.0
+## 打擊感（docs/design/reference-study.md C1、C2）
+const HITSTOP := 0.06             # 命中時整個遊戲停一下（秒，真實時間）
+const HITSTOP_KILL := 0.1
+const ENEMY_KNOCKBACK := 16.0     # 加上 actor_view.hit 的 14，敵人被打退約 30
+const PLAYER_RECOIL := 8.0        # 出劍命中時玩家被反推
+const PLAYER_INVULN := 0.8        # 受傷後無敵、閃爍
 ## 一句話停留不到「預估閱讀時間 × 這個比例」就翻頁，算跳過（中文約每秒 8 字）
 const SKIP_FACTOR := 0.3
 const READ_CHARS_PER_SEC := 8.0
@@ -101,7 +108,10 @@ var prompt_label: Label           # 「↑ 前往……」「↑ 交談」提示
 var actor_views: Dictionary = {}  # actor id -> Node2D
 var actor_hp: Dictionary = {}
 var actor_power: Dictionary = {}  # actor id -> power，傷害與擊殺修為用
-var enemy_cooldown: Dictionary = {}  # actor id -> 距離下一擊的秒數
+var enemy_cooldown: Dictionary = {}  # actor id -> 收招破綻還剩幾秒（這段時間不動、不出招）
+var enemy_windup: Dictionary = {}    # actor id -> 前搖還剩幾秒（只有正在蓄力的敵人）
+var player_invuln := 0.0
+var hitstop_enabled := true
 var attack_cooldown := 0.0
 var log_lines: Array = []
 
@@ -1127,7 +1137,7 @@ func _on_actor_spawned(actor: Dictionary) -> void:
 	actor_views[actor["id"]] = view
 	actor_power[actor["id"]] = power
 	actor_hp[actor["id"]] = Cultivation.enemy_hp(power, pack_tier())
-	enemy_cooldown[actor["id"]] = ENEMY_HIT_INTERVAL
+	enemy_cooldown[actor["id"]] = 0.0
 
 
 ## 角色的樣子：有圖畫圖，沒圖畫色塊，頭上掛名字。原點在腳底。
@@ -1155,6 +1165,7 @@ func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
 		body.size = size
 		body.position = Vector2(-size.x / 2, -size.y)
 		view.add_child(body)
+	view.set_meta("height", size.y)
 	var label := Label.new()
 	label.text = "%s・%s" % [actor.get("title", ""), actor["name"]] if actor.has("title") else actor["name"]
 	label.size = Vector2(240, 0)
@@ -1168,6 +1179,7 @@ func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
 
 
 func _remove_actor_view(id: String) -> void:
+	enemy_windup.erase(id)
 	if actor_views.has(id):
 		actor_views[id].queue_free()
 		actor_views.erase(id)
@@ -1337,17 +1349,60 @@ func damage_actor(id: String, amount: int) -> void:
 	var view: Node2D = actor_views[id]
 	if view.has_method("hit"):
 		view.hit(player.position.x)
+	# 雙向擊退：敵人退、玩家也被反推一點；打斷前搖
+	var away := signf(view.position.x - player.position.x)
+	if away == 0.0:
+		away = float(player.facing)
+	view.position.x += away * ENEMY_KNOCKBACK
+	player.move_and_collide(Vector2(-away * PLAYER_RECOIL, 0))
+	_cancel_windup(id)
 	InkFx.number(level, view.position + Vector2(0, -110), str(amount), Color("#f3ecd9"))
 	if actor_hp[id] <= 0:
+		hitstop(HITSTOP_KILL)
+		player.shake(5.0)
 		audio.play("defeat")
 		if view.has_method("die"):
 			actor_views.erase(id)
 			view.die()
 		else:
 			_remove_actor_view(id)
+		enemy_windup.erase(id)
 		gain_cultivation(Cultivation.kill_exp(float(actor_power.get(id, 1.0))))
 		if runner != null:
 			runner.notify({"type": "actor_defeated", "actor": id})
+	else:
+		hitstop(HITSTOP)
+
+
+## 命中停頓：整個遊戲停一下再恢復。計時器用真實時間；main 被釋放也會恢復（_exit_tree）。
+func hitstop(seconds: float) -> void:
+	if not hitstop_enabled or not is_inside_tree():
+		return
+	Engine.time_scale = 0.05
+	get_tree().create_timer(seconds, true, false, true).timeout.connect(Engine.set.bind("time_scale", 1.0))
+
+
+func _exit_tree() -> void:
+	Engine.time_scale = 1.0
+
+
+func _cancel_windup(id: String) -> void:
+	enemy_windup.erase(id)
+	var view = actor_views.get(id)
+	if view != null and view.has_method("telegraph"):
+		view.telegraph(false)
+
+
+## 前搖結束：玩家還在眼前、在地面附近、不在無敵時間，才算打中。
+func _enemy_strike(id: String) -> void:
+	_cancel_windup(id)
+	enemy_cooldown[id] = Cultivation.ENEMY_RECOVER
+	var view: Node2D = actor_views[id]
+	if absf(player.position.x - view.position.x) > ENEMY_STRIKE_REACH or not player_near_ground() or player_invuln > 0.0:
+		return
+	player_invuln = PLAYER_INVULN
+	player.knock_back(view.position.x)
+	damage_player(Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), pack_tier()))
 
 
 func actor_label(id: String) -> String:
@@ -1377,6 +1432,8 @@ func player_down() -> void:
 	playlog.write("player_down", {"pack": runner.pack["id"] if runner != null else "", "region": state.region})
 	for id in enemy_cooldown:
 		enemy_cooldown[id] = ENEMY_HIT_INTERVAL
+	for id in enemy_windup.keys():
+		_cancel_windup(id)
 	if runner != null:
 		runner.abort("fail")
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index) / 2
@@ -1388,6 +1445,9 @@ func player_down() -> void:
 
 func _process(delta: float) -> void:
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
+	player_invuln = maxf(0.0, player_invuln - delta)
+	# 受傷後無敵時閃爍
+	player.modulate.a = 0.35 if player_invuln > 0.0 and fmod(player_invuln, 0.14) < 0.07 else 1.0
 	audio.set_mood(absf(player.velocity.x) > 10.0 or player.climbing, in_danger(), dialogue_panel.visible, delta)
 	_update_prompt()
 	if runner == null:
@@ -1404,15 +1464,24 @@ func _process(delta: float) -> void:
 		if not view.get_meta("hostile"):
 			continue
 		var dx := player.position.x - view.position.x
+		# 敵人出招：靠近 → 前搖（頭上朱紅「煞」字）→ 判定 → 收招破綻（不動）
+		if enemy_windup.has(id):
+			enemy_windup[id] -= delta
+			if enemy_windup[id] <= 0.0:
+				_enemy_strike(id)
+				if runner == null:
+					return
+			continue
+		enemy_cooldown[id] = maxf(0.0, float(enemy_cooldown.get(id, 0.0)) - delta)
+		if enemy_cooldown[id] > 0.0:
+			continue
 		if absf(dx) > 40.0:
 			view.position.x += signf(dx) * HOSTILE_SPEED * delta
 		if absf(dx) <= ENEMY_REACH and player_near_ground():
-			enemy_cooldown[id] = float(enemy_cooldown.get(id, ENEMY_HIT_INTERVAL)) - delta
-			if enemy_cooldown[id] <= 0.0:
-				enemy_cooldown[id] = ENEMY_HIT_INTERVAL
-				damage_player(Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), pack_tier()))
-				if runner == null:
-					return
+			enemy_windup[id] = Cultivation.enemy_windup(pack_tier())
+			if view.has_method("telegraph"):
+				view.telegraph(true, float(view.get_meta("height", 120.0)))
+			audio.play("enemy_windup")
 
 
 ## 配樂節奏層：事件進行中，或附近有敵意角色

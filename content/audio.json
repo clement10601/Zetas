@@ -128,6 +128,12 @@
       ],
       "volume_db": -6.0
     },
+    "enemy_windup": {
+      "files": [
+        "res://audio/sfx/enemy_windup_1.ogg"
+      ],
+      "volume_db": -8.0
+    },
     "defeat": {
       "files": [
         "res://audio/sfx/defeat_1.ogg"

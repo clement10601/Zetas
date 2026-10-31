@@ -616,12 +616,19 @@ def make_sfx() -> None:
         x = whoosh(1.0, rng, 300, 3000)
         return x * 0.8 + render([(0.45, bell(midi(79), 0.55) * 0.4)], len(x))
 
+    def enemy_windup(rng, i):  # 敵人前搖：一聲悶鼓＋往上收緊的金屬擦聲，固定好認
+        n = int(0.42 * SR)
+        t = np.arange(n) / SR
+        drum = np.sin(2 * np.pi * 85 * t * (1 + 0.5 * np.exp(-t * 30))) * np.exp(-t * 9)
+        scrape = bandpass(rng.standard_normal(n), 2200, 7000) * (t / t[-1]) ** 2 * 0.5
+        return drum + scrape
+
     def ui_tick(rng, i):  # 翻頁、選項
         return woodblock(820 + 80 * i, 0.15)
 
     for name, count, fn in [("jump", 2, jump), ("double_jump", 2, double_jump), ("wall_jump", 2, wall_jump),
                             ("flight", 2, flight), ("land", 2, land), ("attack", 3, attack), ("hit", 3, hit),
-                            ("hurt", 2, hurt), ("defeat", 1, defeat), ("event_start", 1, event_start),
+                            ("hurt", 2, hurt), ("enemy_windup", 1, enemy_windup), ("defeat", 1, defeat), ("event_start", 1, event_start),
                             ("event_end", 1, event_end), ("reward", 2, reward), ("breakthrough", 1, breakthrough),
                             ("meditate", 1, meditate), ("travel", 1, travel), ("ui_tick", 2, ui_tick)]:
         sfx_variants(name, count, fn)
