@@ -8,6 +8,12 @@
 ## 美術未到前用色塊。
 extends CharacterBody2D
 
+## 動作音效：jump、double_jump、wall_jump、flight、land。main 接到 scripts/audio.gd。
+signal sound(name: String)
+
+## 落地速度超過這個才有落地聲（小跳不響）
+const LAND_SOUND_SPEED := 500.0
+
 const SPEED := 260.0
 const GROUND_ACCEL := 2600.0
 const GROUND_DECEL := 3200.0
@@ -61,18 +67,21 @@ var ropes: Array = []           # main 建地圖時填：{x, top, bottom}，top/
 var floor_y := 560.0            # 地面高度，用來分辨站在地上還是平台上
 var test_input = null           # 測試用：{"left", "right", "up", "down", "jump"} 布林值，設了就不讀鍵盤
 var camera: Camera2D
-var visual: Node2D              # 立繪，腳底在原點，跳躍落地時伸縮
-
 var _cam_ahead := 0.0
 var _cam_anchor := 0.0          # 鏡頭跟著的腳底高度
 var _cam_y := 0.0
 var _look := 0.0
 var _look_hold := 0.0
 var _shake := 0.0
-var _squash := Vector2.ONE
-var _was_on_floor := true
-var _fall_speed := 0.0
 var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
+var rig: Node2D                 # 立繪的軸心放在腳底：走路一頓一頓、跳起拉長、落地壓扁都繞這裡
+var shadow: TextureRect
+
+var _walk := 0.0
+var _squash := 0.0              # 落地壓扁，1 → 0
+var _lunge := 0.0               # 出劍前衝，1 → 0
+var _was_on_floor := true
+var _time := 0.0
 
 var _coyote := 0.0
 var _jump_buffer := 0.0
@@ -96,13 +105,21 @@ func _ready() -> void:
 	body.color = Color("#e8e2c8")
 	body.size = SIZE
 	body.position = -SIZE / 2
-	body.pivot_offset = Vector2(SIZE.x / 2, SIZE.y)
 	add_child(body)
-	visual = Node2D.new()
-	visual.position = Vector2(0, SIZE.y / 2)
-	add_child(visual)
-	# 鏡頭自己算位置（見 _update_camera），不掛在玩家身上跟著抖
+	rig = Node2D.new()
+	rig.name = "Rig"
+	rig.position = Vector2(0, SIZE.y / 2)
+	add_child(rig)
+	shadow = TextureRect.new()
+	shadow.texture = preload("res://scripts/actor_view.gd").shadow_texture()
+	shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shadow.size = Vector2(50, 13)
+	shadow.position = Vector2(-25, SIZE.y / 2 - 6.5)
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shadow.show_behind_parent = true
+	add_child(shadow)
 	camera = Camera2D.new()
+	# 鏡頭自己算位置（見 _update_camera），不掛在玩家身上跟著抖
 	camera.top_level = true
 	add_child(camera)
 	snap_camera()
@@ -115,7 +132,7 @@ func set_look(tex: Texture2D, height: float) -> void:
 	if sprite == null:
 		sprite = Sprite2D.new()
 		sprite.centered = false
-		visual.add_child(sprite)
+		rig.add_child(sprite)
 	sprite.texture = tex
 	sprite.scale = Vector2.ONE * height / tex.get_height()
 	sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, -height)
@@ -125,19 +142,8 @@ func set_look(tex: Texture2D, height: float) -> void:
 func _process(delta: float) -> void:
 	if sprite:
 		sprite.flip_h = facing < 0
-	_update_visual(delta)
+	_animate(delta)
 	_update_camera(delta)
-
-
-## 起跳拉長、落地壓扁，再彈回原狀；跑步時身子往前傾一點。
-func _update_visual(delta: float) -> void:
-	_squash = _squash.lerp(Vector2.ONE, 1.0 - exp(-14.0 * delta))
-	var lean := 0.0 if climbing or flying > 0.0 else 0.06 * velocity.x / SPEED
-	visual.scale = _squash
-	visual.rotation = lerpf(visual.rotation, lean if is_on_floor() else lean * 0.5, 1.0 - exp(-10.0 * delta))
-	var body: ColorRect = get_node("Body")
-	body.scale = _squash
-	body.rotation = visual.rotation
 
 
 func _update_camera(delta: float) -> void:
@@ -169,6 +175,59 @@ func _update_camera(delta: float) -> void:
 ## 鏡頭震一下（受傷、重重落地）。
 func shake(amount: float) -> void:
 	_shake = maxf(_shake, amount)
+
+
+## 程式做的小動作（立繪只有一張）：站著呼吸、走路一頓一頓往前傾、
+## 起跳拉長、下落微扁、落地壓扁揚塵、爬繩左右晃、御風飄、御劍前傾。
+func _animate(delta: float) -> void:
+	_time += delta
+	var grounded := is_on_floor()
+	var target_scale := Vector2.ONE
+	var target_rot := 0.0
+	var bob := 0.0
+	var speed := absf(velocity.x)
+	if flying > 0.0:
+		target_rot = facing * 0.35
+		target_scale = Vector2(1.06, 0.95)
+	elif climbing:
+		_walk += delta * absf(velocity.y) / 18.0
+		target_rot = sin(_walk) * 0.06
+	elif grounded:
+		if speed > 20.0:
+			_walk += delta * speed / 20.0
+			bob = -absf(sin(_walk)) * 3.5
+			target_rot = facing * 0.07 * speed / SPEED
+		else:
+			var b := sin(_time * 2.2) * 0.014
+			target_scale = Vector2(1.0 - b * 0.5, 1.0 + b)
+	elif velocity.y < -120.0:
+		target_scale = Vector2(0.92, 1.09)
+		target_rot = facing * 0.05
+	elif velocity.y > 0.0 and velocity.y <= GLIDE_FALL + 1.0 and glide:
+		target_rot = sin(_time * 3.0) * 0.08
+	else:
+		target_scale = Vector2(1.04, 0.97)
+		target_rot = facing * 0.08
+	if grounded and not _was_on_floor and not climbing:
+		_squash = 1.0
+		if is_inside_tree() and get_parent() != null:
+			preload("res://scripts/ink_fx.gd").dust(get_parent(), position + Vector2(0, SIZE.y / 2))
+	_was_on_floor = grounded
+	_squash = move_toward(_squash, 0.0, delta * 6.0)
+	_lunge = move_toward(_lunge, 0.0, delta * 5.0)
+	target_scale *= Vector2(1.0 + 0.14 * _squash, 1.0 - 0.14 * _squash)
+	var k := minf(1.0, delta * 16.0)
+	rig.scale = rig.scale.lerp(target_scale, k)
+	rig.rotation = lerp_angle(rig.rotation, target_rot + facing * 0.25 * _lunge, k)
+	rig.position = Vector2(facing * 10.0 * _lunge, SIZE.y / 2 + bob)
+	shadow.modulate.a = move_toward(shadow.modulate.a, 0.55 if grounded else 0.0, delta * 6.0)
+
+
+## 出劍：往前一衝，畫一道墨痕
+func play_attack() -> void:
+	_lunge = 1.0
+	if is_inside_tree() and get_parent() != null:
+		preload("res://scripts/ink_fx.gd").slash(get_parent(), position + Vector2(facing * 26.0, -8.0), facing)
 
 
 ## 平常會撞到的東西；學會土遁就不撞薄牆
@@ -244,6 +303,8 @@ func _physics_process(delta: float) -> void:
 	if _try_grab_rope(input):
 		return
 	if flying > 0.0 or (fly_pressed and sword_flight and not _flight_used and not is_on_floor()):
+		if flying <= 0.0:
+			sound.emit("flight")
 		_fly(input, dir, delta)
 		return
 
@@ -280,18 +341,18 @@ func _physics_process(delta: float) -> void:
 		velocity.y = JUMP_VELOCITY
 		_jump_buffer = 0.0
 		_coyote = 0.0
-		_on_jump()
+		sound.emit("jump")
 	elif jump_pressed and _coyote <= 0.0 and wall_dir != 0:
 		velocity = Vector2(-wall_dir * WALL_JUMP.x, WALL_JUMP.y)
 		_wall_lock = WALL_JUMP_LOCK
 		_jump_buffer = 0.0
-		_on_jump()
 		_air_jumps = 1 if double_jump else 0
+		sound.emit("wall_jump")
 	elif jump_pressed and _coyote <= 0.0 and _air_jumps > 0 and not input.get("down", false):
 		velocity.y = DOUBLE_JUMP_VELOCITY
 		_air_jumps -= 1
 		_jump_buffer = 0.0
-		_on_jump(true)
+		sound.emit("double_jump")
 
 	if _wall_lock <= 0.0:
 		var target := dir * SPEED
@@ -304,64 +365,13 @@ func _physics_process(delta: float) -> void:
 			else:
 				rate = GROUND_ACCEL
 		velocity.x = move_toward(velocity.x, target, rate * delta)
-	if not is_on_floor():
-		_fall_speed = velocity.y
+	var was_airborne := not is_on_floor()
+	var fall_speed := velocity.y
 	move_and_slide()
-	if is_on_floor() and not _was_on_floor:
-		_on_land(_fall_speed)
-	_was_on_floor = is_on_floor()
-
-
-func _on_jump(air := false) -> void:
-	_squash = Vector2(0.86, 1.16)
-	if not air:
-		_puff(3, 0.0)
-	else:
-		_puff(4, 0.0, 0.6)
-
-
-func _on_land(speed: float) -> void:
-	var k := clampf(speed / MAX_FALL, 0.0, 1.0)
-	_squash = Vector2(1.0 + 0.22 * k, 1.0 - 0.2 * k)
-	if speed > 300.0:
-		_puff(2 + int(k * 4), k)
-	if speed > HARD_LANDING:
+	if was_airborne and is_on_floor() and fall_speed >= LAND_SOUND_SPEED:
+		sound.emit("land")
+	if was_airborne and is_on_floor() and fall_speed >= HARD_LANDING:
 		shake(4.0)
-
-
-static var _dust_tex: Texture2D
-
-## 腳邊揚起幾點淡墨塵。
-func _puff(count: int, strength: float, alpha := 0.45) -> void:
-	if not is_inside_tree():
-		return
-	if _dust_tex == null:
-		var g := GradientTexture2D.new()
-		g.fill = GradientTexture2D.FILL_RADIAL
-		g.fill_from = Vector2(0.5, 0.5)
-		g.fill_to = Vector2(1.0, 0.5)
-		g.width = 32
-		g.height = 32
-		g.gradient = Gradient.new()
-		g.gradient.set_color(0, Color(0.16, 0.15, 0.13, 0.8))
-		g.gradient.set_color(1, Color(0.16, 0.15, 0.13, 0.0))
-		_dust_tex = g
-	for i in count:
-		var d := Sprite2D.new()
-		d.texture = _dust_tex
-		d.top_level = true
-		d.z_index = 1
-		var side := -1.0 if i % 2 == 0 else 1.0
-		d.global_position = global_position + Vector2(side * randf_range(4, 12), SIZE.y / 2 - 4)
-		d.scale = Vector2.ONE * randf_range(0.35, 0.55)
-		d.modulate.a = alpha
-		add_child(d)
-		var t := d.create_tween().set_parallel()
-		var drift := Vector2(side * randf_range(18, 34) * (1.0 + strength), -randf_range(4, 14))
-		t.tween_property(d, "global_position", d.global_position + drift, 0.4).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-		t.tween_property(d, "scale", d.scale * (1.6 + strength), 0.4)
-		t.tween_property(d, "modulate:a", 0.0, 0.4)
-		t.chain().tween_callback(d.queue_free)
 
 
 ## 御劍：不受重力，方向鍵往四方飛，時間到或落地就停。一次離地只能飛一次。
@@ -403,6 +413,7 @@ func _try_grab_rope(input: Dictionary) -> bool:
 func _climb(input: Dictionary, dir: float, jump_pressed: bool, delta: float) -> void:
 	if jump_pressed and dir != 0.0:
 		_let_go()
+		sound.emit("jump")
 		velocity = Vector2(ROPE_JUMP.x * dir, ROPE_JUMP.y)
 		move_and_slide()
 		return

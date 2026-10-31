@@ -34,16 +34,28 @@ def platform(aid):
 
 
 def ground(aid):
-    """地面：上緣墨線加草，往下是暗土。"""
+    """地面：淡墨土色，遊戲會依每個區塊底部的顏色染色（main.gd 的地面條），所以這張要偏亮、偏中性。
+    上緣一道乾筆墨線和草，往下一層層乾擦的皴筆，越深越暗，像古畫裡的坡腳。"""
     w, h, ov = 544, 160, 32
     cv = Canvas(w, h, seed_of(aid))
-    cv.paint(cv.rect(-4, 0, w + 4, h), (44, 40, 34), 1.0)
-    cv.paint(cv.textured(cv.rect(-4, 0, w + 4, h), 1.0, "cloud", lo=0.4), (70, 62, 50), 0.6)
-    cv.paint(cv.vgrad(cv.rect(-4, 0, w + 4, h), 0, h, 0.0, 1.0), (20, 18, 16), 0.8)
-    for _ in range(24):
-        x, y = cv.rng.uniform(0, w), cv.rng.uniform(16, h - 10)
-        cv.paint(cv.ellipse(x, y, cv.rng.uniform(4, 12), cv.rng.uniform(2, 5)), (90, 84, 72), 0.5)
-    cv.stroke([(-6, 2), (w * 0.3, 3), (w * 0.7, 1.5), (w + 6, 2)], 6, INK, 0.95, taper=(0.01, 0.01), dry=0.3)
+    full = cv.rect(-4, 0, w + 4, h)
+    cv.paint(full, (236, 232, 222), 1.0)
+    cv.paint(cv.textured(full, 1.0, "cloud", lo=0.35), (196, 188, 172), 0.55)
+    cv.paint(cv.vgrad(full, 0, h, 0.0, 1.0), (128, 120, 108), 0.75)
+    # 乾擦的橫向皴筆
+    for _ in range(26):
+        y = cv.rng.uniform(14, h - 6)
+        x = cv.rng.uniform(-40, w)
+        ln = cv.rng.uniform(40, 140)
+        cv.stroke([(x, y), (x + ln * 0.5, y + cv.rng.uniform(-2, 2)), (x + ln, y + cv.rng.uniform(-3, 3))],
+                  cv.rng.uniform(1.5, 4.0), INK, cv.rng.uniform(0.12, 0.3) * (0.5 + y / h), dry=0.7, taper=(0.2, 0.4))
+    # 碎石：淡墨點
+    for _ in range(16):
+        x, y = cv.rng.uniform(0, w), cv.rng.uniform(18, h - 10)
+        cv.paint(cv.ellipse(x, y, cv.rng.uniform(3, 8), cv.rng.uniform(1.5, 3.5), blur=0.8), (70, 64, 56), 0.35)
+    # 上緣：一道粗乾筆墨線，貼著幾叢草
+    cv.stroke([(-6, 3), (w * 0.3, 4), (w * 0.7, 2.5), (w + 6, 3)], 5, INK, 0.85, taper=(0.01, 0.01), dry=0.45)
+    cv.paint(cv.vgrad(cv.rect(-4, 0, w + 4, 22, blur=3), 0, 22, 1.0, 0.0), (60, 56, 48), 0.35)
     return tile_x(cv.image(), ov)
 
 

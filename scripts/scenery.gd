@@ -4,7 +4,7 @@
 ## 全部程式畫，不需要素材；顏色依地圖標籤換（洞窟、心魔幻境）。
 extends RefCounted
 
-const MIST_Z := -1
+const MIST_Z := -8              # 底圖 -10、接縫霧 -9，山嵐在其上、平台與角色之下
 const FRONT_Z := 10
 const TILE := 1600.0
 
@@ -59,12 +59,12 @@ static func _front(floor_y: float, rng: RandomNumberGenerator) -> Parallax2D:
 	layer.scroll_scale = Vector2(1.3, 1.0)
 	layer.repeat_size = Vector2(TILE, 0)
 	layer.repeat_times = 3
-	var ink := Color(0.05, 0.045, 0.04, 1.0)
+	var ink := Color(0.07, 0.065, 0.06, 0.9)
 	var base := floor_y + 120.0     # 鏡頭下緣是 floor_y + 110（main.gd CAMERA_BOTTOM）
 	var x := rng.randf_range(40, 160)
 	while x < TILE - 120:
 		if rng.randf() < 0.35:
-			layer.add_child(_stone(Vector2(x, base), rng.randf_range(90, 170), rng, ink))
+			layer.add_child(_stone(Vector2(x, base), rng.randf_range(60, 120), rng, ink))
 		else:
 			layer.add_child(_tuft(Vector2(x, base), rng.randf_range(100, 170), rng, ink))
 		x += rng.randf_range(220, 520)

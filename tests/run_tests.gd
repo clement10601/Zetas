@@ -30,6 +30,7 @@ func _run() -> void:
 	await test_cultivation()
 	await test_combat()
 	await test_art_and_placeholders()
+	await test_ink_look()
 	await test_playlog()
 	await test_map_layout_data()
 	await test_walk_and_jump()
@@ -41,6 +42,7 @@ func _run() -> void:
 	await test_wall_jump()
 	await test_glide()
 	await test_earth_escape_and_flight()
+	await test_audio()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -61,6 +63,7 @@ func new_game(director := false, save := "", assets := "", playlog := "") -> Nod
 	main.save_path = save
 	main.generated_dir = ""
 	main.use_director = director
+	main.audio_settings_path = ""
 	root.add_child(main)
 	await process_frame
 	return main
@@ -408,6 +411,29 @@ func test_combat() -> void:
 	main.free()
 
 
+## 水墨介面與畫面：區塊接縫有霧、地面依區塊染色、出劍有墨痕、敵人被打會閃、倒下淡出才移除。
+func test_ink_look() -> void:
+	var main: Node = await new_game()
+	var seams: Array = main.level.get_children().filter(func(n): return n.is_in_group("seam"))
+	expect(seams.size() == 2 * (main.regions[main.state.region]["home"].size() - 1), "each chunk seam gets two mist halves")
+	expect(main.level.get_children().any(func(n): return n is StaticBody2D and n.get_children().any(func(c): return c is Polygon2D)), "ground is a tinted strip")
+	main.state.time_of_day = "夜"
+	main._refresh_status()
+	await create_timer(1.4).timeout
+	expect(main.tint.color.b > main.tint.color.r, "night tints the world blue")
+	main._on_actor_spawned({"id": "wolf", "template": "mob.wolf_demon", "name": "狼妖", "disposition": "hostile", "spawn_at": ""})
+	var wolf: Node2D = main.actor_views["wolf"]
+	wolf.position.x = main.player.position.x + 40
+	main.actor_hp["wolf"] = 1
+	main.attack()
+	expect(main.get_children().any(func(n): return n.get_script() == main.InkFx and n.kind == 0), "attack draws an ink slash")
+	expect(not main.actor_views.has("wolf") and is_instance_valid(wolf), "defeated enemy fades out before it is removed")
+	await create_timer(0.8).timeout
+	expect(not is_instance_valid(wolf), "faded enemy is freed")
+	main.queue_free()
+	await process_frame
+
+
 func test_art_and_placeholders() -> void:
 	var dir := "user://zetas_test_art"
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -673,8 +699,9 @@ func test_portals_and_residents() -> void:
 	main.player.position = Vector2(mo.position.x + 20, main.FLOOR_Y - 27)
 	main._process(0.016)
 	expect(main.prompt_label.text.contains("交談"), "standing next to an NPC shows the talk prompt")
-	expect(main.interact() and main.dialogue_panel.visible and main.dialogue_label.text.contains("莫老三"), "talk to the resident")
+	expect(main.interact() and main.dialogue_panel.visible and main.dialogue_name.text.contains("莫老三"), "talk to the resident")
 	expect(main.player.frozen, "player stands still while talking")
+	expect(main.portrait_frame.visible and main.portrait.texture is AtlasTexture, "talking shows the speaker's portrait cropped from the sprite")
 	main.advance_dialogue()
 	expect(not main.dialogue_panel.visible and not main.player.frozen, "space closes the talk")
 	main.interact()
@@ -857,4 +884,37 @@ func test_earth_escape_and_flight() -> void:
 	expect(player.flying == 0.0, "only one flight before landing again")
 	await step(main, {}, 120)
 	expect(player.is_on_floor(), "falls back down")
+	main.free()
+
+
+## 配樂與音效：清單裡的檔案都在、每個地區都有曲子、心魔幻境換曲、動作會出聲、N 可關配樂。
+func test_audio() -> void:
+	var main: Node = await new_game()
+	var audio: Node = main.audio
+	for key in audio.music:
+		expect(ResourceLoader.exists(audio.music[key]["file"]), "music file for %s exists" % key)
+	for name in audio.sfx:
+		for f in audio.sfx[name]["files"]:
+			expect(ResourceLoader.exists(f), "sfx file %s exists" % f)
+	for region in main.regions:
+		if region.begins_with("region."):
+			expect(audio.music_key(region, []) == region, "%s has music" % region)
+	expect(audio.music_key("region.qingyun_sect", ["illusion"]) == "tag.illusion", "illusion maps use the heart demon music")
+	expect(audio.current_music == main.state.region, "the home region's music plays on start")
+	await step(main, {}, 20)
+	audio.played.clear()
+	await step(main, {"jump": true}, 4)
+	expect(audio.played.has("jump"), "jumping makes a sound")
+	await step(main, {}, 60)
+	main.attack()
+	expect(audio.played.has("attack"), "attacking makes a sound")
+	for name in ["jump", "double_jump", "wall_jump", "flight", "land", "attack", "hit", "hurt", "defeat",
+			"event_start", "event_end", "reward", "breakthrough", "meditate", "travel", "ui_tick"]:
+		expect(audio.sfx.has(name), "sfx %s is listed" % name)
+	audio.played.clear()
+	main.breakthrough()
+	expect(audio.played.has("breakthrough"), "breakthrough plays the gong")
+	var piece: String = audio.current_music
+	expect(not audio.toggle_music() and not audio.music_on, "N turns the music off")
+	expect(audio.toggle_music() and audio.current_music == piece, "and back on with the same piece (%s)" % piece)
 	main.free()
