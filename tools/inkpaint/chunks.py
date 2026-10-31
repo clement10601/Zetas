@@ -64,8 +64,12 @@ def edge_profile(family):
     return _PROFILES[family]
 
 
-def blend_edges(img, family, fade=56):
-    """左右各 fade 像素往標準邊漸變，任兩個區塊接在一起都不會有明顯接縫。"""
+def blend_edges(img, family, fade=0):
+    """左右各 fade 像素往標準邊漸變。
+    2026-10-31 起預設不漸變（fade=0）：統一的紙色標準邊在暗區塊（洞窟、宗門）旁邊會變成一條白帶，
+    接縫改由遊戲在兩個區塊之間做鏡像交疊（main.gd 的 _blend_seam），這裡保留原圖邊緣。"""
+    if fade <= 0:
+        return img
     a = np.asarray(img, np.float32).copy()
     prof = edge_profile(family)
     w = a.shape[1]

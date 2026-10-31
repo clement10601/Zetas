@@ -29,10 +29,17 @@
 - `python tools/paint_art.py` 用筆觸程式（`tools/inkpaint/`）畫出清單上每個素材的水墨版本，同一個 id 每次畫出同一張。
 - 這是先讓遊戲有統一畫風的底稿，不是定稿。手繪或其他來源的圖直接覆蓋同名檔即可；覆蓋之後不要再跑 `--all`。
 - 新增角色模板：在 `tools/inkpaint/sprites.py` 加一組 spec（服色、髮型、帽子、兵器、姿勢），變體就是多加幾組，`content/assets.json` 的 `files` 依序用 `_a`、`_b`…。新增區塊：在 `tools/inkpaint/chunks.py` 加一個構圖函式。
-- 區塊左右 56px 會自動漸變到同一條「標準邊」，所以任兩塊接起來都不會有硬接縫。
+- 區塊圖保留原本的左右邊緣，不再漸變到統一的紙色（暗的區塊旁邊會變成一條白帶）。遊戲在兩個區塊交界左右各 150px 疊一層依兩邊顏色算出的霧，任兩塊接起來都不會有硬接縫（`scripts/main.gd` 的 `_blend_seam`）。
+- 地面（prop.ground）是偏亮的中性淡墨土，遊戲依每個區塊畫面底部的顏色染色，接縫處漸變，所以換了區塊圖地面會自動跟著變色。
 - 戶外區塊的底圖是古畫：克里夫蘭美術館開放典藏的 CC0 山水手卷（`tools/inkpaint/paintings.py` 管每塊取哪一卷哪一段，裁好的圖在 `tools/inkpaint/paintings/`），程式只在上面加遊戲要的東西（牌坊、殿宇、石碑、木人、橋、心魔陣紋）並調色。洞窟類區塊還是全程式畫。出處列在 `art/CREDITS.md`。
 - 要換古畫：只能用明確標 CC0／公有領域的來源，改 `SOURCES` 後跑 `python tools/inkpaint/paintings.py fetch <區塊>`，再補 CREDITS。
 - 題字用霞鶩文楷 TC 的子集（`tools/inkpaint/fonts/`，OFL 授權）；新名稱有子集沒有的字時照該資料夾的 README 重做子集。
+
+## 介面與動作（程式做，不用圖檔）
+- 介面是水墨卷軸風：對話框是紙卷加軸頭、朱砂名牌、說話者頭像（從立繪上方自動裁頭肩，所以立繪的頭要在不透明範圍頂端）；狀態列、紀錄是墨底半透明。樣式在 `scripts/ink_ui.gd`。
+- 角色只有一張立繪，動作用程式做：呼吸、走路起伏前傾、跳起拉長、落地壓扁揚塵、出劍墨痕、受擊閃紅後仰、倒下墨散（`scripts/player.gd`、`scripts/actor_view.gd`、`scripts/ink_fx.gd`）。
+- 依地圖標籤飄落葉、花瓣、洞裡浮塵、幻境餘燼；時辰改變整體色調（晨、午、暮、夜）；畫面四周一圈淡墨暗角。
+- 拍畫面對照：`xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/screenshot.gd -- /tmp/shots`。
 
 ## 交付
 - 檔名照 `content/assets.json` 的 `files`；放進 `art/` 以後重開 Godot 就會自動匯入。
