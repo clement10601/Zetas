@@ -1,0 +1,27 @@
+# 叢集已有 Ingress controller 和 cert-manager 時用。主機名稱、ingressClassName、ClusterIssuer 依你的叢集改。
+# 這個主機名稱不能套 SSO：遊戲用存取碼（Authorization: Bearer）驗證，過不了登入頁。
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zetas-director
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    # 生成一個事件約 45–55 秒，重試時更久；ingress-nginx 預設 60 秒會斷。
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "180"
+    nginx.ingress.kubernetes.io/proxy-body-size: 2m
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [zetas-director.service.fezone.tw]
+      secretName: zetas-director-tls
+  rules:
+    - host: zetas-director.service.fezone.tw
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: zetas-director
+                port: {name: http}

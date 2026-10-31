@@ -1,0 +1,82 @@
+name: director-image
+
+# 建 Zetas 導演伺服器映像並推到 GHCR：ghcr.io/clement10601/zetas-director
+# main 有變動時推 :main 和 :sha-<commit>；PR 只建置不推。
+on:
+  push:
+    branches: [main]
+    paths:
+      - engine
+      - zeworld.json
+      - content/**
+      - deploy/director/**
+      - deploy/k8s/**
+      - .dockerignore
+      - .github/workflows/director-image.yml
+  pull_request:
+    paths:
+      - engine
+      - zeworld.json
+      - content/**
+      - deploy/director/**
+      - deploy/k8s/**
+      - .dockerignore
+      - .github/workflows/director-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/zetas-director
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Render k8s manifests
+        run: |
+          kubectl kustomize deploy/k8s/tunnel > /dev/null
+          kubectl kustomize deploy/k8s/ingress > /dev/null
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/director/Dockerfile
+          load: true
+          tags: zetas-director:test
+      - name: Smoke test
+        run: |
+          mkdir -p smoke && chmod 777 smoke
+          docker run --rm -v "$PWD/smoke:/data" --entrypoint python zetas-director:test \
+            -m director.access add --file /data/codes.json --name smoke > /dev/null
+          docker run -d --name director -p 8765:8765 -v "$PWD/smoke:/secrets:ro" -e ZEWORLD_DIRECTOR_USAGE=/tmp/usage.json \
+            zetas-director:test serve --game /app/zeworld.json --host 0.0.0.0 --port 8765 \
+            --fake-pack /app/content/packs/$(ls content/packs | head -1) --fake-line 測試
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:8765/v1/health && break; sleep 1; done
+          echo
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8765/v1/dialogue/rewrite -d '{}')" = 401
+          docker logs director
+          docker rm -f director
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/director/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:main
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
