@@ -1,0 +1,52 @@
+{
+  "_comment": "地區目錄。內容包的 meta.region 必須在這裡，地圖只能用該地區的區塊。home/spawn 是遊戲用的落腳地圖，引擎不讀。",
+  "region.qingyun_sect": {
+    "name": "青雲宗",
+    "description": "玩家所屬宗門，師父青玄真人與同門都在這裡。安全，事件多是傳功、切磋、門內人情與宗門差事。",
+    "chunks": [
+      "chunk.sect_gate",
+      "chunk.sect_plaza",
+      "chunk.sect_hall",
+      "chunk.master_cave"
+    ],
+    "home": [
+      "chunk.sect_gate",
+      "chunk.sect_plaza"
+    ],
+    "spawn": "pt.sect_gate",
+    "travel_hours": 1
+  },
+  "region.qingyun_foothills": {
+    "name": "青雲山腳",
+    "description": "宗門山下的山林與村落，有鎮妖司、青丘狐族、山賊與散修。煉氣弟子歷練之地。",
+    "chunks": [
+      "chunk.qingyun_road",
+      "chunk.qingyun_woods",
+      "chunk.forest_clearing_a",
+      "chunk.mountain_cave",
+      "chunk.ruined_shrine",
+      "chunk.mountain_village"
+    ],
+    "home": [
+      "chunk.qingyun_road",
+      "chunk.qingyun_woods"
+    ],
+    "spawn": "pt.home_start",
+    "travel_hours": 1
+  },
+  "region.heifeng_ridge": {
+    "name": "黑風嶺",
+    "description": "青雲山西北的荒嶺，狼妖成群，常有墮落散修出沒。築基以上弟子才被允許前往。",
+    "chunks": [
+      "chunk.heifeng_pass",
+      "chunk.heifeng_ravine",
+      "chunk.demon_den"
+    ],
+    "home": [
+      "chunk.heifeng_pass",
+      "chunk.heifeng_ravine"
+    ],
+    "spawn": "pt.pass_start",
+    "travel_hours": 2
+  }
+}

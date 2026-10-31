@@ -1,0 +1,223 @@
+{
+  "schema_version": "0.2",
+  "id": "pack.sect_first_lesson.s001",
+  "kind": "event",
+  "meta": {
+    "title": "青玄峰問心",
+    "summary": "師父青玄真人召玩家回洞府問起山下見聞，師姊林清禾在旁；玩家怎麼回答，決定師父往後的看法。",
+    "tags": [
+      "宗門",
+      "師徒",
+      "問心",
+      "因果"
+    ],
+    "region": "region.qingyun_sect",
+    "author": "human",
+    "tier_range": {
+      "min": "煉氣",
+      "max": "築基"
+    }
+  },
+  "trigger": {
+    "all": [
+      {
+        "type": "enter_map",
+        "map_tag": "sect"
+      }
+    ],
+    "once": true,
+    "priority": 70
+  },
+  "map": {
+    "chunks": [
+      {
+        "chunk": "chunk.sect_plaza",
+        "order": 0
+      },
+      {
+        "chunk": "chunk.master_cave",
+        "order": 1
+      }
+    ],
+    "spawn": "pt.plaza_west",
+    "points": [
+      "pt.plaza_west",
+      "pt.plaza_center",
+      "pt.cave_door",
+      "pt.master_seat"
+    ]
+  },
+  "actors": [
+    {
+      "id": "lin",
+      "template": "npc.fellow_disciple",
+      "name": "林清禾",
+      "title": "青雲宗師姊",
+      "disposition": "friendly",
+      "spawn_at": "pt.plaza_center",
+      "persona": "青玄真人門下大弟子，劍修。直爽好勝，嘴硬心軟，看不慣師弟妹偷懶。",
+      "memory_key": "npc.senior_lin"
+    },
+    {
+      "id": "master",
+      "template": "npc.sect_master",
+      "name": "青玄真人",
+      "title": "青玄峰峰主",
+      "disposition": "friendly",
+      "spawn_at": "pt.master_seat",
+      "persona": "玩家的師父。寡言嚴厲，護短，看重心性勝過修為。說話短，常一句話點破。",
+      "memory_key": "npc.master_qingxuan"
+    }
+  ],
+  "dialogue": {
+    "entry": "l1",
+    "nodes": {
+      "l1": {
+        "speaker": "lin",
+        "text": "總算回來了。師父在洞府等你，別讓他老人家久候。",
+        "live_rewrite": true,
+        "next": "l2"
+      },
+      "l2": {
+        "speaker": "narrator",
+        "text": "林清禾領你穿過演武場，走進青玄峰的洞府。"
+      },
+      "m1": {
+        "speaker": "master",
+        "text": "下山這些日子，見了什麼，做了什麼？",
+        "live_rewrite": true,
+        "choices": [
+          {
+            "text": "如實稟報山下的事",
+            "next": "m_honest",
+            "effects": [
+              {
+                "type": "add_karma",
+                "axis": "正邪",
+                "delta": 3
+              }
+            ]
+          },
+          {
+            "text": "提起放走白狐一事",
+            "next": "m_fox",
+            "show_if": [
+              {
+                "type": "flag",
+                "key": "spared_white_fox",
+                "equals": true
+              }
+            ]
+          },
+          {
+            "text": "只說一切平安",
+            "next": "m_hide"
+          }
+        ]
+      },
+      "m_honest": {
+        "speaker": "master",
+        "text": "嗯。肯說實話，比多練三年劍要緊。",
+        "live_rewrite": true,
+        "next": "m_end"
+      },
+      "m_fox": {
+        "speaker": "master",
+        "text": "妖也有妖的因果。你放了牠，往後牠的事也算你一份。",
+        "live_rewrite": true,
+        "next": "m_end",
+        "effects": [
+          {
+            "type": "set_flag",
+            "key": "master_knows_fox",
+            "value": true
+          }
+        ]
+      },
+      "m_hide": {
+        "speaker": "master",
+        "text": "平安就好。",
+        "next": "m_hide2"
+      },
+      "m_hide2": {
+        "speaker": "lin",
+        "text": "（低聲）師父最不喜人遮掩，你自己掂量。",
+        "next": "m_end",
+        "effects": [
+          {
+            "type": "set_flag",
+            "key": "hid_from_master",
+            "value": true
+          }
+        ]
+      },
+      "m_end": {
+        "speaker": "master",
+        "text": "這卷劍訣殘頁你拿去。過兩日再來，為師有差事交給你。"
+      }
+    }
+  },
+  "stages": [
+    {
+      "id": "s1",
+      "objective": "隨師姊去見師父",
+      "on_enter": [
+        {
+          "type": "start_dialogue",
+          "node": "l1"
+        }
+      ],
+      "complete_when": [
+        {
+          "type": "reach_point",
+          "point": "pt.cave_door"
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "objective": "回答師父",
+      "on_enter": [
+        {
+          "type": "start_dialogue",
+          "node": "m1"
+        }
+      ],
+      "complete_when": [
+        {
+          "type": "dialogue_reached",
+          "node": "m_end"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "on_complete": [
+      {
+        "type": "set_flag",
+        "key": "sect_first_lesson_done",
+        "value": true
+      },
+      {
+        "type": "change_relation",
+        "npc": "npc.master_qingxuan",
+        "delta": 10
+      },
+      {
+        "type": "remember",
+        "npc": "npc.master_qingxuan",
+        "text": "徒兒下山歸來，來洞府稟報見聞。"
+      },
+      {
+        "type": "give_loot",
+        "loot_table": "loot.sect_reward",
+        "tier": "rare"
+      },
+      {
+        "type": "request_followup",
+        "hint": "青玄真人交代差事：黑風嶺狼妖傷人，要玩家與師姊林清禾同去查探；師父的態度取決於玩家先前是否如實稟報。",
+        "after_days": 2
+      }
+    ]
+  }
+}

@@ -1,4 +1,5 @@
 ## 遊戲主控：橫軸地圖、玩家、角色，並把 ZeWorld 內容包與導演接到畫面上。
+## T 開地圖在地區之間移動（青雲宗、青雲山腳、黑風嶺），移動要花時辰。
 ## 除錯鍵用來快速製造觸發條件：F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、
 ## F6 請導演生成一個新事件、F5 存檔、F9 讀檔。
 ## 導演服務沒開時一切照常，只是不會有新事件與即時台詞。
@@ -12,8 +13,11 @@ const DirectorClient = preload("res://addons/zeworld/director_client.gd")
 const Player = preload("res://scripts/player.gd")
 
 const FLOOR_Y := 560.0
-const HOME_CHUNKS := [{"chunk": "chunk.qingyun_road", "order": 0}, {"chunk": "chunk.qingyun_woods", "order": 1}]
-const HOME_SPAWN := "pt.home_start"
+const START_REGION := "region.qingyun_foothills"
+## 地區要求的最低境界（tier index）；黑風嶺築基以上才准去
+const REGION_MIN_TIER := {"region.heifeng_ridge": 1}
+## 補貨排程：每個地區、目前境界至少備著幾個沒玩過的事件
+const RESTOCK_TARGET := 3
 const ATTACK_RANGE := 90.0
 const HOSTILE_SPEED := 70.0
 const SAVE_ID := "save.001"
@@ -28,6 +32,7 @@ var state
 var pool: Array = []
 var chunks: Dictionary = {}
 var loot: Dictionary = {}
+var regions: Dictionary = {}
 var runner = null
 
 var level: Node2D
@@ -43,6 +48,8 @@ var hud_log: Label
 var dialogue_panel: PanelContainer
 var dialogue_label: Label
 var current_choices: Array = []
+var travel_options: Array = []    # 地圖開著時可去的地區 id
+var lingering := false            # 事件結束時最後一句先留在畫面上，按空白才關
 
 
 func _ready() -> void:
@@ -57,11 +64,14 @@ func _ready() -> void:
 	_build_hud()
 	player = Player.new()
 	add_child(player)
-	build_map(HOME_CHUNKS, HOME_SPAWN)
-	add_log("青雲山腳。F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。")
 	if save_path != "" and state.load_file(save_path):
 		add_log("讀取存檔：第 %d 天。" % state.day)
+	if not regions.has(state.region):
+		state.region = START_REGION
+	go_home()
+	add_log("%s。T 地圖、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。" % region_name())
 	request_followups()
+	restock()
 	check_triggers({"type": "enter_map"})
 
 
@@ -73,6 +83,8 @@ func load_content() -> void:
 		pool += PackPool.for_save(PackPool.load_dir(generated_dir), SAVE_ID)
 	chunks = _read_json("res://content/chunks.json")
 	loot = _read_json("res://content/loot.json")
+	regions = _read_json("res://content/regions.json")
+	regions.erase("_comment")
 
 
 func _read_json(path: String) -> Dictionary:
@@ -140,6 +152,76 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	place_player(spawn_point)
 
 
+## 回到目前地區的落腳地圖。
+func go_home() -> void:
+	var info: Dictionary = regions.get(state.region, {})
+	var list := []
+	for i in info.get("home", []).size():
+		list.append({"chunk": info["home"][i], "order": i})
+	build_map(list, info.get("spawn", ""))
+
+
+func region_name(id: String = "") -> String:
+	return regions.get(id if id != "" else state.region, {}).get("name", "")
+
+
+## 前往另一個地區：花掉 travel_hours 個時辰，換落腳地圖，請導演補貨，再看有沒有事件。
+func travel_to(id: String) -> bool:
+	if runner != null or not regions.has(id) or id == state.region:
+		return false
+	if state.tier_index < int(REGION_MIN_TIER.get(id, 0)):
+		add_log("師門規矩：%s需%s以上方可前往。" % [region_name(id), state.ruleset["tiers"][REGION_MIN_TIER[id]]])
+		return false
+	var day_before: int = state.day
+	advance_time(int(regions[id].get("travel_hours", 1)))
+	state.region = id
+	go_home()
+	add_log("你來到%s。（第 %d 天・%s）" % [region_name(), state.day, state.time_of_day])
+	if state.day != day_before:
+		request_followups()
+	restock()
+	autosave()
+	check_triggers({"type": "enter_map"})
+	return true
+
+
+## 時辰往前走 steps 格，過了夜就是隔天。
+func advance_time(steps: int) -> void:
+	var times: Array = state.ruleset["times_of_day"]
+	for i in steps:
+		var next: int = (times.find(state.time_of_day) + 1) % times.size()
+		if next == 0:
+			state.day += 1
+		state.time_of_day = times[next]
+
+
+func open_travel_menu() -> void:
+	if runner != null or dialogue_panel.visible:
+		return
+	travel_options = regions.keys().filter(func(id): return id != state.region)
+	var text := "前往何處？（目前在%s）" % region_name()
+	for i in travel_options.size():
+		var id: String = travel_options[i]
+		var note := "（需%s）" % state.ruleset["tiers"][REGION_MIN_TIER[id]] if state.tier_index < int(REGION_MIN_TIER.get(id, 0)) else ""
+		text += "\n  %d. %s・%d 個時辰%s" % [i + 1, region_name(id), int(regions[id].get("travel_hours", 1)), note]
+	text += "\n  （Esc 取消）"
+	dialogue_label.text = text
+	dialogue_panel.visible = true
+	player.frozen = true
+
+
+func close_travel_menu() -> void:
+	travel_options = []
+	_hide_dialogue()
+
+
+func choose_travel(i: int) -> void:
+	if i < travel_options.size():
+		var id: String = travel_options[i]
+		close_travel_menu()
+		travel_to(id)
+
+
 func place_player(point: String) -> void:
 	player.position = Vector2(points.get(point, 100.0), FLOOR_Y - 40)
 	player.velocity = Vector2.ZERO
@@ -181,11 +263,15 @@ func _on_pack_finished(result: String) -> void:
 			add_log("（交給導演的後續：%s）" % f["hint"])
 	runner = null
 	hud_objective.text = ""
-	_hide_dialogue()
+	if dialogue_panel.visible and current_choices.is_empty():
+		lingering = true
+	else:
+		_hide_dialogue()
 	if had_map:
-		build_map(HOME_CHUNKS, HOME_SPAWN)
+		go_home()
 	_refresh_status()
 	request_followups()
+	restock()
 	autosave()
 
 
@@ -200,10 +286,16 @@ func request_followups() -> void:
 		director.request_pack(state, f)
 
 
+## 目前地區、境界可用的事件不夠時請導演補（送出中的請求也算存貨）。
+func restock() -> void:
+	if use_director:
+		director.restock(state, PackPool.for_save(pool, SAVE_ID), RESTOCK_TARGET)
+
+
 func request_fresh_event() -> void:
 	if use_director:
 		add_log("（請導演構思新事件……）")
-		director.request_pack(state)
+		director.request_pack(state, {}, "", state.region)
 
 
 func _on_pack_generated(pack: Dictionary, followup: Dictionary) -> void:
@@ -236,8 +328,11 @@ func autosave() -> void:
 
 
 func load_game() -> void:
-	if save_path != "" and state.load_file(save_path):
-		add_log("讀取存檔：第 %d 天。" % state.day)
+	if runner == null and save_path != "" and state.load_file(save_path):
+		if not regions.has(state.region):
+			state.region = START_REGION
+		go_home()
+		add_log("讀取存檔：第 %d 天，%s。" % [state.day, region_name()])
 
 
 func _on_actor_spawned(actor: Dictionary) -> void:
@@ -311,13 +406,16 @@ func _on_dialogue_ended() -> void:
 
 
 func _hide_dialogue() -> void:
+	lingering = false
 	current_choices = []
 	dialogue_panel.visible = false
 	player.frozen = false
 
 
 func advance_dialogue() -> void:
-	if runner != null and runner.current_node != "":
+	if lingering:
+		_hide_dialogue()
+	elif runner != null and runner.current_node != "":
 		runner.advance()
 
 
@@ -376,6 +474,7 @@ func pass_day() -> void:
 	state.day += 1
 	add_log("過了一天，現在是第 %d 天。" % state.day)
 	request_followups()
+	restock()
 	check_triggers({"type": "time_changed"})
 
 
@@ -397,7 +496,16 @@ func breakthrough() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
+	if not travel_options.is_empty():
+		if event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
+			choose_travel(event.physical_keycode - KEY_1)
+		elif event.physical_keycode in [KEY_ESCAPE, KEY_T]:
+			close_travel_menu()
+		_refresh_status()
+		return
 	match event.physical_keycode:
+		KEY_T:
+			open_travel_menu()
 		KEY_SPACE, KEY_ENTER:
 			advance_dialogue()
 		KEY_1, KEY_2, KEY_3, KEY_4:
@@ -447,7 +555,7 @@ func _build_hud() -> void:
 	dialogue_panel.add_child(dialogue_label)
 	hud.add_child(dialogue_panel)
 	var help := Label.new()
-	help.text = "←→ 移動　↑ 跳　J 攻擊　空白 對話　1-4 選擇"
+	help.text = "←→ 移動　↑ 跳　J 攻擊　空白 對話　1-4 選擇　T 地圖"
 	help.position = Vector2(16, 690)
 	help.modulate = Color(1, 1, 1, 0.5)
 	hud.add_child(help)
@@ -460,7 +568,7 @@ func _refresh_status() -> void:
 	var karma := []
 	for axis in state.karma:
 		karma.append("%s %d" % [axis, state.karma[axis]])
-	hud_status.text = "第 %d 天・%s　境界：%s　%s" % [state.day, state.time_of_day, state.tier_name(), "　".join(karma)]
+	hud_status.text = "%s　第 %d 天・%s　境界：%s　%s" % [region_name(), state.day, state.time_of_day, state.tier_name(), "　".join(karma)]
 
 
 func add_log(text: String) -> void:
