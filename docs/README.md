@@ -4,7 +4,7 @@
 
 | 文件 | 內容 |
 | --- | --- |
-| [仙緣、魔緣與佛緣](design/fate-monetization.md) | 收費方式、緣分值與事件觸發頻率、免費玩家體驗、生成成本 |
+| [仙緣、魔緣與佛緣](design/fate-monetization.md) | 月卡收費、緣分值與事件觸發頻率、免費玩家體驗、生成成本 |
 | [世界地圖與地區](design/world-map.md) | 九州八大區、地圖層次與身法門檻、天象與秘境、洞府 |
 | [功法與技能樹](design/skill-tree.md) | 功法、術法、身法、仙魔佛心法、機緣專屬的緣法 |
 | [任務與對話](design/quests-dialogue.md) | 任務種類、主線大綱、對話文風、角色聲音、差事模板 |
