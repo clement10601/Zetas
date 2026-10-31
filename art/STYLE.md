@@ -39,6 +39,7 @@
 - 介面是水墨卷軸風：對話框是紙卷加軸頭、朱砂名牌、說話者頭像（從立繪上方自動裁頭肩，所以立繪的頭要在不透明範圍頂端）；狀態列、紀錄是墨底半透明。樣式在 `scripts/ink_ui.gd`。
 - 角色只有一張立繪，動作用程式做：呼吸、走路起伏前傾、跳起拉長、落地壓扁揚塵、出劍墨痕、受擊閃紅後仰、倒下墨散（`scripts/player.gd`、`scripts/actor_view.gd`、`scripts/ink_fx.gd`）。
 - 依地圖標籤飄落葉、花瓣、洞裡浮塵、幻境餘燼；時辰改變整體色調（晨、午、暮、夜）；畫面四周一圈淡墨暗角。
+- 角色立繪後面有一圈淡紙色光暈（`scripts/ink_halo.gdshader`），背景整體壓暗約 13%（main.gd 的 `BACKDROP_DIM`）：轉灰階角色仍要一眼看得到。全畫面乘法疊一層宣紙纖維（`art/ui/paper_grain.png`，`python tools/paper_grain.py` 產生），暗角用偏暖的墨色。
 - 拍畫面對照：`xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/screenshot.gd -- /tmp/shots`。
 
 ## 交付

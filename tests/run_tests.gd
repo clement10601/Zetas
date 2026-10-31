@@ -422,6 +422,8 @@ func test_ink_look() -> void:
 	expect(main.tint.color.b > main.tint.color.r, "night tints the world blue")
 	main._on_actor_spawned({"id": "wolf", "template": "mob.wolf_demon", "name": "狼妖", "disposition": "hostile", "spawn_at": ""})
 	var wolf: Node2D = main.actor_views["wolf"]
+	expect(wolf.get_children().any(func(n): return n is Sprite2D and n.material is ShaderMaterial), "characters get the paper halo")
+	expect(main.player.sprite.material is ShaderMaterial, "player gets the paper halo")
 	wolf.position.x = main.player.position.x + 40
 	main.actor_hp["wolf"] = 1
 	main.attack()

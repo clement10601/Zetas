@@ -49,6 +49,8 @@ const HOSTILE_SPEED := 70.0
 const SAVE_ID := "save.001"
 ## 相鄰區塊接縫的交疊寬度（每邊），見 _blend_seam
 const SEAM_BLEND := 150
+## 背景整體壓暗一點，角色與可互動物件（平台、繩梯）才跳得出來（reference-study.md A1）
+const BACKDROP_DIM := Color(0.87, 0.86, 0.84)
 
 ## 測試時設成空字串可停用存檔／導演生成資料夾；use_director 設 false 可完全不連導演。
 const WEB_CODE_PATH := "user://director_code.txt"
@@ -318,6 +320,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		bg.position = Vector2(x, FLOOR_Y - 600)
 		bg.size = Vector2(width, 600)
 		bg.z_index = -10
+		bg.modulate = BACKDROP_DIM
 		level.add_child(bg)
 		backgrounds.append({"id": entry["chunk"], "x": x, "width": width, "tex": tex, "tags": info.get("tags", [])})
 		chunk_x[entry["chunk"]] = x
@@ -494,6 +497,7 @@ func _blend_seam(a: Dictionary, b: Dictionary) -> void:
 		view.size = Vector2(parts[2] + 1, 600)
 		view.position = Vector2(seam_x - parts[2] if i == 0 else seam_x - 1, FLOOR_Y - 600)
 		view.add_to_group("seam")
+		view.modulate = BACKDROP_DIM
 		view.z_index = -9      # 底圖是 -10：疊在兩張底圖之上、平台與角色之下
 		level.add_child(view)
 
@@ -1131,6 +1135,7 @@ func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
 		sprite.scale = Vector2.ONE * height / tex.get_height()
 		sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, -height)
 		sprite.flip_h = hostile  # 立繪面朝右；敵人預設面向玩家來的方向
+		sprite.material = InkUI.halo_material()
 		size = Vector2(tex.get_width() * sprite.scale.x, height)
 		view.add_child(sprite)
 	else:
@@ -1506,6 +1511,18 @@ func _build_hud() -> void:
 	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vignette_layer.add_child(vignette)
+	# 全畫面宣紙纖維：乘法疊上去，古畫、程式畫角色、介面像在同一張紙上（reference-study.md A5）
+	var grain_tex: Texture2D = load("res://art/ui/paper_grain.png") if ResourceLoader.exists("res://art/ui/paper_grain.png") else null
+	if grain_tex:
+		var grain := TextureRect.new()
+		grain.texture = grain_tex
+		grain.stretch_mode = TextureRect.STRETCH_TILE
+		grain.set_anchors_preset(Control.PRESET_FULL_RECT)
+		grain.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var mul := CanvasItemMaterial.new()
+		mul.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
+		grain.material = mul
+		vignette_layer.add_child(grain)
 	var hud := CanvasLayer.new()
 	hud.layer = 2
 	add_child(hud)
