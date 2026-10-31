@@ -20,8 +20,12 @@ const AssetLibrary = preload("res://addons/zeworld/asset_library.gd")
 const Player = preload("res://scripts/player.gd")
 const Cultivation = preload("res://scripts/cultivation.gd")
 const Playlog = preload("res://scripts/playlog.gd")
+const ParallaxPainting = preload("res://scripts/parallax_painting.gd")
+const Scenery = preload("res://scripts/scenery.gd")
 
 const FLOOR_Y := 560.0
+## 鏡頭下緣在地面下多少：留一條地面給操作說明，其餘都給畫面
+const CAMERA_BOTTOM := 110.0
 const START_REGION := "region.qingyun_foothills"
 ## 地區要求的最低境界（tier index）；黑風嶺築基以上才准去
 const REGION_MIN_TIER := {"region.heifeng_ridge": 1}
@@ -276,15 +280,15 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		var tex: Texture2D = art.texture(entry["chunk"])
 		var bg: Control
 		if tex:
-			bg = TextureRect.new()
-			bg.texture = tex
-			bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			bg.stretch_mode = TextureRect.STRETCH_SCALE
+			# 背景畫走得比地面慢（視差），接縫和前一張交疊淡入
+			bg = ParallaxPainting.new()
+			bg.setup(tex, x, width, FLOOR_Y, entry == ordered[0], entry == ordered[-1])
 		else:
 			bg = ColorRect.new()
 			bg.color = Color(info["color"])
-		bg.position = Vector2(x, FLOOR_Y - 600)
-		bg.size = Vector2(width, 600)
+			bg.position = Vector2(x, FLOOR_Y - 600)
+			bg.size = Vector2(width, 600)
+		bg.z_index = Scenery.MIST_Z - 1
 		level.add_child(bg)
 		var name_label := Label.new()
 		name_label.text = info["name"]
@@ -328,10 +332,11 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		ground.add_child(wall)
 	level.add_child(ground)
 	map_width = x
+	Scenery.add_layers(level, FLOOR_Y, tags, hash(ordered.map(func(e): return e["chunk"])))
 	state.map_tags = tags
 	player.ropes = ropes
 	player.floor_y = FLOOR_Y
-	player.set_camera_limits(0.0, x, FLOOR_Y - 640.0, FLOOR_Y + 160.0)
+	player.set_camera_limits(0.0, x, FLOOR_Y - 640.0, FLOOR_Y + CAMERA_BOTTOM)
 	place_player(spawn_point)
 
 
@@ -1085,6 +1090,8 @@ func actor_label(id: String) -> String:
 
 func damage_player(amount: int) -> void:
 	state.game_data["hp"] = maxi(0, hp() - amount)
+	if amount > 0:
+		player.shake(6.0)
 	if hp() == 0:
 		player_down()
 
