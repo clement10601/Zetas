@@ -31,6 +31,10 @@ const GameAudio = preload("res://scripts/audio.gd")
 const FLOOR_Y := 560.0
 ## 鏡頭下緣在地面下多少：留一條地面給操作說明，其餘都給畫面
 const CAMERA_BOTTOM := 110.0
+## 鏡頭可以看到地圖兩端外面多少（蓋墨霧）
+const EDGE_MARGIN := 110.0
+## 天頂離地多高：再往上就撞到
+const CEILING_HEIGHT := 650.0
 const START_REGION := "region.qingyun_foothills"
 ## 地區要求的最低境界（tier index）；黑風嶺築基以上才准去
 const REGION_MIN_TIER := {"region.heifeng_ridge": 1}
@@ -43,6 +47,7 @@ const ATTACK_RANGE := 90.0
 const DANGER_RANGE := 700.0
 ## 敵人走在地面上：玩家腳離地面超過這個高度就打不到、也不會被打到
 const MELEE_HEIGHT := 90.0
+const PROMPT_HEIGHT := 110.0       # 互動提示在角色腳上方多高
 const PORTAL_INSET := 50.0        # 傳送點離地圖邊緣多遠
 const INTERACT_RANGE := 40.0
 const ATTACK_COOLDOWN := 0.35
@@ -386,6 +391,15 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		wall.shape.size = Vector2(20, 1200)
 		wall.position = Vector2(wall_x, FLOOR_Y - 600)
 		ground.add_child(wall)
+	# 天頂：御劍、二段跳不會飛出畫面
+	var ceiling := CollisionShape2D.new()
+	ceiling.shape = RectangleShape2D.new()
+	ceiling.shape.size = Vector2(x + 400, 20)
+	ceiling.position = Vector2(x / 2, FLOOR_Y - CEILING_HEIGHT - 10)
+	ground.add_child(ceiling)
+	# 地圖兩端外面留一點畫面，蓋一層墨霧，站在盡頭的人和寶物不會被切在畫面邊緣
+	for side in [-1, 1]:
+		level.add_child(_edge_mist(0.0 if side < 0 else x, side))
 	level.add_child(ground)
 	map_width = x
 	_set_ambience(tags)
@@ -395,7 +409,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		audio.play_music(audio.music_key(state.region, tags), state.region)
 	player.ropes = ropes
 	player.floor_y = FLOOR_Y
-	player.set_camera_limits(0.0, x, FLOOR_Y - 640.0, FLOOR_Y + CAMERA_BOTTOM)
+	player.set_camera_limits(-EDGE_MARGIN, x + EDGE_MARGIN, FLOOR_Y - 640.0, FLOOR_Y + CAMERA_BOTTOM)
 	place_player(spawn_point)
 
 
@@ -1403,6 +1417,7 @@ func meditate() -> void:
 	var new_day := advance_time(1)
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	audio.play("meditate")
+	player.sit(1.6)
 	add_log("打坐一個時辰。（第 %d 天・%s）" % [state.day, state.time_of_day])
 	gain_cultivation(gain)
 	if new_day:
@@ -1597,6 +1612,30 @@ func _process(delta: float) -> void:
 
 
 ## 配樂節奏層：事件進行中，或附近有敵意角色
+## 地圖盡頭的墨霧：從邊界往外由淡轉濃。side -1 在左端，1 在右端。
+func _edge_mist(edge_x: float, side: int) -> TextureRect:
+	var g := GradientTexture2D.new()
+	g.width = 64
+	g.height = 4
+	g.gradient = Gradient.new()
+	var ink := Color(0.13, 0.11, 0.1)
+	g.gradient.set_color(0, Color(ink, 0.0) if side > 0 else ink)
+	g.gradient.set_color(1, ink if side > 0 else Color(ink, 0.0))
+	var mist := TextureRect.new()
+	mist.texture = g
+	mist.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mist.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var w := EDGE_MARGIN + 60.0
+	mist.size = Vector2(w + 200.0, 1400)
+	mist.position = Vector2(edge_x - 40.0 if side > 0 else edge_x - w - 160.0, FLOOR_Y - 1000)
+	if side > 0:
+		g.gradient.set_offset(1, w / mist.size.x)
+	else:
+		g.gradient.set_offset(0, 1.0 - w / mist.size.x)
+	mist.z_index = 3
+	return mist
+
+
 ## 玩家站在戰場鏡頭範圍內、而且有敵人在場時，鏡頭鎖住戰場。
 func active_camera_zone() -> Dictionary:
 	if not actor_views.values().any(func(v): return v.get_meta("hostile")):
@@ -1629,13 +1668,21 @@ func _update_prompt() -> void:
 	if not dialogue_panel.visible and not player.climbing:
 		var portal := nearby_portal()
 		if not portal.is_empty():
-			text = "↑ 前往%s" % region_name(portal["to"])
+			var need := int(REGION_MIN_TIER.get(portal["to"], 0))
+			if state.tier_index < need:
+				text = "需%s才能前往%s" % [state.ruleset["tiers"][need], region_name(portal["to"])]
+			else:
+				text = "↑ 前往%s" % region_name(portal["to"])
 		elif nearby_cache() != "":
 			text = "↑ 拿取"
 		elif nearby_resident() != "":
 			text = "↑ 交談"
 	prompt_label.text = text
 	prompt_label.visible = text != ""
+	if prompt_label.visible and player.is_inside_tree():
+		# 跟在角色頭上
+		var head := player.get_viewport().get_canvas_transform() * (player.global_position + Vector2(0, -PROMPT_HEIGHT))
+		prompt_label.position = Vector2(head.x - prompt_label.size.x / 2, head.y - 28)
 
 
 # ---------- 除錯：製造觸發條件 ----------

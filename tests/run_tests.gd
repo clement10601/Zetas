@@ -391,6 +391,13 @@ func test_cultivation() -> void:
 	expect(not main.try_breakthrough() and main.state.tier_index == 0, "cannot break through without cultivation")
 	main.meditate()
 	expect(main.cultivation() == 8 and main.state.time_of_day == "午", "meditating in the wild: +8 and one 時辰")
+	expect(main.player.sitting > 0.0, "meditating sits the player down for a moment")
+	var sx: float = main.player.position.x
+	await step(main, {"right": true}, 20)
+	expect(main.player.position.x == sx, "cannot walk off while sitting")
+	await step(main, {}, 90)
+	await step(main, {"right": true}, 10)
+	expect(main.player.position.x > sx, "stands up after a moment")
 	main.travel_to("region.qingyun_sect")
 	main.runner.abort("abandon")  # 進宗門會開「青玄峰問心」，先結束它才能打坐
 	main.advance_dialogue()
@@ -733,6 +740,12 @@ func test_scrolling_camera_and_parallax() -> void:
 	expect(painting.position.x <= painting.win_left and painting.position.x + painting.size.x >= painting.win_left + painting.win_width, "painting always covers its chunk")
 	expect(main.level.has_node("Mist") and main.level.has_node("Foreground"), "map has mist and foreground layers")
 	expect(main.level.get_node("Foreground").z_index > 0 and main.level.get_node("Mist").z_index < 0, "foreground in front of the player, mist behind")
+	# 天頂擋住御劍，不會飛出畫面
+	player.position = Vector2(1700, main.FLOOR_Y - main.CEILING_HEIGHT + 60)
+	player.velocity = Vector2(0, -900)
+	await step(main, {}, 6)
+	expect(player.position.y - player.SIZE.y / 2 >= main.FLOOR_Y - main.CEILING_HEIGHT - 1.0, "the sky ceiling stops the player (%d)" % int(player.position.y))
+	await step(main, {}, 120)
 	# 受傷鏡頭震一下
 	main.damage_player(1)
 	expect(player._shake > 0.0, "getting hit shakes the camera")
@@ -804,7 +817,7 @@ func test_platforms_and_ropes() -> void:
 	expect(main.level.get_children().filter(func(n): return n.is_in_group("platform")).size() ==
 		road["platforms"].size() + main.chunks["chunk.qingyun_woods"]["platforms"].size(), "home map builds its platforms")
 	expect(player.ropes.size() == road["ropes"].size() + main.chunks["chunk.qingyun_woods"]["ropes"].size(), "player knows the ropes")
-	expect(player.camera.limit_left == 0 and player.camera.limit_right == int(main.map_width), "camera stays inside the map")
+	expect(player.camera.limit_left == -int(main.EDGE_MARGIN) and player.camera.limit_right == int(main.map_width + main.EDGE_MARGIN), "camera stays near the map, with a little misty margin at the ends")
 	# 跳上第一層平台（x 260~440，高 100）
 	player.position = Vector2(350, main.FLOOR_Y - 40)
 	await step(main, {}, 10)
@@ -814,7 +827,7 @@ func test_platforms_and_ropes() -> void:
 	await step(main, {"down": true, "jump": true}, 40)
 	expect(player.is_on_floor() and not player.on_platform(), "down + jump drops through the platform")
 	# 藤蔓 x 640，從地面爬到高 200 的平台
-	player.position = Vector2(645, main.FLOOR_Y - 40)
+	player.position = Vector2(664, main.FLOOR_Y - 40)  # 站在藤旁 24px 也抓得到
 	await step(main, {}, 10)
 	await step(main, {"up": true}, 2)
 	expect(player.climbing and player.position.x == 640.0, "up grabs the vine and snaps onto it")
@@ -838,8 +851,13 @@ func test_portals_and_residents() -> void:
 	main.player.position = Vector2(right["x"], main.FLOOR_Y - 27)
 	main._process(0.016)
 	expect(main.prompt_label.visible and main.prompt_label.text.contains("黑風嶺"), "standing on a portal shows where it goes")
+	expect(main.prompt_label.text.contains("需築基") and not main.prompt_label.text.begins_with("↑"), "a locked portal says which realm it needs")
+	var head: Vector2 = main.player.get_viewport().get_canvas_transform() * main.player.global_position
+	expect(absf(main.prompt_label.position.x + main.prompt_label.size.x / 2 - head.x) < 2.0 and main.prompt_label.position.y < head.y, "prompt floats above the player")
 	expect(main.interact() and main.state.region == "region.qingyun_foothills", "煉氣 is turned back at the 黑風嶺 portal")
 	main.state.tier_index = 1
+	main._process(0.016)
+	expect(main.prompt_label.text.begins_with("↑ 前往"), "an open portal shows the up-arrow prompt")
 	expect(main.interact() and main.state.region == "region.heifeng_ridge", "築基 walks through the portal")
 	var back: Dictionary = main.portals.filter(func(p): return p["to"] == "region.qingyun_foothills")[0]
 	expect(absf(main.player.position.x - back["x"]) <= main.PORTAL_INSET + 1.0, "arrive at the 黑風嶺 end that leads back")
