@@ -17,6 +17,8 @@ API 金鑰只放在環境變數裡，不要寫進任何檔案，也不要貼到�
 ```powershell
 # Windows PowerShell（只對這個視窗有效）
 $env:ZEWORLD_ANTHROPIC_API_KEY = "..."
+# 選用：用 TypeSafe Jev 替候選事件評分（OpenRouter 金鑰）
+$env:ZEWORLD_JUDGE_API_KEY = "..."
 ```
 
 ## 2. 發存取碼

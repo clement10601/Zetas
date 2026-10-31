@@ -93,6 +93,8 @@ var dialogue_label: Label
 var current_choices: Array = []
 var travel_options: Array = []    # 地圖開著時可去的地區 id
 var lingering := false            # 事件結束時最後一句先留在畫面上，按空白才關
+var fits: Dictionary = {}         # 決策模型給的貼合度 {內容包 id: 0–4}，觸發時和 priority 一起排序
+var _ranked_key := ""             # 上次送評分的候選組合，沒變就不重送
 
 
 func _ready() -> void:
@@ -103,6 +105,7 @@ func _ready() -> void:
 	_read_director_config()
 	director.pack_generated.connect(_on_pack_generated)
 	director.pack_failed.connect(_on_pack_failed)
+	director.ranking_ready.connect(func(scores: Dictionary): fits.merge(scores, true))
 	director.line_rewritten.connect(func(node_id, text):
 		if runner != null:
 			runner.apply_rewrite(node_id, text))
@@ -577,7 +580,7 @@ func place_player(point: String) -> void:
 func check_triggers(event: Dictionary) -> void:
 	if runner != null:
 		return
-	var pack := TriggerJudge.pick(pool, state, event)
+	var pack := TriggerJudge.pick(pool, state, event, fits)
 	if not pack.is_empty():
 		start_pack(pack)
 
@@ -647,10 +650,27 @@ func request_followups() -> void:
 		director.request_pack(state, f)
 
 
-## 目前地區、境界可用的事件不夠時請導演補（送出中的請求也算存貨）。
+## 目前地區、境界可用的事件不夠時請導演補（送出中的請求也算存貨），並替現有候選事件重新評分。
 func restock() -> void:
 	if use_director:
 		director.restock(state, PackPool.for_save(pool, SAVE_ID), RESTOCK_TARGET)
+		rerank()
+
+
+## 請導演的決策模型替這裡可能上場的事件評分。候選組合、天數、時辰沒變就不重送。
+## 沒接決策模型時導演回 503，fits 維持空的，排序就是 priority。
+func rerank() -> void:
+	var mine := PackPool.for_save(pool, SAVE_ID)
+	var cands := PackPool.stock(mine, state, state.region) + PackPool.stock(mine, state, "")
+	if cands.size() < 2:
+		return
+	var ids := cands.map(func(p): return p["id"])
+	ids.sort()
+	var key := "%d|%s|%s|%s" % [state.day, state.time_of_day, state.region, ",".join(ids)]
+	if key == _ranked_key:
+		return
+	_ranked_key = key
+	director.request_ranking(state, cands, {"region": state.region, "time_of_day": state.time_of_day, "day": state.day})
 
 
 ## 新的一天：清掉過期的導演事件、送出後續劇情、擲今天的奇遇。
@@ -719,6 +739,8 @@ func _on_pack_generated(pack: Dictionary, followup: Dictionary) -> void:
 	add_log("（導演備好了新事件：%s）" % pack["meta"]["title"])
 	playlog.write("director_pack", {"pack": pack["id"], "request_tag": pack["meta"].get("request_tag", ""),
 		"followup": not followup.is_empty(), "region": pack["meta"].get("region", "")})
+	if use_director:
+		rerank()
 	autosave()
 	if pack["meta"].get("request_tag", "") == "encounter":
 		check_triggers({"type": "enter_map"})

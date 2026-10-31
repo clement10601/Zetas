@@ -2,6 +2,7 @@
 ## 執行：python tools/sync_engine.py && godot --headless --path . -s res://tests/run_tests.gd
 extends SceneTree
 
+const TriggerJudge = preload("res://addons/zeworld/trigger_judge.gd")
 const AssetLibrary = preload("res://addons/zeworld/asset_library.gd")
 
 var failures := 0
@@ -25,6 +26,7 @@ func _run() -> void:
 	await test_sect_first_lesson()
 	await test_personal_heart_demon()
 	await test_daily_encounter()
+	await test_judge_fits()
 	await test_cultivation()
 	await test_combat()
 	await test_art_and_placeholders()
@@ -333,6 +335,29 @@ func test_daily_encounter() -> void:
 	main.runner = null
 	main.pass_day()
 	expect(not main.pool.has(pack) and main.runner == null, "unplayed encounter expires the next day")
+	main.free()
+
+
+func test_judge_fits() -> void:
+	var main: Node = await new_game()
+	var a := generated("fit_a", [])
+	var b := generated("fit_b", [])
+	for p in [a, b]:
+		p["meta"]["region"] = main.state.region
+		p["meta"].erase("request_tag")
+	b["trigger"]["priority"] = int(a["trigger"].get("priority", 50)) + 5
+	main.pool += [a, b]
+	expect(TriggerJudge.pick(main.pool, main.state, {}, main.fits)["id"] == b["id"], "without scores priority decides")
+	main.director.ranking_ready.emit({a["id"]: 3.5, b["id"]: 1.0})
+	main.check_triggers({})
+	expect(main.runner != null and main.runner.pack["id"] == a["id"], "the judge's better fit starts first")
+	main.free()
+	main = await new_game(true)
+	main.director.base_url = "http://127.0.0.1:9"
+	main.pool += [a, b]
+	main._ranked_key = ""
+	main.rerank()
+	expect(main._ranked_key.contains(a["id"]) and main._ranked_key.contains(b["id"]), "rerank sends today's candidates")
 	main.free()
 
 
