@@ -9,7 +9,7 @@
       "text": "吹呴呼吸，吐故納新，熊經鳥申，為壽而已矣。",
       "source": "src.zhuangzi",
       "chapter": "刻意",
-      "verified": false
+      "verified": true
     },
     "basis": {
       "source": "src.wuzhenpian",
@@ -56,10 +56,10 @@
     "tier": "金丹",
     "summary": "葛洪說金丹越燒越妙，黃金百煉不消，服之可不老不死；這是外丹。內丹家把它轉成在體內凝結的「金丹」，即結丹。",
     "quote": {
-      "text": "夫金丹之為物，燒之愈久，變化愈妙。黃金入火，百鍊不消，埋之，畢天不朽。服此二物，鍊人身體，故能令人不老不死。",
+      "text": "夫金丹之為物，燒之愈久，變化愈妙。黃金入火，二百鍊不消，埋之，畢天不朽。服此二藥，鍊人身體，故能令人不老不死。",
       "source": "src.baopuzi",
       "chapter": "金丹",
-      "verified": false
+      "verified": true
     },
     "basis": {
       "source": "src.wuzhenpian",
@@ -201,7 +201,7 @@
       "text": "按仙經云：上士舉形昇虛，謂之天仙；中士遊於名山，謂之地仙；下士先死後蛻，謂之尸解仙。",
       "source": "src.baopuzi",
       "chapter": "論仙",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "仙",
@@ -221,14 +221,14 @@
     "kind": "concept",
     "summary": "道教說人身中有三尸神，盼人早死好去享祭，每逢庚申日上天向司命告發人的過失，司命據此削減壽命。修道者在庚申夜不睡「守庚申」。",
     "quote": {
-      "text": "又有三尸神，在人身中，每到庚申日，輒上詣天曹，言人罪過。",
-      "source": "src.ganyingpian",
-      "chapter": "",
-      "verified": false
+      "text": "又言身中有三尸，三尸之為物，雖無形而實魄靈鬼神之屬也。欲使人早死，此尸當得作鬼，自放縱遊行，饗人祭酹。是以每到庚申之日，輒上天白司命，道人所為過失。",
+      "source": "src.baopuzi",
+      "chapter": "微旨",
+      "verified": true
     },
     "basis": {
-      "source": "src.baopuzi",
-      "note": "《抱朴子內篇·微旨》也記三尸庚申上天白司命。"
+      "source": "src.ganyingpian",
+      "note": "《太上感應篇》也說三尸神每到庚申日上詣天曹，言人罪過。"
     },
     "tags": [
       "因果",
@@ -296,7 +296,7 @@
       "text": "一曰水，二曰火，三曰木，四曰金，五曰土。水曰潤下，火曰炎上，木曰曲直，金曰從革，土爰稼穡。",
       "source": "src.shangshu",
       "chapter": "洪範",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "五行",
@@ -339,7 +339,7 @@
       "text": "道生一，一生二，二生三，三生萬物。萬物負陰而抱陽，沖氣以為和。",
       "source": "src.daodejing",
       "chapter": "第四十二章",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "道",

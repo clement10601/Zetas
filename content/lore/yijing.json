@@ -9,7 +9,7 @@
       "text": "乾，健也。",
       "source": "src.zhouyi",
       "chapter": "說卦傳",
-      "verified": false
+      "verified": true
     },
     "nature": "天",
     "family": "父",
@@ -37,7 +37,7 @@
       "text": "兌，說也。",
       "source": "src.zhouyi",
       "chapter": "說卦傳",
-      "verified": false
+      "verified": true
     },
     "nature": "澤",
     "family": "少女",
@@ -65,7 +65,7 @@
       "text": "離，麗也。",
       "source": "src.zhouyi",
       "chapter": "說卦傳",
-      "verified": false
+      "verified": true
     },
     "nature": "火",
     "family": "中女",
@@ -93,7 +93,7 @@
       "text": "震，動也。",
       "source": "src.zhouyi",
       "chapter": "說卦傳",
-      "verified": false
+      "verified": true
     },
     "nature": "雷",
     "family": "長男",
@@ -121,7 +121,7 @@
       "text": "巽，入也。",
       "source": "src.zhouyi",
       "chapter": "說卦傳",
-      "verified": false
+      "verified": true
     },
     "nature": "風",
     "family": "長女",
@@ -149,7 +149,7 @@
       "text": "坎，陷也。",
       "source": "src.zhouyi",
       "chapter": "說卦傳",
-      "verified": false
+      "verified": true
     },
     "nature": "水",
     "family": "中男",
@@ -177,7 +177,7 @@
       "text": "艮，止也。",
       "source": "src.zhouyi",
       "chapter": "說卦傳",
-      "verified": false
+      "verified": true
     },
     "nature": "山",
     "family": "少男",
@@ -205,7 +205,7 @@
       "text": "坤，順也。",
       "source": "src.zhouyi",
       "chapter": "說卦傳",
-      "verified": false
+      "verified": true
     },
     "nature": "地",
     "family": "母",
@@ -238,7 +238,7 @@
       "text": "元亨利貞。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -262,7 +262,7 @@
       "text": "元亨，利牝馬之貞。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -301,7 +301,7 @@
       "text": "亨。匪我求童蒙，童蒙求我。初筮告，再三瀆，瀆則不告。利貞。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -475,7 +475,7 @@
       "text": "亨，君子有終。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -529,7 +529,7 @@
       "text": "元亨，利涉大川。先甲三日，後甲三日。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -613,7 +613,7 @@
       "text": "不利有攸往。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -637,7 +637,7 @@
       "text": "亨。出入无疾，朋來无咎。反復其道，七日來復，利有攸往。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -721,7 +721,7 @@
       "text": "習坎，有孚，維心亨，行有尚。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -1000,7 +1000,7 @@
       "text": "亨，貞，大人吉，无咎。有言不信。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -1039,7 +1039,7 @@
       "text": "已日乃孚。元亨利貞，悔亡。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -1258,7 +1258,7 @@
       "text": "亨小，利貞。初吉終亂。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -1282,7 +1282,7 @@
       "text": "亨。小狐汔濟，濡其尾，无攸利。",
       "source": "src.zhouyi",
       "chapter": "卦辭",
-      "verified": false
+      "verified": true
     },
     "hooks": {
       "uses": [
@@ -1323,7 +1323,7 @@
       "text": "天地定位，山澤通氣，雷風相薄，水火不相射。",
       "source": "src.zhouyi",
       "chapter": "說卦傳",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "八卦",
@@ -1345,7 +1345,7 @@
       "text": "初九：潛龍勿用。",
       "source": "src.zhouyi",
       "chapter": "乾",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "龍",
@@ -1368,7 +1368,7 @@
       "text": "天行健，君子以自強不息。",
       "source": "src.zhouyi",
       "chapter": "乾·象",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "宗門訓詞",
