@@ -41,7 +41,7 @@
 ```
 
 - `quote` 是原文，`basis` 是沒有直接引文時的根據說明。每筆至少要有一個。
-- `verified: true` 表示引文已對照 `sources.json` 裡 `checked` 列出的版本逐字核對過。《山海經》四篇 57 筆對照維基文庫（只刪去郭璞注）；其他書 38 筆對照殆知閣古籍庫（GitHub `garychowcmu/daizhigev20`，簡體本，繁簡轉換後比對）。目前 162 筆中 95 筆有引文且已核對；還沒核對的是《太上感應篇》兩筆（殆知閣只有李昌齡傳注本，不含完整本文）和繫辭「易有太極」（該本作「大極」）。
+- `verified: true` 表示引文已對照 `sources.json` 裡 `checked` 列出的版本逐字核對過。《山海經》四篇 57 筆、《太上感應篇》兩筆與繫辭「易有太極」對照維基文庫（記下 oldid，只刪去注文）；其他書 38 筆對照殆知閣古籍庫（GitHub `garychowcmu/daizhigev20`，簡體本，繁簡轉換後比對）。目前 162 筆中有引文的 98 筆全部核對過。
 - `hooks` 是遊戲用法，不是原典內容。`regions` 必須是 `content/regions.json` 已有的地區；還沒做的地區放 `planned_regions`（id 照 `docs/design/world-map.md`）。`fate` 是仙緣 `xian`、魔緣 `mo`、佛緣 `fo`，給設計看；引擎只認 `request_tags`（和補貨的 request tag 同一套名字，例如 `fate_xian`），所以有 `fate` 就要加對應的 tag，`check` 會檢查。
 - 卦畫 `lines` 由下往上，1 是陽爻。
 
@@ -69,6 +69,6 @@ python -m unittest discover -s tests -p "test_*.py"             # 工具本身�
 
 ## 之後
 
-- 補核對：剩下 3 筆 `verified: false`。雲端環境連不到維基文庫和 ctext，但連得到 GitHub，殆知閣古籍庫可以用 `git clone --filter=blob:none` 只抓需要的檔案。
+- 新增引文時照同樣方式核對：維基文庫用 `https://zh.wikisource.org/w/index.php?title=篇名&action=raw` 抓原始碼（`api.php` 對雲端環境限流，`index.php` 可以），oldid 從頁面的 `wgCurRevisionId` 取得；維基文庫沒有的書用殆知閣古籍庫。
 - 擴充：《山海經》東山經、中山經、海外四經、海內四經；《搜神記》報恩與報仇的故事；《抱朴子》入山、登涉篇的入山禁忌與符。
 
