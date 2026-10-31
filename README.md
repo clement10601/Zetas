@@ -109,6 +109,6 @@ godot --headless --path . -s res://tests/run_tests.gd
 ## 封閉測試
 
 - 遊玩紀錄寫在 `user://playlog.jsonl`（Windows 是 `%APPDATA%\Zetas\playlog.jsonl`），內容只有事件開始與結束、結果、翻頁速度、導演成功或失敗。彙整方式：`python tools/playlog_report.py A.jsonl B.jsonl > report.md`，會算出每個事件的完成率與台詞跳過率。
-- Windows 測試版：到 GitHub Actions 手動執行 `build` workflow（勾選「匯出 Windows 測試版」），下載 artifact。也可以在本機跑 `python tools/fetch_export_template.py 4.4.1 windows_release_x86_64.exe`，再執行 `godot --headless --export-release "Windows Desktop" build/windows/Zetas.exe`。
+- Windows 測試版：到 GitHub Actions 手動執行 `build` workflow（勾選「匯出 Windows 測試版」），下載 artifact；填 `release_tag` 會直接發佈成 GitHub Release，`director_url` 預填導演網址。也可以在本機跑 `python tools/fetch_export_template.py 4.4.1 windows_release_x86_64.exe`，再執行 `godot --headless --export-release "Windows Desktop" build/windows/Zetas.exe`。
 - 測試者連導演：在 `Zetas.exe` 旁邊放 `director_url.txt`（導演網址）和 `director_code.txt`（這位測試者的存取碼）。沒放就只有手寫事件。架設導演、發存取碼的步驟見 [playtest/HOSTING.md](playtest/HOSTING.md)。
 - 給測試者的說明在 [playtest/README.md](playtest/README.md)，匯出時會一起打包。

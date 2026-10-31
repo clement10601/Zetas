@@ -1,104 +1,119 @@
 {
-  "_comment": "素材清單（ZeWorld AssetLibrary 格式）。files 多張就是變體，同一個 NPC 固定拿同一張。缺圖時角色退回 npc.generic／mob.generic，再缺就畫色塊。美術規格見 art/STYLE.md，待辦清單用 python tools/art_todo.py 產生。",
+  "_comment": "素材清單（ZeWorld AssetLibrary 格式）。files 多張就是變體，同一個 NPC 固定拿同一張。prop 是平台、地面、繩梯、牆、寶匣的貼圖，會重複鋪開。缺圖時角色退回 npc.generic／mob.generic，再缺就畫色塊。美術規格見 art/STYLE.md，待辦清單用 python tools/art_todo.py 產生。",
   "root": "res://art",
   "assets": {
+    "player.disciple": {
+      "type": "sprite",
+      "files": [
+        "sprites/player.disciple.png"
+      ],
+      "height": 88
+    },
     "npc.fox_girl": {
       "type": "sprite",
       "files": [
         "sprites/npc.fox_girl.png"
       ],
-      "height": 120
+      "height": 96
     },
     "npc.memory_echo": {
       "type": "sprite",
       "files": [
         "sprites/npc.memory_echo.png"
       ],
-      "height": 120
+      "height": 96
     },
     "npc.villager": {
       "type": "sprite",
       "files": [
-        "sprites/npc.villager.png"
+        "sprites/npc.villager_a.png",
+        "sprites/npc.villager_b.png",
+        "sprites/npc.villager_c.png"
       ],
-      "height": 120
+      "height": 96
     },
     "npc.cultivator": {
       "type": "sprite",
       "files": [
-        "sprites/npc.cultivator.png"
+        "sprites/npc.cultivator_a.png",
+        "sprites/npc.cultivator_b.png",
+        "sprites/npc.cultivator_c.png"
       ],
-      "height": 120
+      "height": 96
     },
     "npc.merchant": {
       "type": "sprite",
       "files": [
-        "sprites/npc.merchant.png"
+        "sprites/npc.merchant_a.png",
+        "sprites/npc.merchant_b.png"
       ],
-      "height": 120
+      "height": 96
     },
     "mob.demon_hunter": {
       "type": "sprite",
       "files": [
         "sprites/mob.demon_hunter.png"
       ],
-      "height": 120
+      "height": 96
     },
     "mob.bandit": {
       "type": "sprite",
       "files": [
-        "sprites/mob.bandit.png"
+        "sprites/mob.bandit_a.png",
+        "sprites/mob.bandit_b.png"
       ],
-      "height": 120
+      "height": 96
     },
     "mob.wolf_demon": {
       "type": "sprite",
       "files": [
         "sprites/mob.wolf_demon.png"
       ],
-      "height": 120
+      "height": 96
     },
     "boss.heart_demon_mirror": {
       "type": "sprite",
       "files": [
         "sprites/boss.heart_demon_mirror.png"
       ],
-      "height": 150
+      "height": 120
     },
     "boss.demon_lord": {
       "type": "sprite",
       "files": [
         "sprites/boss.demon_lord.png"
       ],
-      "height": 150
+      "height": 120
     },
     "npc.sect_master": {
       "type": "sprite",
       "files": [
         "sprites/npc.sect_master.png"
       ],
-      "height": 120
+      "height": 96
     },
     "npc.fellow_disciple": {
       "type": "sprite",
       "files": [
-        "sprites/npc.fellow_disciple.png"
+        "sprites/npc.fellow_disciple_a.png",
+        "sprites/npc.fellow_disciple_b.png",
+        "sprites/npc.fellow_disciple_c.png"
       ],
-      "height": 120
+      "height": 96
     },
     "npc.generic": {
       "type": "sprite",
       "files": [
         "sprites/npc.generic.png"
       ],
-      "height": 120
+      "height": 96
     },
     "mob.generic": {
       "type": "sprite",
       "files": [
         "sprites/mob.generic.png"
       ],
-      "height": 120
+      "height": 96
     },
     "chunk.qingyun_road": {
       "type": "chunk",
@@ -194,6 +209,54 @@
       "type": "chunk",
       "files": [
         "chunks/chunk.demon_den.png"
+      ]
+    },
+    "prop.platform": {
+      "type": "prop",
+      "files": [
+        "props/platform.png"
+      ]
+    },
+    "prop.ground": {
+      "type": "prop",
+      "files": [
+        "props/ground.png"
+      ]
+    },
+    "prop.rope": {
+      "type": "prop",
+      "files": [
+        "props/rope.png"
+      ]
+    },
+    "prop.vine": {
+      "type": "prop",
+      "files": [
+        "props/vine.png"
+      ]
+    },
+    "prop.ladder": {
+      "type": "prop",
+      "files": [
+        "props/ladder.png"
+      ]
+    },
+    "prop.cliff": {
+      "type": "prop",
+      "files": [
+        "props/cliff.png"
+      ]
+    },
+    "prop.thin_wall": {
+      "type": "prop",
+      "files": [
+        "props/thin_wall.png"
+      ]
+    },
+    "prop.cache": {
+      "type": "prop",
+      "files": [
+        "props/cache.png"
       ]
     }
   }

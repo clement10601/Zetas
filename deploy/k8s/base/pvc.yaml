@@ -1,0 +1,11 @@
+# 用量（usage.json）和導演生成的內容包。很小，1Gi 綽綽有餘。
+# 沒寫 storageClassName：用叢集預設的 StorageClass（k0s 沒有內建，見 README「儲存」）。
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zetas-director-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi

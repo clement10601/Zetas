@@ -46,6 +46,8 @@ const HOSTILE_SPEED := 70.0
 const SAVE_ID := "save.001"
 
 ## 測試時設成空字串可停用存檔／導演生成資料夾；use_director 設 false 可完全不連導演。
+const WEB_CODE_PATH := "user://director_code.txt"
+var _awaiting_code := false       # 網頁版還沒輸入存取碼：先不送導演請求，免得被擋
 var save_path := "user://save.json"
 var generated_dir := "user://generated"
 var use_director := true
@@ -120,6 +122,7 @@ func _ready() -> void:
 	add_child(audio)
 	player = Player.new()
 	add_child(player)
+	player.set_look(art.texture("player.disciple"), float(art.info("player.disciple").get("height", 88)))
 	player.sound.connect(func(n): audio.play(n))
 	if save_path != "" and state.load_file(save_path):
 		add_log("讀取存檔：第 %d 天。" % state.day)
@@ -132,9 +135,10 @@ func _ready() -> void:
 	add_log("%s。T 地圖、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。" % region_name())
 	playlog.write("session_start", {"version": ProjectSettings.get_setting("application/config/version", ""),
 		"director": use_director, "day": state.day, "region": state.region, "tier": state.tier_name()})
-	request_followups()
-	restock()
-	prepare_heart_demon()
+	if not _awaiting_code:
+		request_followups()
+		restock()
+		prepare_heart_demon()
 	check_triggers({"type": "enter_map"})
 
 
@@ -147,8 +151,13 @@ func _notification(what: int) -> void:
 
 ## 測試版：執行檔旁的 director_url.txt 指定導演位址、director_code.txt 放存取碼
 ## （環境變數 ZEWORLD_DIRECTOR_URL、ZEWORLD_DIRECTOR_CODE 優先）。
+## 網頁版：導演網址用專案設定 zetas/web_director_url（網址加 ?director= 可改），
+## 存取碼從網址 ?code= 帶入或第一次開啟時輸入，存在 user://director_code.txt（瀏覽器 IndexedDB）。
 func _read_director_config() -> void:
 	if OS.has_feature("editor"):
+		return
+	if OS.has_feature("web"):
+		_read_web_director_config()
 		return
 	var dir := OS.get_executable_path().get_base_dir()
 	var url := _read_text(dir.path_join("director_url.txt"))
@@ -157,6 +166,71 @@ func _read_director_config() -> void:
 	var code := _read_text(dir.path_join("director_code.txt"))
 	if OS.get_environment("ZEWORLD_DIRECTOR_CODE") == "" and code != "":
 		director.access_code = code
+
+
+func _read_web_director_config() -> void:
+	var url := _web_param("director")
+	if url == "":
+		url = str(ProjectSettings.get_setting("zetas/web_director_url", ""))
+	if url.begins_with("http"):
+		director.base_url = url
+	var code := _web_param("code")
+	if code != "":
+		_write_text(WEB_CODE_PATH, code)
+		JavaScriptBridge.eval("history.replaceState(null, '', location.pathname)")
+	else:
+		code = _read_text(WEB_CODE_PATH)
+	if code != "":
+		director.access_code = code
+	else:
+		_awaiting_code = true
+		_ask_access_code.call_deferred()
+
+
+static func _web_param(name: String) -> String:
+	var v = JavaScriptBridge.eval("new URLSearchParams(location.search).get('%s') || ''" % name)
+	return str(v).strip_edges() if v != null else ""
+
+
+static func _write_text(path: String, text: String) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f != null:
+		f.store_string(text)
+
+
+## 網頁版第一次開啟：請玩家輸入存取碼。留空就只玩手寫事件，下次開啟會再問。
+func _ask_access_code() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(layer)
+	var panel := PanelContainer.new()
+	panel.position = Vector2(340, 260)
+	panel.custom_minimum_size = Vector2(600, 0)
+	layer.add_child(panel)
+	var box := VBoxContainer.new()
+	panel.add_child(box)
+	var label := Label.new()
+	label.text = "輸入存取碼就能連上 AI 導演，生成只屬於你的事件。\n沒有存取碼也能玩，直接按 Enter。"
+	box.add_child(label)
+	var field := LineEdit.new()
+	field.placeholder_text = "存取碼"
+	box.add_child(field)
+	get_tree().paused = true
+	field.text_submitted.connect(func(text: String):
+		var code := text.strip_edges()
+		if code != "":
+			_write_text(WEB_CODE_PATH, code)
+			director.access_code = code
+			add_log("已連上 AI 導演。")
+		get_tree().paused = false
+		_awaiting_code = false
+		layer.queue_free()
+		if code != "":
+			request_followups()
+			restock()
+			prepare_heart_demon())
+	field.grab_focus.call_deferred()
 
 
 static func _read_text(path: String) -> String:
@@ -254,11 +328,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	shape.shape.size = Vector2(x + 400, 40)
 	shape.position = Vector2(x / 2, FLOOR_Y + 20)
 	ground.add_child(shape)
-	var ground_rect := ColorRect.new()
-	ground_rect.color = Color("#1c1a17")
-	ground_rect.position = Vector2(-200, FLOOR_Y)
-	ground_rect.size = Vector2(x + 400, 160)
-	ground.add_child(ground_rect)
+	ground.add_child(_tiled("prop.ground", Vector2(-200, FLOOR_Y - 3), Vector2(x + 400, 163), Color("#1c1a17")))
 	for wall_x in [-10.0, x + 10.0]:
 		var wall := CollisionShape2D.new()
 		wall.shape = RectangleShape2D.new()
@@ -289,16 +359,14 @@ func _add_platform(left: float, top: float, width: float, skill := "") -> void:
 	shape.position = Vector2(left + width / 2, top + 6)
 	shape.one_way_collision = true
 	body.add_child(shape)
-	var slab := ColorRect.new()
-	slab.color = Color("#2a2620", 0.85)
-	slab.position = Vector2(left, top)
-	slab.size = Vector2(width, 14)
+	var slab := _tiled("prop.platform", Vector2(left, top - 2), Vector2(width, 18), Color("#2a2620", 0.85))
 	body.add_child(slab)
-	var edge := ColorRect.new()
-	edge.color = Color("#9fc4c9") if skill != "" else Color("#0e0d0b")
-	edge.position = Vector2(left, top)
-	edge.size = Vector2(width, 3)
-	body.add_child(edge)
+	if skill != "" or not slab is TextureRect:
+		var edge := ColorRect.new()
+		edge.color = Color("#9fc4c9") if skill != "" else Color("#0e0d0b")
+		edge.position = Vector2(left, top)
+		edge.size = Vector2(width, 3)
+		body.add_child(edge)
 	level.add_child(body)
 
 
@@ -312,11 +380,8 @@ func _add_wall(left: float, width: float, bottom: float, top: float, kind: Strin
 	shape.shape.size = Vector2(width, top - bottom)
 	shape.position = Vector2(left + width / 2, FLOOR_Y - (top + bottom) / 2)
 	body.add_child(shape)
-	var rect := ColorRect.new()
-	rect.color = Color("#7a5a3a") if kind == "thin" else Color("#24221e")
-	rect.position = Vector2(left, FLOOR_Y - top)
-	rect.size = Vector2(width, top - bottom)
-	body.add_child(rect)
+	body.add_child(_tiled("prop.thin_wall" if kind == "thin" else "prop.cliff", Vector2(left, FLOOR_Y - top),
+		Vector2(width, top - bottom), Color("#7a5a3a") if kind == "thin" else Color("#24221e")))
 	level.add_child(body)
 
 
@@ -324,11 +389,19 @@ func _add_wall(left: float, width: float, bottom: float, top: float, kind: Strin
 func _add_cache(c: Dictionary, chunk_left: float) -> void:
 	var view := Node2D.new()
 	view.position = Vector2(chunk_left + float(c["x"]), FLOOR_Y - float(c.get("h", 0)))
-	var box := ColorRect.new()
-	box.color = Color("#b8862b")
-	box.position = Vector2(-12, -16)
-	box.size = Vector2(24, 16)
-	view.add_child(box)
+	var tex: Texture2D = art.texture("prop.cache")
+	if tex:
+		var sprite := Sprite2D.new()
+		sprite.texture = tex
+		sprite.centered = false
+		sprite.position = Vector2(-tex.get_width() / 2.0, -tex.get_height())
+		view.add_child(sprite)
+	else:
+		var box := ColorRect.new()
+		box.color = Color("#b8862b")
+		box.position = Vector2(-12, -16)
+		box.size = Vector2(24, 16)
+		view.add_child(box)
 	level.add_child(view)
 	caches[c["id"]] = {"view": view, "info": c}
 
@@ -379,7 +452,11 @@ func _add_rope_view(rope: Dictionary) -> void:
 	var view := Node2D.new()
 	view.add_to_group("rope")
 	var length: float = rope["bottom"] - rope["top"]
-	if rope["kind"] == "ladder":
+	var tex: Texture2D = art.texture("prop." + rope["kind"])
+	if tex:
+		view.add_child(_tiled("prop." + rope["kind"], Vector2(rope["x"] - tex.get_width() / 2.0, rope["top"]),
+			Vector2(tex.get_width(), length), Color.WHITE))
+	elif rope["kind"] == "ladder":
 		for side in [-10.0, 8.0]:
 			var rail := ColorRect.new()
 			rail.color = Color("#6b4f35")
@@ -399,6 +476,23 @@ func _add_rope_view(rope: Dictionary) -> void:
 		line.size = Vector2(4, length)
 		view.add_child(line)
 	level.add_child(view)
+
+
+## 平台、地面、繩梯、牆的貼圖：有圖就重複鋪滿，沒圖退回色塊。
+func _tiled(id: String, pos: Vector2, size: Vector2, fallback: Color) -> Control:
+	var tex: Texture2D = art.texture(id)
+	var view: Control
+	if tex:
+		view = TextureRect.new()
+		view.texture = tex
+		view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		view.stretch_mode = TextureRect.STRETCH_TILE
+	else:
+		view = ColorRect.new()
+		view.color = fallback
+	view.position = pos
+	view.size = size
+	return view
 
 
 ## 回到目前地區的落腳地圖。
