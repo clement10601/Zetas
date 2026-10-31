@@ -39,6 +39,8 @@ const RESTOCK_TARGET := 3
 const HEART_DEMON_HINT := "突破到%s時的心魔幻境。心魔是玩家的鏡像，拿玩家經歷裡最難面對的事（history 裡的選擇、NPC 的記憶、karma 傾向）來質問玩家，每個玩家的心魔都該不同。地圖只用心魔幻境區塊（地圖標籤 illusion），心魔用模板 boss.heart_demon_mirror。tier_range 從%s到%s，不要設定 meta.region。通過時設旗標 %s_heart_demon_cleared。"
 const ENCOUNTER_HINT := "今日奇遇：發生在玩家目前所在地區的小小偶遇，幾分鐘就能玩完，可以呼應玩家最近的經歷。今天就要能觸發：觸發條件只用這個地區區塊有的地圖標籤，可加時辰，不要用天數或其他事件才會立的旗標。獎勵要小。"
 const ATTACK_RANGE := 90.0
+## 敵人在這個距離內，配樂的鼓聲層進來
+const DANGER_RANGE := 700.0
 ## 敵人走在地面上：玩家腳離地面超過這個高度就打不到、也不會被打到
 const MELEE_HEIGHT := 90.0
 const PORTAL_INSET := 50.0        # 傳送點離地圖邊緣多遠
@@ -369,7 +371,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	Scenery.add_layers(level, FLOOR_Y, tags, hash(ordered.map(func(e): return e["chunk"])))
 	state.map_tags = tags
 	if audio != null:
-		audio.play_music(audio.music_key(state.region, tags))
+		audio.play_music(audio.music_key(state.region, tags), state.region)
 	player.ropes = ropes
 	player.floor_y = FLOOR_Y
 	player.set_camera_limits(0.0, x, FLOOR_Y - 640.0, FLOOR_Y + CAMERA_BOTTOM)
@@ -826,6 +828,7 @@ func talk_to(id: String) -> void:
 	dialogue_panel.visible = true
 	player.frozen = true
 	lingering = true
+	audio.motif(state.region)
 	playlog.write("talk", {"npc": r["info"].get("memory_key", id), "region": state.region})
 
 
@@ -845,6 +848,7 @@ func travel_to(id: String, by_portal := false) -> bool:
 	var from: String = state.region
 	state.region = id
 	audio.play("travel")
+	audio.motif(id)
 	go_home()
 	if by_portal:
 		for p in portals:
@@ -920,7 +924,10 @@ func check_triggers(event: Dictionary) -> void:
 
 func start_pack(pack: Dictionary) -> void:
 	add_log("【%s】%s" % [pack["meta"]["title"], pack["meta"]["summary"]])
-	audio.play("event_start")
+	if pack["meta"].get("request_tag", "") == "heart_demon" or _pack_has_tag(pack, "illusion"):
+		audio.stinger("heart_demon", "event_start")
+	else:
+		audio.stinger("event_start", "event_start")
 	pack_stats = {"started": Time.get_ticks_msec(), "lines": 0, "skipped": 0, "rewritten": 0}
 	playlog.write("pack_start", {"pack": pack["id"], "title": pack["meta"]["title"], "author": pack["meta"].get("author", ""),
 		"request_tag": pack["meta"].get("request_tag", ""), "region": state.region, "day": state.day, "tier": state.tier_name()})
@@ -955,7 +962,7 @@ func _on_pack_finished(result: String) -> void:
 	var title: String = runner.pack["meta"]["title"]
 	var had_map: bool = runner.pack.has("map")
 	add_log("【%s】結束：%s" % [title, {"complete": "完成", "fail": "失敗", "abandon": "放棄"}[result]])
-	audio.play("event_end")
+	audio.stinger("event_end", "event_end")
 	for f in state.followups:
 		if f["from_pack"] == runner.pack["id"]:
 			add_log("（交給導演的後續：%s）" % f["hint"])
@@ -1381,6 +1388,7 @@ func player_down() -> void:
 
 func _process(delta: float) -> void:
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
+	audio.set_mood(absf(player.velocity.x) > 10.0 or player.climbing, in_danger(), dialogue_panel.visible, delta)
 	_update_prompt()
 	if runner == null:
 		return
@@ -1405,6 +1413,23 @@ func _process(delta: float) -> void:
 				damage_player(Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), pack_tier()))
 				if runner == null:
 					return
+
+
+## 配樂節奏層：事件進行中，或附近有敵意角色
+func in_danger() -> bool:
+	if runner != null:
+		return true
+	for view in actor_views.values():
+		if view.get_meta("hostile") and absf(view.position.x - player.position.x) < DANGER_RANGE:
+			return true
+	return false
+
+
+func _pack_has_tag(pack: Dictionary, tag: String) -> bool:
+	for entry in pack.get("map", {}).get("chunks", []):
+		if tag in chunks.get(entry["chunk"], {}).get("tags", []):
+			return true
+	return false
 
 
 ## 站在傳送點或 NPC 旁邊時，畫面下方提示可以按 ↑。
@@ -1450,7 +1475,7 @@ func breakthrough() -> void:
 	state.tier_index += 1
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	playlog.write("breakthrough", {"tier": state.tier_name(), "day": state.day})
-	audio.play("breakthrough")
+	audio.stinger("breakthrough", "breakthrough")
 	add_log("突破至" + state.tier_name() + "！")
 	update_movement_skills()
 	check_triggers({"type": "tier_up", "to": state.tier_name()})

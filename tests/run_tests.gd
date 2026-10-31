@@ -889,33 +889,55 @@ func test_earth_escape_and_flight() -> void:
 	main.free()
 
 
-## 配樂與音效：清單裡的檔案都在、每個地區都有曲子、心魔幻境換曲、動作會出聲、N 可關配樂。
+## 配樂與音效：清單裡的檔案都在、每個地區都有三層曲子與短樂句、心魔幻境換曲並用所在地區的旋律、
+## 走動才有旋律、危險才有鼓、對話時壓低、動作會出聲、N 可關配樂。
 func test_audio() -> void:
 	var main: Node = await new_game()
 	var audio: Node = main.audio
 	for key in audio.music:
-		expect(ResourceLoader.exists(audio.music[key]["file"]), "music file for %s exists" % key)
+		var entry: Dictionary = audio.music[key]
+		expect(float(entry.get("bpm", 0)) > 0.0, "%s has a tempo for stingers" % key)
+		for layer in ["base", "melody", "rhythm"]:
+			var f: String = audio.layer_file(key, layer, "region.qingyun_sect")
+			expect(ResourceLoader.exists(f), "%s %s layer exists (%s)" % [key, layer, f])
+		for st in ["event_start", "event_end", "breakthrough", "motif"]:
+			expect(ResourceLoader.exists(entry["stingers"][st]), "%s stinger %s exists" % [key, st])
+	for st in audio.stingers:
+		expect(ResourceLoader.exists(audio.stingers[st]), "shared stinger %s exists" % st)
 	for name in audio.sfx:
 		for f in audio.sfx[name]["files"]:
 			expect(ResourceLoader.exists(f), "sfx file %s exists" % f)
 	for region in main.regions:
 		if region.begins_with("region."):
 			expect(audio.music_key(region, []) == region, "%s has music" % region)
+			expect(audio.layer_file("tag.illusion", "melody", region).contains(region.trim_prefix("region.")),
+				"heart demon melody mirrors %s's motif" % region)
 	expect(audio.music_key("region.qingyun_sect", ["illusion"]) == "tag.illusion", "illusion maps use the heart demon music")
 	expect(audio.current_music == main.state.region, "the home region's music plays on start")
 	await step(main, {}, 20)
+	expect(audio.layer_target["base"] == 1.0 and audio.layer_target["rhythm"] == 0.0, "calm: only the base layer and no drums")
 	audio.played.clear()
-	await step(main, {"jump": true}, 4)
+	await step(main, {"right": true, "jump": true}, 6)
 	expect(audio.played.has("jump"), "jumping makes a sound")
-	await step(main, {}, 60)
+	expect(audio.layer_target["melody"] == 1.0, "walking brings in the melody")
+	await step(main, {}, 30)
 	main.attack()
 	expect(audio.played.has("attack"), "attacking makes a sound")
+	audio.set_mood(false, true, true, 1.0)
+	expect(audio.layer_target["rhythm"] == 1.0, "danger brings in the drums")
+	expect(audio.duck_db < 0.0, "dialogue ducks the music")
+	audio.set_mood(false, false, false, audio.IDLE_SECONDS + 1.0)
+	expect(audio.layer_target["melody"] == 0.0 and audio.layer_target["rhythm"] == 0.0, "standing still lets the melody rest")
 	for name in ["jump", "double_jump", "wall_jump", "flight", "land", "attack", "hit", "hurt", "defeat",
 			"event_start", "event_end", "reward", "breakthrough", "meditate", "travel", "ui_tick"]:
 		expect(audio.sfx.has(name), "sfx %s is listed" % name)
 	audio.played.clear()
+	expect(main.travel_to("region.qingyun_sect"), "travel to the sect")
+	expect(audio.played.has("motif:region.qingyun_sect"), "travelling plays the destination's motif")
+	expect(audio.current_music == "region.qingyun_sect", "and switches the music")
+	audio.played.clear()
 	main.breakthrough()
-	expect(audio.played.has("breakthrough"), "breakthrough plays the gong")
+	expect(audio.played.has("stinger:breakthrough"), "breakthrough plays the regional stinger")
 	var piece: String = audio.current_music
 	expect(not audio.toggle_music() and not audio.music_on, "N turns the music off")
 	expect(audio.toggle_music() and audio.current_music == piece, "and back on with the same piece (%s)" % piece)
