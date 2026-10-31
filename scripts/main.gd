@@ -111,6 +111,7 @@ var actor_power: Dictionary = {}  # actor id -> power，傷害與擊殺修為用
 var enemy_cooldown: Dictionary = {}  # actor id -> 收招破綻還剩幾秒（這段時間不動、不出招）
 var enemy_windup: Dictionary = {}    # actor id -> 前搖還剩幾秒（只有正在蓄力的敵人）
 var player_invuln := 0.0
+var camera_zones: Array = []      # 這張地圖的戰場鏡頭 {x0, x1, zoom, lock_y?}（chunks.json 的 camera）
 var hitstop_enabled := true
 var attack_cooldown := 0.0
 var log_lines: Array = []
@@ -308,6 +309,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	move_child(level, 0)
 	points.clear()
 	chunk_x.clear()
+	camera_zones = []
 	portals = []
 	residents.clear()
 	caches.clear()
@@ -339,6 +341,12 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		level.add_child(bg)
 		backgrounds.append({"id": entry["chunk"], "x": x, "width": width, "tex": tex, "tags": info.get("tags", [])})
 		chunk_x[entry["chunk"]] = x
+		if info.has("camera"):
+			var cz: Dictionary = info["camera"]
+			var zone := {"x0": x + float(cz.get("x0", 0)), "x1": x + float(cz.get("x1", width)), "zoom": float(cz.get("zoom", 0.9))}
+			if cz.has("lock_y"):
+				zone["lock_y"] = FLOOR_Y - float(cz["lock_y"])
+			camera_zones.append(zone)
 		for p in info.get("points", {}):
 			points[p] = x + float(info["points"][p])
 		for plat in info.get("platforms", []):
@@ -1398,7 +1406,7 @@ func _enemy_strike(id: String) -> void:
 	_cancel_windup(id)
 	enemy_cooldown[id] = Cultivation.ENEMY_RECOVER
 	var view: Node2D = actor_views[id]
-	if absf(player.position.x - view.position.x) > ENEMY_STRIKE_REACH or not player_near_ground() or player_invuln > 0.0:
+	if absf(player.position.x - view.position.x) > ENEMY_STRIKE_REACH or not player_near_ground() or player_invuln > 0.0 or player.dashing > 0.0:
 		return
 	player_invuln = PLAYER_INVULN
 	player.knock_back(view.position.x)
@@ -1446,6 +1454,7 @@ func player_down() -> void:
 func _process(delta: float) -> void:
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	player_invuln = maxf(0.0, player_invuln - delta)
+	player.camera_zone = active_camera_zone()
 	# 受傷後無敵時閃爍
 	player.modulate.a = 0.35 if player_invuln > 0.0 and fmod(player_invuln, 0.14) < 0.07 else 1.0
 	audio.set_mood(absf(player.velocity.x) > 10.0 or player.climbing, in_danger(), dialogue_panel.visible, delta)
@@ -1485,6 +1494,16 @@ func _process(delta: float) -> void:
 
 
 ## 配樂節奏層：事件進行中，或附近有敵意角色
+## 玩家站在戰場鏡頭範圍內、而且有敵人在場時，鏡頭鎖住戰場。
+func active_camera_zone() -> Dictionary:
+	if not actor_views.values().any(func(v): return v.get_meta("hostile")):
+		return {}
+	for zone in camera_zones:
+		if player.position.x >= zone["x0"] and player.position.x <= zone["x1"]:
+			return zone
+	return {}
+
+
 func in_danger() -> bool:
 	if runner != null:
 		return true
@@ -1729,7 +1748,7 @@ func _build_hud() -> void:
 	dialogue_panel.resized.connect(_layout_dialogue)
 	dialogue_panel.visibility_changed.connect(_layout_dialogue)
 	var help := Label.new()
-	help.text = "←→ 移動　Alt/C/空白 跳　↑↓ 爬繩梯　↓+跳 下平台　↑/E 傳送點・交談　J 攻擊　1-4 選擇　T 地圖　M 打坐　B 突破"
+	help.text = "←→ 移動　Alt/C/空白 跳　↑↓ 爬繩梯　↓+跳 下平台　↑/E 傳送點・交談　J 攻擊　Shift/X 閃避　1-4 選擇　T 地圖　M 打坐　B 突破"
 	help.theme_type_variation = "HudSmall"
 	help.position = Vector2(16, 694)
 	help.modulate = Color(1, 1, 1, 0.6)
