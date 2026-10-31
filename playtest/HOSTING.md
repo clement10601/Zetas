@@ -59,7 +59,9 @@ cloudflared tunnel --url http://127.0.0.1:8765
 
 到 GitHub Actions 手動執行 `build` workflow：`director_url` 預設是 https://zetas-director.fezone.tw，會寫進 `director_url.txt`；`release_tag` 填了（例如 `playtest-0.2.0`）就會把 `Zetas-windows.zip` 發佈成 GitHub Release，不填就只產出 artifact。
 
-**網頁版**（勾 `web`）會發佈到 https://clement10601.github.io/Zetas/ ，導演網址用 `project.godot` 的 `zetas/web_director_url`。給測試者 `https://clement10601.github.io/Zetas/?code=<存取碼>` 就能直接玩，遊戲會記住存取碼並把它從網址列拿掉；不帶的話第一次開啟會請他輸入。導演要是 ZeWorld#17 以後的版本（支援 CORS）。
+**網頁版**（勾 `web`）會發佈到 https://zetas.fezone.tw/ ，導演網址用 `project.godot` 的 `zetas/web_director_url`。給測試者 `https://zetas.fezone.tw/?code=<存取碼>` 就能直接玩，遊戲會記住存取碼並把它從網址列拿掉；不帶的話第一次開啟會請他輸入。導演要是 ZeWorld#17 以後的版本（支援 CORS）。
+
+網域設定（只做一次）：Cloudflare 的 fezone.tw 加 CNAME `zetas` → `clement10601.github.io`（先設「僅 DNS」灰雲，等 GitHub 簽好憑證再看要不要開橘雲）；GitHub repo Settings → Pages：Source 選 GitHub Actions，Custom domain 填 `zetas.fezone.tw`，勾 Enforce HTTPS。
 
 **Windows 版**的 `Zetas.exe` 旁邊要有兩個文字檔：
 

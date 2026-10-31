@@ -4,7 +4,7 @@
 
 ## 怎麼玩
 
-**網頁版：** 用電腦的 Chrome 或 Edge 打開 https://clement10601.github.io/Zetas/ ，第一次開啟會請你輸入存取碼（之後會記住）。第一次載入約 60 MB。
+**網頁版：** 用電腦的 Chrome 或 Edge 打開 https://zetas.fezone.tw/ ，第一次開啟會請你輸入存取碼（之後會記住）。第一次載入約 60 MB。
 
 **Windows 版：** 解壓縮後執行 `Zetas.exe`。若 Windows 跳出 SmartScreen 警告，按「其他資訊」→「仍要執行」（測試版沒有數位簽章）。
 
