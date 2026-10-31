@@ -84,15 +84,19 @@
 
 ## 實作（和引擎、導演的分工）
 
-引擎現有功能就夠，不需要先改 ZeWorld：
+緣分值、旗標、觸發條件用引擎現有功能就做得到；補貨與後續要先在 ZeWorld 做一個小改動（M2 串 2026-10-31 確認）。
 
 - **緣分值** 存在 `WorldState.game_data["fate"]`，遊戲自己算，每過一天、每個事件結局時更新。
 - **旗標**：緣分值滿 100 時遊戲設 `fate.xian_ready` 等旗標；觸發後清掉。
-- **內容包**：機緣事件的 `meta.tags` 加 `fate.xian` / `fate.mo` / `fate.fo`；觸發條件 `all` 裡放 `{"type": "flag", "key": "fate.xian_ready", "equals": true}`，再加地圖標籤、時辰。`priority` 設高（例如 80），旗標一成立就優先上場。佛緣另加 `karma` 條件。
-- **導演補貨**：遊戲請導演補機緣事件時帶 `tag: "fate_xian"` 與 `gate: [{"type": "flag", "key": "fate.xian_ready", "equals": true}]`。已購買的緣，每個地區保持 2 個沒玩過的機緣事件；沒購買的緣只保持 1 個，省生成費用。
+- **內容包**：觸發條件 `all` 裡放 `{"type": "flag", "key": "fate.xian_ready", "equals": true}`，再加地圖標籤、時辰。`priority` 設高（例如 80），旗標一成立就優先上場；不會和心魔衝突，心魔的 gate 是 `tier_up` 事件。佛緣另加 `karma` 條件。
+- **判斷哪條緣**：一律看引擎寫入的 `meta.request_tag`（`fate_xian` / `fate_mo` / `fate_fo`），不要依賴模型自己寫的 `meta.tags`，模型可能漏寫。
+- **導演補貨**：遊戲每天每個地區補一次一般事件（目標 3），每條緣再各補一次（已購買目標 2、未購買目標 1），各自帶自己的 `tag` 與 `gate: [{"type": "flag", "key": "fate.xian_ready", "equals": true}]`。
 - **購買狀態** 存在存檔外的授權資料（Steam DLC 擁有權），不寫進 `save.json`，避免改存檔就解鎖。
 
-需要和 M2 串確認的事：每日補貨排程要能依 tag 分開計數；`request_followup` 生成的機緣線後續要保留 `fate.*` tag。
+需要的引擎改動（M2 串負責，約一個 PR）：
+
+1. `DirectorClient.restock()` 加 `options`（tag、gate），存貨只算同一個 `request_tag` 的包，一般補貨只算沒有 `request_tag` 的包；送出中的請求與失敗冷卻改用「地區＋tag」計。
+2. `request_followup` 產生的後續記下來源包的 `request_tag`，導演生成時當預設 tag 寫回，機緣線的後續才會留在同一條緣。
 
 ## 成本
 
@@ -131,6 +135,6 @@
 ## 之後要做的事
 
 1. Kc 決定賣法（上一節）。
-2. M2 串確認補貨可依 tag 計數，加上緣分值與旗標（遊戲端）。
+2. M2 串在 ZeWorld 做補貨依 tag 計數與後續保留 tag，之後遊戲端加緣分值與旗標。
 3. 手寫每條緣在煉氣、築基各 2 個開頭事件，共 8 個；老僧伏筆事件 2 個。
 4. 做共用池後量實際每小時成本，再定售價。
