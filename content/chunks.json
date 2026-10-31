@@ -1,5 +1,5 @@
 {
-  "_comment": "地圖區塊庫。內容包的 map.chunks 只能引用這裡的區塊；points 的 x 是區塊內的位置（像素）。M0 用色塊代替美術。 platforms 是單向平台：x 為左緣、h 為離地高度、w 為寬；基本跳躍約 120 高，相鄰兩層差 100 左右。ropes 是繩子（rope）、藤蔓（vine）、梯子（ladder）：x 位置，top／bottom 是兩端離地高度（bottom 省略是地面），兩端要接在地面或平台上。 平台加 skill 表示要那個身法才上得去（double_jump 二段跳約 220 高）。caches 是藏在高處的寶物：x、h 是位置，loot／tier 指掉落表，每份存檔只拿一次。",
+  "_comment": "地圖區塊庫。內容包的 map.chunks 只能引用這裡的區塊；points 的 x 是區塊內的位置（像素）。M0 用色塊代替美術。 platforms 是單向平台：x 為左緣、h 為離地高度、w 為寬；基本跳躍約 120 高，相鄰兩層差 100 左右。ropes 是繩子（rope）、藤蔓（vine）、梯子（ladder）：x 位置，top／bottom 是兩端離地高度（bottom 省略是地面），兩端要接在地面或平台上。 平台加 skill 表示要那個身法才上得去（double_jump 二段跳約 220 高）。caches 是藏在高處的寶物：x、h 是位置，loot／tier 指掉落表，每份存檔只拿一次。 walls 是牆：x 左緣、w 寬、bottom／top 離地高度；kind cliff 是石壁（踏葉可以蹬），thin 是薄牆（土遁穿得過，只在地圖最後一個區塊出現，用來隔出盡頭的暗室）。",
   "chunk.qingyun_road": {
     "name": "青雲山道",
     "width": 960,
@@ -282,6 +282,38 @@
         "x": 590,
         "h": 180,
         "w": 180
+      },
+      {
+        "x": 130,
+        "h": 410,
+        "w": 110,
+        "skill": "wall_jump"
+      }
+    ],
+    "walls": [
+      {
+        "x": 140,
+        "w": 16,
+        "bottom": 70,
+        "top": 400,
+        "kind": "cliff"
+      },
+      {
+        "x": 210,
+        "w": 16,
+        "bottom": 70,
+        "top": 400,
+        "kind": "cliff"
+      }
+    ],
+    "caches": [
+      {
+        "id": "cache.gate_cliff",
+        "name": "石壁劍匣",
+        "x": 185,
+        "h": 410,
+        "loot": "loot.sect_reward",
+        "tier": "rare"
       }
     ]
   },
@@ -441,14 +473,14 @@
     },
     "platforms": [
       {
-        "x": 100,
+        "x": 230,
         "h": 100,
-        "w": 220
+        "w": 170
       },
       {
         "x": 850,
         "h": 100,
-        "w": 220
+        "w": 150
       },
       {
         "x": 420,
@@ -456,10 +488,21 @@
         "w": 260
       },
       {
-        "x": 960,
+        "x": 900,
         "h": 290,
-        "w": 120,
+        "w": 100,
         "skill": "double_jump"
+      },
+      {
+        "x": 560,
+        "h": 480,
+        "w": 120
+      },
+      {
+        "x": 20,
+        "h": 340,
+        "w": 100,
+        "skill": "glide"
       }
     ],
     "ropes": [
@@ -467,16 +510,47 @@
         "x": 540,
         "top": 200,
         "kind": "rope"
+      },
+      {
+        "x": 620,
+        "top": 480,
+        "bottom": 200,
+        "kind": "rope"
       }
     ],
     "caches": [
       {
         "id": "cache.ravine_ledge",
         "name": "崖上遺囊",
-        "x": 1020,
+        "x": 950,
         "h": 290,
         "loot": "loot.cultivator_pouch",
         "tier": "rare"
+      },
+      {
+        "id": "cache.ravine_cliff_cave",
+        "name": "崖洞妖丹",
+        "x": 70,
+        "h": 340,
+        "loot": "loot.demon_core",
+        "tier": "rare"
+      },
+      {
+        "id": "cache.ravine_hidden_room",
+        "name": "暗室遺囊",
+        "x": 1075,
+        "h": 0,
+        "loot": "loot.cultivator_pouch",
+        "tier": "epic"
+      }
+    ],
+    "walls": [
+      {
+        "x": 1030,
+        "w": 20,
+        "bottom": 0,
+        "top": 600,
+        "kind": "thin"
       }
     ]
   },

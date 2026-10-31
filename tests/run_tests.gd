@@ -35,6 +35,9 @@ func _run() -> void:
 	await test_portals_and_residents()
 	await test_melee_height()
 	await test_double_jump_and_caches()
+	await test_wall_jump()
+	await test_glide()
+	await test_earth_escape_and_flight()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -470,17 +473,24 @@ func test_map_layout_data() -> void:
 				continue
 			var from_below: bool = p["h"] < jump_height - 10 or basic.any(func(q): return q != p and p["h"] - q["h"] > 0 and p["h"] - q["h"] < jump_height - 10)
 			expect(from_below, "%s: platform at h %d is reachable" % [id, p["h"]])
-		# 要二段跳的平台：一般跳躍上不去（附近 200 像素內沒有夠高的立足點），二段跳上得去
+		# 要身法的平台：一般跳躍上不去（附近 200 像素內沒有夠高的立足點）；二段跳的要跳得上去
 		var double_height: float = jump_height + 600.0 * 600.0 / (2.0 * 1800.0)
-		for p in c.get("platforms", []).filter(func(q): return q.get("skill", "") == "double_jump"):
+		for p in c.get("platforms", []).filter(func(q): return q.get("skill", "") != ""):
+			expect(p["skill"] in ["double_jump", "wall_jump", "glide", "earth_escape", "sword_flight"], "%s: skill %s is a movement skill" % [id, p["skill"]])
 			var too_easy: bool = p["h"] < jump_height + 30 or basic.any(func(q): return h_gap(p, q) < 200 and p["h"] - q["h"] < jump_height + 30)
-			expect(not too_easy, "%s: double-jump platform at h %d needs the double jump" % [id, p["h"]])
+			expect(not too_easy, "%s: %s platform at h %d is out of reach of a plain jump" % [id, p["skill"], p["h"]])
+		for p in c.get("platforms", []).filter(func(q): return q.get("skill", "") == "double_jump"):
 			var reachable: bool = p["h"] < double_height - 10 or basic.any(func(q): return h_gap(p, q) == 0 and p["h"] - q["h"] > 0 and p["h"] - q["h"] < double_height - 10)
 			expect(reachable, "%s: double-jump platform at h %d is reachable with it" % [id, p["h"]])
 		for cache in c.get("caches", []):
 			var on_it: bool = cache["h"] == 0 or c["platforms"].any(func(q): return q["h"] == cache["h"] and cache["x"] >= q["x"] and cache["x"] <= q["x"] + q["w"])
 			expect(on_it, "%s: %s sits on a platform" % [id, cache["id"]])
 			expect(loot_tables.has(cache["loot"]), "%s: %s loot table exists" % [id, cache["id"]])
+		for w in c.get("walls", []):
+			expect(w["x"] >= 0 and w["x"] + w["w"] <= c["width"] and w["top"] > w.get("bottom", 0), "%s: wall inside the chunk" % id)
+			expect(w.get("kind", "cliff") in ["cliff", "thin"], "%s: wall kind" % id)
+			# 石壁不能擋住地面上的路（底下要留人走過的高度）
+			expect(w.get("kind", "cliff") == "thin" or w.get("bottom", 0) >= 60, "%s: cliff leaves the ground path open" % id)
 	var regions: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/regions.json"))
 	for id in regions:
 		if id.begins_with("_"):
@@ -649,3 +659,118 @@ func test_double_jump_and_caches() -> void:
 	expect(not again.caches.has("cache.road_pine"), "a taken cache stays taken")
 	again.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## 不跑事件，直接把落腳地圖換到某個地區，並給境界與修為
+func at_region(main: Node, region: String, tier: int, exp := 0) -> void:
+	main.state.region = region
+	main.state.tier_index = tier
+	main.state.game_data["exp"] = exp
+	main.update_movement_skills()
+	main.go_home()
+	await step(main, {}, 10)
+
+
+func test_wall_jump() -> void:
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	await at_region(main, "region.qingyun_sect", 0)
+	expect(not player.wall_jump, "煉氣 does not know 踏葉")
+	expect(main.level.get_children().filter(func(n): return n.is_in_group("wall")).size() == 2, "山門 has two cliffs")
+	await at_region(main, "region.qingyun_sect", 1)
+	expect(player.wall_jump and main.log_lines.any(func(l): return l.contains("踏葉")), "築基 learns 踏葉")
+	var gate: float = main.chunk_x["chunk.sect_gate"]
+	player.position = Vector2(gate + 183, main.FLOOR_Y - 27)
+	await step(main, {}, 5)
+	var toward := 1
+	var pressed := true
+	main.player.test_input = {"jump": true, "right": true}
+	await physics_frame
+	for i in 300:
+		var inp := {"right": toward == 1, "left": toward == -1}
+		if player.feet() < main.FLOOR_Y - 400:
+			inp = {}
+		elif player.is_on_wall_only() and not pressed and int(-signf(player.get_wall_normal().x)) == toward:
+			inp["jump"] = true
+			toward = -toward
+		pressed = inp.get("jump", false)
+		player.test_input = inp
+		await physics_frame
+		if player.on_platform():
+			break
+	await step(main, {}, 10)
+	expect(player.on_platform() and absf(player.feet() - (main.FLOOR_Y - 410)) < 2.0, "踏葉 climbs between the cliffs to the 410 ledge")
+	main.free()
+
+
+func glide_run(main: Node, target_x: float) -> void:
+	var player: CharacterBody2D = main.player
+	await step(main, {}, 2)
+	for i in 240:
+		# 滑到目標上空就放開，直接落下
+		var going: bool = player.position.x > target_x
+		player.test_input = {"left": going, "jump": going}
+		await physics_frame
+		if player.is_on_floor() and i > 5:
+			break
+	await step(main, {}, 10)
+
+
+func test_glide() -> void:
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	await at_region(main, "region.heifeng_ridge", 1, 100)
+	expect(not player.glide, "early 築基 does not know 御風")
+	var ravine: float = main.chunk_x["chunk.heifeng_ravine"]
+	player.position = Vector2(ravine + 600, main.FLOOR_Y - 480 - 27)
+	await step(main, {}, 10)
+	expect(player.on_platform(), "stand on the high rock in 斷魂谷")
+	await glide_run(main, ravine + 80)
+	expect(not (player.on_platform() and absf(player.feet() - (main.FLOOR_Y - 340)) < 2.0), "without 御風 the cliff cave is out of reach")
+	await at_region(main, "region.heifeng_ridge", 1, 200)
+	expect(player.glide, "築基 halfway learns 御風")
+	player.position = Vector2(ravine + 600, main.FLOOR_Y - 480 - 27)
+	await step(main, {}, 10)
+	await glide_run(main, ravine + 80)
+	expect(player.on_platform() and absf(player.feet() - (main.FLOOR_Y - 340)) < 2.0, "御風 glides across to the cliff cave")
+	var Cultivation = load("res://scripts/cultivation.gd")
+	expect(Cultivation.knows_movement("glide", 0, 0, {"movement.glide": true}), "an event flag can teach 御風")
+	main.free()
+
+
+func test_earth_escape_and_flight() -> void:
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	await at_region(main, "region.heifeng_ridge", 1)
+	var ravine: float = main.chunk_x["chunk.heifeng_ravine"]
+	expect(main.caches.has("cache.ravine_hidden_room"), "hidden room behind the thin wall at the end of the map")
+	player.position = Vector2(ravine + 990, main.FLOOR_Y - 27)
+	await step(main, {"right": true}, 40)
+	expect(player.position.x < ravine + 1030, "the thin wall blocks before 土遁")
+	await at_region(main, "region.heifeng_ridge", 2)
+	expect(player.earth_escape, "金丹 learns 土遁")
+	player.position = Vector2(ravine + 990, main.FLOOR_Y - 27)
+	await step(main, {"right": true}, 40)
+	await step(main, {}, 10)
+	expect(player.position.x > ravine + 1050, "土遁 walks through the thin wall")
+	expect(main.interact() and main.state.game_data["found"].has("cache.ravine_hidden_room"), "take the hidden room cache")
+	# 薄牆只在地圖盡頭；放在中間就不蓋，免得擋住事件的路
+	main.build_map([{"chunk": "chunk.heifeng_ravine", "order": 0}, {"chunk": "chunk.demon_den", "order": 1}], "pt.ravine_edge")
+	expect(main.level.get_children().filter(func(n): return n.is_in_group("wall")).is_empty(), "no thin wall when the chunk is not the last")
+	main.go_home()
+	await step(main, {}, 10)
+	expect(not player.sword_flight, "金丹 cannot fly yet")
+	await at_region(main, "region.heifeng_ridge", 3)
+	expect(player.sword_flight, "元嬰 learns 御劍")
+	var ground: float = player.feet()
+	await step(main, {"jump": true}, 10)
+	await step(main, {"fly": true, "up": true}, 2)
+	await step(main, {"up": true}, 40)
+	expect(player.flying > 0.0 and ground - player.feet() > 250.0, "御劍 flies far above a jump")
+	await step(main, {"right": true}, 60)
+	expect(player.flying == 0.0, "flight runs out")
+	await step(main, {"fly": true}, 2)
+	expect(player.flying == 0.0, "only one flight before landing again")
+	await step(main, {}, 120)
+	expect(player.is_on_floor(), "falls back down")
+	main.free()

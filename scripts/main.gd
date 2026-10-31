@@ -2,7 +2,8 @@
 ## 地圖有單向平台與繩梯（chunks.json 的 platforms／ropes），操作見 scripts/player.gd。
 ## 地圖兩端有傳送點，站上去按 ↑ 走到相鄰地區（regions.json 的 exits）；也可以按 T 開地圖直接去。
 ## 移動要花時辰。地區裡的常駐 NPC（regions.json 的 residents）靠近按 ↑ 或 E 說話。
-## 身法（輕身術二段跳）隨修為領悟；有些平台要身法才上得去，上面的寶物（chunks.json 的 caches）按 ↑ 拿。
+## 身法（輕身術、踏葉、御風、土遁、御劍）隨境界與修為領悟；有些平台要身法才上得去，
+## 上面的寶物（chunks.json 的 caches）按 ↑ 拿。區塊的 walls：cliff 是可以踏葉的石壁，thin 是土遁穿得過的薄牆。
 ## J 攻擊，敵人近身會傷人，血量歸零就重傷倒地（事件以失敗結算）。M 打坐增加修為、回滿血，
 ## 修為圓滿後按 B 突破境界。
 ## 除錯鍵用來快速製造觸發條件：F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、
@@ -221,6 +222,11 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		for c in info.get("caches", []):
 			if not found_caches().has(c["id"]):
 				_add_cache(c, x)
+		var last: bool = entry == ordered[-1]
+		for w in info.get("walls", []):
+			# 薄牆後面是暗室，只放在地圖盡頭；事件把這個區塊接在中間時不擋路
+			if w.get("kind", "cliff") == "cliff" or last:
+				_add_wall(x + float(w["x"]), float(w["w"]), float(w.get("bottom", 0)), float(w["top"]), w.get("kind", "cliff"))
 		for r in info.get("ropes", []):
 			var rope := {"x": x + float(r["x"]), "top": FLOOR_Y - float(r["top"]),
 				"bottom": FLOOR_Y - float(r.get("bottom", 0)), "kind": r.get("kind", "rope")}
@@ -282,6 +288,24 @@ func _add_platform(left: float, top: float, width: float, skill := "") -> void:
 	level.add_child(body)
 
 
+func _add_wall(left: float, width: float, bottom: float, top: float, kind: String) -> void:
+	var body := StaticBody2D.new()
+	body.collision_layer = Player.THIN_WALL_LAYER if kind == "thin" else Player.GROUND_LAYER
+	body.collision_mask = 0
+	body.add_to_group("wall")
+	var shape := CollisionShape2D.new()
+	shape.shape = RectangleShape2D.new()
+	shape.shape.size = Vector2(width, top - bottom)
+	shape.position = Vector2(left + width / 2, FLOOR_Y - (top + bottom) / 2)
+	body.add_child(shape)
+	var rect := ColorRect.new()
+	rect.color = Color("#7a5a3a") if kind == "thin" else Color("#24221e")
+	rect.position = Vector2(left, FLOOR_Y - top)
+	rect.size = Vector2(width, top - bottom)
+	body.add_child(rect)
+	level.add_child(body)
+
+
 ## 寶物：一個小匣子，靠近按 ↑ 拿，每份存檔只拿一次。
 func _add_cache(c: Dictionary, chunk_left: float) -> void:
 	var view := Node2D.new()
@@ -324,13 +348,16 @@ func open_cache(id: String) -> void:
 func update_movement_skills() -> void:
 	var known: Array = state.game_data.get("movement", [])
 	for skill in Cultivation.MOVEMENT_SKILLS:
-		if not known.has(skill) and Cultivation.knows_movement(skill, state.tier_index, cultivation()):
+		if not known.has(skill) and Cultivation.knows_movement(skill, state.tier_index, cultivation(), state.flags):
 			known = known + [skill]
 			var rule: Dictionary = Cultivation.MOVEMENT_SKILLS[skill]
 			add_log("領悟身法：%s（%s）。" % [rule["name"], rule["note"]])
 			playlog.write("movement_skill", {"skill": skill, "tier": state.tier_name()})
 	state.game_data["movement"] = known
-	player.double_jump = known.has("double_jump")
+	for skill in Cultivation.MOVEMENT_SKILLS:
+		player.set(skill, known.has(skill))
+	if not player.climbing:
+		player.collision_mask = player.base_mask()
 
 
 func _add_rope_view(rope: Dictionary) -> void:
@@ -598,6 +625,7 @@ func _on_pack_finished(result: String) -> void:
 		lingering = true
 	else:
 		_hide_dialogue()
+	update_movement_skills()  # 事件可能用旗標傳授身法
 	if had_map:
 		go_home()
 	else:
