@@ -66,6 +66,7 @@ python -m director serve --game ../zeworld.json
 | `content/ruleset.json` | 境界、善惡軸（含傾向名稱）、時辰名稱，提供給引擎 |
 | `content/actors.json` | 角色與怪物模板；導演只能用這些 |
 | `content/style.md` | 給導演的題材與文風說明 |
+| `content/lore/` | 典籍知識庫：山海經異獸、神山、境界來歷、八卦六十四卦、仙魔佛設定，附原文出處（見該資料夾 README） |
 | `content/chunks.json` | 地圖區塊庫；內容包只能引用這裡的區塊與地點 |
 | `content/loot.json` | 掉落表；引擎只傳 loot_table 與稀有度，物品由遊戲決定 |
 | `content/packs/` | 內容包（白狐報恩、築基心魔） |
@@ -77,6 +78,8 @@ python -m director serve --game ../zeworld.json
 
 ```sh
 python engine/content-pack/validate.py --game zeworld.json
+python tools/lore.py check
+python -m unittest discover -s tests -p "test_*.py"
 godot --headless --path . -s res://tests/run_tests.gd
 ```
 

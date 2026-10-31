@@ -31,6 +31,8 @@ jobs:
       - run: pip install jsonschema
       - run: python tools/sync_engine.py
       - run: python engine/content-pack/validate.py --game zeworld.json
+      - run: python tools/lore.py check
+      - run: python -m unittest discover -s tests -p "test_*.py"
       - run: godot --headless --path . --import || true
       - run: godot --headless --path . -s res://tests/run_tests.gd
 

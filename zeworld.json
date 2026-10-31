@@ -8,6 +8,7 @@
   "actor_templates": "content/actors.json",
   "regions": "content/regions.json",
   "style": "content/style.md",
+  "lore": "content/lore",
   "packs": "content/packs",
   "banned_words": "content/banned_words.txt"
 }
