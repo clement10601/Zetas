@@ -29,6 +29,11 @@ func _run() -> void:
 	await test_combat()
 	await test_art_and_placeholders()
 	await test_playlog()
+	await test_map_layout_data()
+	await test_walk_and_jump()
+	await test_platforms_and_ropes()
+	await test_portals_and_residents()
+	await test_melee_height()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -432,3 +437,161 @@ func test_playlog() -> void:
 	expect(end["lines"] >= 4 and end["skipped"] == 3, "lines shown and quick page turns counted")
 	expect(rows.all(func(r): return r["session"] == rows[0]["session"]), "one session id per run")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func step(main: Node, input: Dictionary, frames: int) -> void:
+	main.player.test_input = input
+	for i in frames:
+		await physics_frame
+	main.player.test_input = {}
+
+
+## 平台與繩子的資料要在區塊內、繩子兩端接在地面或平台上，平台每層差距跳得上去。
+func test_map_layout_data() -> void:
+	var chunks: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/chunks.json"))
+	var jump_height: float = 660.0 * 660.0 / (2.0 * 1800.0)
+	for id in chunks:
+		if id.begins_with("_"):
+			continue
+		var c: Dictionary = chunks[id]
+		for p in c.get("platforms", []):
+			expect(p["x"] >= 0 and p["x"] + p["w"] <= c["width"], "%s: platform inside the chunk" % id)
+		for r in c.get("ropes", []):
+			for end in [r["top"], r.get("bottom", 0)]:
+				var landed: bool = end == 0 or c.get("platforms", []).any(func(p): return p["h"] == end and r["x"] >= p["x"] and r["x"] <= p["x"] + p["w"])
+				expect(landed, "%s: rope at %d ends on ground or a platform (%d)" % [id, r["x"], end])
+			expect(r["kind"] in ["rope", "vine", "ladder"], "%s: rope kind" % id)
+		# 沒有繩子通上去的平台，要能從地面或別的平台跳上去
+		for p in c.get("platforms", []):
+			if c.get("ropes", []).any(func(r): return r["top"] == p["h"] and r["x"] >= p["x"] and r["x"] <= p["x"] + p["w"]):
+				continue
+			var from_below: bool = p["h"] < jump_height - 10 or c["platforms"].any(func(q): return q != p and p["h"] - q["h"] > 0 and p["h"] - q["h"] < jump_height - 10)
+			expect(from_below, "%s: platform at h %d is reachable" % [id, p["h"]])
+	var regions: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/regions.json"))
+	for id in regions:
+		if id.begins_with("_"):
+			continue
+		for side in regions[id].get("exits", {}):
+			var to: String = regions[id]["exits"][side]
+			expect(regions[to].get("exits", {}).values().has(id), "%s <-> %s exits match" % [id, to])
+		for r in regions[id].get("residents", []):
+			expect(r["chunk"] in regions[id]["home"], "%s: resident %s stands on the home map" % [id, r["id"]])
+			expect(not r.get("lines", []).is_empty(), "%s: resident %s has lines" % [id, r["id"]])
+
+
+func test_walk_and_jump() -> void:
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	await step(main, {}, 20)
+	expect(player.is_on_floor(), "player lands on the ground")
+	var x0: float = player.position.x
+	await step(main, {"right": true}, 2)
+	expect(player.velocity.x > 0.0 and player.velocity.x < player.SPEED, "walking speeds up instead of starting at full speed")
+	await step(main, {"right": true}, 30)
+	expect(player.position.x > x0 + 80.0 and is_equal_approx(player.velocity.x, player.SPEED), "walk right at full speed")
+	await step(main, {}, 10)
+	expect(player.velocity.x == 0.0, "letting go stops quickly")
+	var ground: float = player.feet()
+	var top := ground
+	main.player.test_input = {"jump": true}
+	for i in 40:
+		await physics_frame
+		top = minf(top, player.feet())
+	main.player.test_input = {}
+	expect(ground - top > 100.0 and ground - top < 140.0, "jump is about 120 high (%d)" % int(ground - top))
+	expect(player.is_on_floor(), "lands again")
+	await step(main, {}, 2)
+	await step(main, {"jump": true}, 90)
+	expect(player.is_on_floor(), "holding jump does not bounce forever")
+	main.player.frozen = true
+	await step(main, {"right": true, "jump": true}, 10)
+	expect(player.is_on_floor() and player.velocity.x == 0.0, "frozen during dialogue")
+	main.free()
+
+
+func test_platforms_and_ropes() -> void:
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	var road: Dictionary = main.chunks["chunk.qingyun_road"]
+	expect(main.level.get_children().filter(func(n): return n.is_in_group("platform")).size() ==
+		road["platforms"].size() + main.chunks["chunk.qingyun_woods"]["platforms"].size(), "home map builds its platforms")
+	expect(player.ropes.size() == road["ropes"].size() + main.chunks["chunk.qingyun_woods"]["ropes"].size(), "player knows the ropes")
+	expect(player.camera.limit_left == 0 and player.camera.limit_right == int(main.map_width), "camera stays inside the map")
+	# 跳上第一層平台（x 260~440，高 100）
+	player.position = Vector2(350, main.FLOOR_Y - 40)
+	await step(main, {}, 10)
+	await step(main, {"jump": true}, 45)
+	expect(player.on_platform() and absf(player.feet() - (main.FLOOR_Y - 100)) < 2.0, "jump up through a one-way platform and stand on it")
+	await step(main, {}, 2)  # 先放開跳鍵，下一次按才算
+	await step(main, {"down": true, "jump": true}, 40)
+	expect(player.is_on_floor() and not player.on_platform(), "down + jump drops through the platform")
+	# 藤蔓 x 640，從地面爬到高 200 的平台
+	player.position = Vector2(645, main.FLOOR_Y - 40)
+	await step(main, {}, 10)
+	await step(main, {"up": true}, 2)
+	expect(player.climbing and player.position.x == 640.0, "up grabs the vine and snaps onto it")
+	await step(main, {"up": true}, 90)
+	await step(main, {}, 10)
+	expect(not player.climbing and player.on_platform() and absf(player.feet() - (main.FLOOR_Y - 200)) < 2.0, "climb to the top and step onto the platform")
+	await step(main, {"down": true}, 2)
+	expect(player.climbing, "down at the top climbs back down")
+	await step(main, {"down": true}, 20)
+	await step(main, {"right": true, "jump": true}, 2)
+	expect(not player.climbing and player.velocity.x > 0.0, "side jump lets go of the vine")
+	await step(main, {}, 60)
+	expect(player.is_on_floor(), "falls back down")
+	main.free()
+
+
+func test_portals_and_residents() -> void:
+	var main: Node = await new_game()
+	expect(main.portals.size() == 2, "foothills has portals at both ends")
+	var right: Dictionary = main.portals.filter(func(p): return p["to"] == "region.heifeng_ridge")[0]
+	main.player.position = Vector2(right["x"], main.FLOOR_Y - 27)
+	main._process(0.016)
+	expect(main.prompt_label.visible and main.prompt_label.text.contains("黑風嶺"), "standing on a portal shows where it goes")
+	expect(main.interact() and main.state.region == "region.qingyun_foothills", "煉氣 is turned back at the 黑風嶺 portal")
+	main.state.tier_index = 1
+	expect(main.interact() and main.state.region == "region.heifeng_ridge", "築基 walks through the portal")
+	var back: Dictionary = main.portals.filter(func(p): return p["to"] == "region.qingyun_foothills")[0]
+	expect(absf(main.player.position.x - back["x"]) <= main.PORTAL_INSET + 1.0, "arrive at the 黑風嶺 end that leads back")
+	expect(main.residents.has("mo"), "黑風嶺 has its resident")
+	var mo: Node2D = main.residents["mo"]["view"]
+	main.player.position = Vector2(mo.position.x + 20, main.FLOOR_Y - 27)
+	main._process(0.016)
+	expect(main.prompt_label.text.contains("交談"), "standing next to an NPC shows the talk prompt")
+	expect(main.interact() and main.dialogue_panel.visible and main.dialogue_label.text.contains("莫老三"), "talk to the resident")
+	expect(main.player.frozen, "player stands still while talking")
+	main.advance_dialogue()
+	expect(not main.dialogue_panel.visible and not main.player.frozen, "space closes the talk")
+	main.interact()
+	expect(main.dialogue_label.text.contains(main.regions["region.heifeng_ridge"]["residents"][0]["lines"][1]), "next talk says the next line")
+	main.advance_dialogue()
+	# 進宗門會開始傳功事件：常駐 NPC 先退場，事件結束再回來
+	main.travel_to("region.qingyun_sect")
+	expect(main.runner != null and main.residents.is_empty(), "residents step aside during an event")
+	main.runner.abort("abandon")
+	await process_frame
+	expect(main.residents.has("lin") and main.residents.has("zhao"), "residents come back after the event")
+	main.free()
+
+
+func test_melee_height() -> void:
+	var main: Node = await new_game()
+	main.spare_fox()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	for i in 3:
+		main.advance_dialogue()
+	main.choose_visible(0)
+	main.advance_dialogue()
+	var hunter: Node2D = main.actor_views["hunter"]
+	hunter.position.x = main.player.position.x + 30
+	main.player.position.y = main.FLOOR_Y - 100 - 27
+	var hp_before: int = main.hp()
+	main._process(1.0)
+	main.attack()
+	expect(main.hp() == hp_before and main.actor_hp["hunter"] == 4, "on a platform out of melee reach both ways")
+	main.free()

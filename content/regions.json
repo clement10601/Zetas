@@ -1,5 +1,5 @@
 {
-  "_comment": "地區目錄。內容包的 meta.region 必須在這裡，地圖只能用該地區的區塊。home/spawn 是遊戲用的落腳地圖，引擎不讀。",
+  "_comment": "地區目錄。內容包的 meta.region 必須在這裡，地圖只能用該地區的區塊。home/spawn 是遊戲用的落腳地圖，引擎不讀。 exits 是落腳地圖左右兩端傳送點通往的地區；residents 是常駐 NPC（chunk 裡的 x 位置，靠近按 ↑ 說話，事件進行中會退場）。",
   "region.qingyun_sect": {
     "name": "青雲宗",
     "description": "玩家所屬宗門，師父青玄真人與同門都在這裡。安全，事件多是傳功、切磋、門內人情與宗門差事。",
@@ -14,7 +14,40 @@
       "chunk.sect_plaza"
     ],
     "spawn": "pt.sect_gate",
-    "travel_hours": 1
+    "travel_hours": 1,
+    "exits": {
+      "right": "region.qingyun_foothills"
+    },
+    "residents": [
+      {
+        "id": "zhao",
+        "template": "npc.fellow_disciple",
+        "memory_key": "npc.junior_zhao",
+        "name": "趙小乙",
+        "title": "師弟",
+        "chunk": "chunk.sect_gate",
+        "x": 760,
+        "lines": [
+          "師兄回來啦！山下好玩嗎？……我是說，歷練辛不辛苦？",
+          "林師姊又在演武場練劍，我不敢過去，上回被她的劍風削掉半邊眉毛。",
+          "聽說黑風嶺的狼妖會學人說話，師兄千萬別應聲。"
+        ]
+      },
+      {
+        "id": "lin",
+        "template": "npc.fellow_disciple",
+        "memory_key": "npc.senior_lin",
+        "name": "林清禾",
+        "title": "師姊",
+        "chunk": "chunk.sect_plaza",
+        "x": 700,
+        "lines": [
+          "看什麼？要切磋就拔劍，不切磋就別擋著我練。",
+          "修為慢不要緊，根基打穩了，往後才走得遠。……這話是師父說的，不是我。",
+          "下山小心些。我只是怕你丟了青雲宗的臉。"
+        ]
+      }
+    ]
   },
   "region.qingyun_foothills": {
     "name": "青雲山腳",
@@ -32,7 +65,27 @@
       "chunk.qingyun_woods"
     ],
     "spawn": "pt.home_start",
-    "travel_hours": 1
+    "travel_hours": 1,
+    "exits": {
+      "left": "region.qingyun_sect",
+      "right": "region.heifeng_ridge"
+    },
+    "residents": [
+      {
+        "id": "zhou",
+        "template": "npc.merchant",
+        "memory_key": "npc.merchant_zhou",
+        "name": "周掌櫃",
+        "title": "行商",
+        "chunk": "chunk.qingyun_road",
+        "x": 420,
+        "lines": [
+          "客官，山路難走，喝碗涼茶歇歇腳？不買也成，陪我說說話。",
+          "這幾日鎮妖司的人在林子裡轉，說是追一隻白狐。那狐狸也怪可憐的。",
+          "往西北就是黑風嶺，沒築基的娃兒別去送命。"
+        ]
+      }
+    ]
   },
   "region.heifeng_ridge": {
     "name": "黑風嶺",
@@ -47,6 +100,25 @@
       "chunk.heifeng_ravine"
     ],
     "spawn": "pt.pass_start",
-    "travel_hours": 2
+    "travel_hours": 2,
+    "exits": {
+      "left": "region.qingyun_foothills"
+    },
+    "residents": [
+      {
+        "id": "mo",
+        "template": "npc.cultivator",
+        "memory_key": "npc.rogue_mo",
+        "name": "莫老三",
+        "title": "散修",
+        "chunk": "chunk.heifeng_pass",
+        "x": 300,
+        "lines": [
+          "青雲宗的？嘿，難得有名門弟子肯來這鬼地方。",
+          "入夜別往谷底走，狼妖成群，連我這把老骨頭都不敢。",
+          "嶺上有個走了邪路的散修，從前跟我喝過酒。見了他，替我問一句還記不記得我。"
+        ]
+      }
+    ]
   }
 }

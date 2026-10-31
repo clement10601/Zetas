@@ -12,4 +12,6 @@
 - 師姊 林清禾（npc.fellow_disciple，memory_key npc.senior_lin）：劍修，直爽好勝，嘴硬心軟。
 - 師弟 趙小乙（npc.fellow_disciple，memory_key npc.junior_zhao）：剛入門，膽小話多，崇拜玩家。
 - 白蘅（npc.fox_girl，memory_key npc.baiheng）：青丘遺狐，玩家可能放過她。
+- 周掌櫃（npc.merchant，memory_key npc.merchant_zhou）：在青雲山道擺茶攤的行商，消息靈通，愛閒聊。
+- 莫老三（npc.cultivator，memory_key npc.rogue_mo）：黑風嶺的老散修，膽小精明，有個走了邪路的舊友。
 地圖：事件需要專屬場景時，從同一地區的區塊挑 1 到 3 個組成。
