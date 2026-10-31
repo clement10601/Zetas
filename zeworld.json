@@ -7,5 +7,6 @@
   "loot": "content/loot.json",
   "actor_templates": "content/actors.json",
   "style": "content/style.md",
-  "packs": "content/packs"
+  "packs": "content/packs",
+  "banned_words": "content/banned_words.txt"
 }
