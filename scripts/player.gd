@@ -346,11 +346,14 @@ func _animate(delta: float) -> void:
 	shadow.modulate.a = move_toward(shadow.modulate.a, 0.55 if grounded else 0.0, delta * 6.0)
 
 
-## 出劍：往前一衝，畫一道墨痕
-func play_attack() -> void:
+## 出劍：往前一衝，畫一道墨痕，前方依筆順寫出「斬」字（字訣，reference-study.md A4）。
+## 回傳那個字，打中東西時 main 叫它散成墨點。
+func play_attack() -> Node2D:
 	_lunge = 1.0
-	if is_inside_tree() and get_parent() != null:
-		preload("res://scripts/ink_fx.gd").slash(get_parent(), position + Vector2(facing * 26.0, -8.0), facing)
+	if not is_inside_tree() or get_parent() == null:
+		return null
+	preload("res://scripts/ink_fx.gd").slash(get_parent(), position + Vector2(facing * 26.0, -8.0), facing)
+	return preload("res://scripts/ink_glyph.gd").spawn(get_parent(), position + Vector2(facing * 62.0, -46.0))
 
 
 ## 平常會撞到的東西；學會土遁就不撞薄牆
