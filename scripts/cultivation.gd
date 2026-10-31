@@ -44,9 +44,18 @@ static func player_damage(tier: int) -> int:
 	return 1 + tier
 
 
-## 敵人強度跟著內容包的最低境界走
-static func enemy_hp(power: float, pack_tier: int) -> int:
-	return maxi(1, ceili(3.0 * power * (1 + pack_tier)))
+## 敵人要挨幾刀：power 1 的小怪約 4 刀；Boss（boss.* 模板）再乘 BOSS_HP，突破心魔這種高潮至少要打一陣子。
+const HITS_PER_POWER := 4.0
+const BOSS_HP := 4.0
+## Boss 血量剩這個比例以下就發狠：前搖、收招都變短
+const BOSS_ENRAGE_AT := 0.5
+const BOSS_ENRAGE_SPEED := 0.65
+
+
+## 敵人強度跟著內容包的最低境界走：以那個境界的出劍傷害換算成刀數
+static func enemy_hp(power: float, pack_tier: int, boss := false) -> int:
+	var hits := HITS_PER_POWER * power * (BOSS_HP if boss else 1.0)
+	return maxi(1, ceili(hits * player_damage(pack_tier)))
 
 
 static func enemy_damage(power: float, pack_tier: int) -> int:
