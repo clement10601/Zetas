@@ -1,0 +1,43 @@
+# Cloudflare 具名通道：從叢集往外連 Cloudflare，不用開 VM 的埠，HTTPS 由 Cloudflare 處理。
+# 通道的 Public Hostname 在 Cloudflare 控制台設定，服務填 http://zetas-director.zetas.svc.cluster.local:8765
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zetas-cloudflared
+  labels: {app: zetas-cloudflared}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: zetas-cloudflared}
+  template:
+    metadata:
+      labels: {app: zetas-cloudflared}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2025.8.0
+          args: [tunnel, --no-autoupdate, --metrics, "0.0.0.0:2000", run]
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef: {name: zetas-cloudflared, key: token}
+          readinessProbe:
+            httpGet: {path: /ready, port: 2000}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /ready, port: 2000}
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}

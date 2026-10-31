@@ -1,0 +1,9 @@
+# 映像只需要 engine/director、engine/content-pack、zeworld.json、content/
+*
+!engine/director
+!engine/content-pack
+!zeworld.json
+!content
+**/__pycache__
+**/test_*.py
+

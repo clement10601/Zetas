@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zetas-director
+  labels: {app: zetas-director}
+spec:
+  # 用量檔只能有一個程序寫，所以固定 1 個，換版時先停舊的再起新的。
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: zetas-director}
+  template:
+    metadata:
+      labels: {app: zetas-director}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: director
+          image: ghcr.io/clement10601/zetas-director:main
+          imagePullPolicy: Always
+          ports:
+            - {name: http, containerPort: 8765}
+          envFrom:
+            # ZEWORLD_ANTHROPIC_API_KEY（必填）、ZEWORLD_JUDGE_API_KEY（選填）等，見 README
+            - secretRef: {name: zetas-director-keys}
+          env:
+            - {name: ZEWORLD_DIRECTOR_ACCESS_CODES, value: /secrets/codes.json}
+            - {name: ZEWORLD_DIRECTOR_USAGE, value: /data/usage.json}
+          volumeMounts:
+            - {name: codes, mountPath: /secrets, readOnly: true}
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+          readinessProbe:
+            httpGet: {path: /v1/health, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /v1/health, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+      volumes:
+        - name: codes
+          secret:
+            secretName: zetas-director-codes
+            items:
+              - {key: codes.json, path: codes.json}
+        - name: data
+          persistentVolumeClaim: {claimName: zetas-director-data}
+        - name: tmp
+          emptyDir: {}

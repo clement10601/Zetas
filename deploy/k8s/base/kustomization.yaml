@@ -1,0 +1,12 @@
+# 只有導演本身，沒有對外入口。實際部署請用 ../tunnel 或 ../ingress。
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: zetas
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+images:
+  - name: ghcr.io/clement10601/zetas-director
+    newTag: main
