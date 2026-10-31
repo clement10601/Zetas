@@ -1,0 +1,29 @@
+{
+  "_comment": "判斷器第二層（決策模型貼合度）的實測情境。狀態沿用 scenarios.json。執行：cd engine && python -m director.judge_bench --game ../zeworld.json --scenarios ../tests/director/judge_scenarios.json",
+  "scenarios": [
+    {
+      "name": "fox_protected",
+      "note": "護住白蘅、跟鎮妖司動過手：鎮妖司找上門最接得上",
+      "state_from": ["tests/director/scenarios.json", "fox_protected"],
+      "moment": {"region": "region.qingyun_foothills", "time_of_day": "暮"},
+      "candidates": ["tests/fixtures/generated_zhenyao.json", "content/packs/sect-first-lesson.json"],
+      "expect_top": "pack.gen.zhenyao_grudge.e50e99"
+    },
+    {
+      "name": "fox_abandoned",
+      "note": "袖手旁觀：鎮妖司沒理由記下玩家「替狐妖出頭」",
+      "state_from": ["tests/director/scenarios.json", "fox_abandoned"],
+      "moment": {"region": "region.qingyun_foothills", "time_of_day": "暮"},
+      "candidates": ["tests/fixtures/generated_zhenyao.json", "content/packs/sect-first-lesson.json"],
+      "expect_not_top": "pack.gen.zhenyao_grudge.e50e99"
+    },
+    {
+      "name": "fresh_ruthless",
+      "note": "沒遇過白狐的玩家：鎮妖司的帳完全接不上",
+      "state_from": ["tests/director/scenarios.json", "fresh_ruthless"],
+      "moment": {"region": "region.qingyun_foothills", "time_of_day": "暮"},
+      "candidates": ["tests/fixtures/generated_zhenyao.json", "content/packs/sect-first-lesson.json"],
+      "expect_not_top": "pack.gen.zhenyao_grudge.e50e99"
+    }
+  ]
+}
