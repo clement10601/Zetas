@@ -84,6 +84,10 @@ godot --headless --path . -s res://tests/run_tests.gd
 
 美術是色塊，戰鬥是近身按 J 打三下。導演、預生成池、即時台詞與存檔已接上；還沒用真模型調過提示詞（需要 LLM 端點）。
 
+## 設計文件
+
+收費（仙緣、魔緣、佛緣）、世界地圖、技能樹、任務與對話、美術風格指南都在 [docs/](docs/README.md)。
+
 ## 美術
 
 美術走手繪 2D 插畫風，規格寫在 [art/STYLE.md](art/STYLE.md)。素材清單是 `content/assets.json`，圖檔放在 `art/sprites`、`art/chunks`。缺圖的角色會先退回通用立繪，連通用立繪都沒有就畫色塊；場景缺圖時也畫色塊，所以美術可以一張一張補。同一個模板可以有多張變體，導演生成的 NPC 會依 memory_key 固定分到其中一張。執行 `python tools/art_todo.py` 會依出場次數產生待辦清單 [art/TODO.md](art/TODO.md)。
