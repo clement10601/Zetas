@@ -10,5 +10,6 @@
 | [功法與技能樹](design/skill-tree.md) | 功法、術法、身法、仙魔佛心法、機緣專屬的緣法 |
 | [任務與對話](design/quests-dialogue.md) | 任務種類、主線大綱、對話文風、角色聲音、差事模板 |
 | [美術風格指南](design/art-direction.md) | 水墨卷軸、字訣、三道三色等特色；交付規格見 [art/STYLE.md](../art/STYLE.md) |
+| [類似作品參考](design/reference-study.md) | 九日、斬妖行、朧村正、GRIS、空洞騎士等在美術、音樂、鏡頭、戰鬥回饋上的手法，對照 Zetas 的改進清單與順序 |
 
 這些都是 v0.1 提案，數字是起始值，靠試玩調整。
