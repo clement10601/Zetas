@@ -120,6 +120,9 @@ var actor_boss: Dictionary = {}   # Boss 的 actor id -> 是否已發狠
 var actor_tier: Dictionary = {}   # 野怪的 actor id -> 強度境界（事件裡的敵人跟著 pack_tier）
 var wild: Dictionary = {}         # 落腳地圖上的野怪 id -> regions.json 的 wild 條目
 var wild_drop_chance := 0.5       # 野怪掉普通物品的機率（測試設成 1）
+var errands: Dictionary = {}      # content/errands.json：宗門差事榜
+var board_view: Node2D = null     # 差事榜（只在 errands.board 的地區）
+var errand_options: Array = []    # 差事榜開著時的選項 [{kind: accept|abandon, errand}]
 var _map_gen := 0                 # 地圖重建或玩家倒地就加一，敵人迴圈看到變了就停
 var enemy_cooldown: Dictionary = {}  # actor id -> 收招破綻還剩幾秒（這段時間不動、不出招）
 var enemy_windup: Dictionary = {}    # actor id -> 前搖還剩幾秒（只有正在蓄力的敵人）
@@ -307,6 +310,7 @@ func load_content() -> void:
 	art = AssetLibrary.from_file(assets_path)
 	regions = _read_json("res://content/regions.json")
 	regions.erase("_comment")
+	errands = _read_json("res://content/errands.json")
 
 
 func _read_json(path: String) -> Dictionary:
@@ -860,6 +864,169 @@ func go_home() -> void:
 	_build_portals()
 	_spawn_residents()
 	refresh_wild()
+	_build_board()
+
+
+## 事件會不會把玩家綁在原地：打怪目標的事件（沒有自己的地圖、階段要打倒 N 隻）不會，
+## 進行中照樣能趕路、打坐、打野怪；其他事件進行中野怪退場、傳送點不開。
+func blocking() -> bool:
+	return runner != null and not is_field_pack(runner.pack)
+
+
+static func is_field_pack(pack: Dictionary) -> bool:
+	if pack.has("map"):
+		return false
+	for st in pack.get("stages", []):
+		for c in st.get("complete_when", []):
+			if c.get("type", "") == "killed":
+				return true
+	return false
+
+
+## 目標列：打怪目標後面加進度（只算事件開始後打倒的）
+func refresh_objective() -> void:
+	if runner == null or not runner.running:
+		return
+	var text: String = runner.objective()
+	var st: Dictionary = runner.pack["stages"][runner.stage_index]
+	for c in st.get("complete_when", []):
+		if c.get("type", "") == "killed":
+			var tag: String = c["monster_tag"]
+			var n := int(state.kills.get(tag, 0)) - int(runner.kills_at_start.get(tag, 0))
+			text += "（%d／%d）" % [mini(n, int(c["count"])), int(c["count"])]
+	hud_objective.text = "目標：" + text
+	objective_panel.visible = true
+
+
+# ---------- 宗門差事榜 ----------
+
+func _build_board() -> void:
+	board_view = null
+	var b: Dictionary = errands.get("board", {})
+	if b.get("region", "") != state.region or not chunk_x.has(b.get("chunk", "")):
+		return
+	board_view = Node2D.new()
+	board_view.position = Vector2(chunk_x[b["chunk"]] + float(b["x"]), FLOOR_Y)
+	for leg in [-46, 40]:
+		var post := ColorRect.new()
+		post.color = Color("#4a3426")
+		post.position = Vector2(leg, -112)
+		post.size = Vector2(6, 112)
+		board_view.add_child(post)
+	var plank := ColorRect.new()
+	plank.color = Color("#6b4a32")
+	plank.position = Vector2(-56, -108)
+	plank.size = Vector2(112, 62)
+	board_view.add_child(plank)
+	for i in 3:
+		var slip := ColorRect.new()
+		slip.color = Color("#efe6cf")
+		slip.position = Vector2(-48 + i * 34, -102 + (i % 2) * 4)
+		slip.size = Vector2(26, 46)
+		board_view.add_child(slip)
+	var label := Label.new()
+	label.text = "差事榜"
+	label.size = Vector2(120, 0)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.position = Vector2(-60, -138)
+	label.add_theme_font_size_override("font_size", 16)
+	board_view.add_child(label)
+	level.add_child(board_view)
+
+
+func nearby_board() -> bool:
+	return board_view != null and is_instance_valid(board_view) \
+		and absf(board_view.position.x - player.position.x) < INTERACT_RANGE * 1.5 and player.feet() > FLOOR_Y - MELEE_HEIGHT
+
+
+func errand_pack_id(e: Dictionary) -> String:
+	return "errand.%s.day%d" % [e["id"], state.day]
+
+
+## 今天榜上的差事：境界夠的差事依天數輪著挑，最多 per_day 件。接過的（不論成敗）今天不再出現。
+func todays_errands() -> Array:
+	var ok: Array = errands.get("errands", []).filter(func(e): return state.tier_index >= int(e.get("tier_min", 0)))
+	var out := []
+	var n := mini(int(errands.get("per_day", 3)), ok.size())
+	for i in n:
+		var e: Dictionary = ok[(state.day * n + i) % ok.size()]
+		if not e in out:
+			out.append(e)
+	return out.filter(func(e): return not state.seen_packs.has(errand_pack_id(e)))
+
+
+func open_errand_board() -> void:
+	if dialogue_panel.visible:
+		return
+	errand_options = []
+	var text := ""
+	if runner != null and runner.pack["meta"].get("request_tag", "") == "errand":
+		text = "手上的差事：%s\n%s" % [runner.pack["meta"]["title"], hud_objective.text]
+		errand_options.append({"kind": "abandon"})
+		text += "\n  1. 放棄這件差事（今天不能再接）"
+	elif runner != null:
+		text = "手上還有事沒了結，先辦完再來接差事。"
+	else:
+		var list := todays_errands()
+		if list.is_empty():
+			text = "今天的差事都接過了，明天再來看看。"
+		else:
+			text = "差事榜（第 %d 天）：" % state.day
+			for e in list:
+				errand_options.append({"kind": "accept", "errand": e})
+				text += "\n  %d. 【%s】%s：打倒 %d 隻%s（%s）" % [errand_options.size(), e["giver"], e["title"],
+					int(e["count"]), _template_name(e["template"]), e.get("where", "")]
+	text += "\n  （Esc 關閉）"
+	_set_speaker("差事榜", null)
+	dialogue_label.text = text
+	dialogue_panel.visible = true
+	player.frozen = true
+	if errand_options.is_empty():
+		errand_options.append({"kind": "none"})
+
+
+func close_errand_board() -> void:
+	errand_options = []
+	_hide_dialogue()
+
+
+func choose_errand(i: int) -> void:
+	if i >= errand_options.size():
+		return
+	var opt: Dictionary = errand_options[i]
+	close_errand_board()
+	if opt["kind"] == "accept":
+		var e: Dictionary = opt["errand"]
+		add_log("%s：%s" % [e["giver"], e["text"]])
+		start_pack(errand_pack(e))
+	elif opt["kind"] == "abandon" and runner != null:
+		runner.abort("abandon")
+
+
+func _template_name(template: String) -> String:
+	for r in regions.values():
+		for w in r.get("wild", []):
+			if w["template"] == template:
+				return w["name"]
+	return template
+
+
+## 差事做成一個小事件：一個「打倒 N 隻」的階段，完成給修為與普通掉落
+func errand_pack(e: Dictionary) -> Dictionary:
+	var tiers: Array = state.ruleset["tiers"]
+	var reward: Dictionary = e.get("reward", {})
+	var done := [{"type": "grant_exp", "amount": reward.get("exp", "small")}]
+	if reward.has("loot"):
+		done.append({"type": "give_loot", "loot_table": reward["loot"], "tier": "common"})
+	return {
+		"id": errand_pack_id(e),
+		"meta": {"title": "差事・" + e["title"], "summary": e["text"], "author": "errand_board", "request_tag": "errand",
+			"tier_range": {"min": tiers[int(e.get("tier_min", 0))], "max": tiers[tiers.size() - 1]}},
+		"actors": [],
+		"stages": [{"id": "hunt", "objective": "打倒%d隻%s" % [int(e["count"]), _template_name(e["template"])],
+			"complete_when": [{"type": "killed", "monster_tag": e["template"], "count": int(e["count"])}]}],
+		"outcomes": {"on_complete": done, "on_fail": [], "on_abandon": []},
+	}
 
 
 # ---------- 野怪 ----------
@@ -901,7 +1068,7 @@ func wild_roster() -> Dictionary:
 
 ## 讓地圖上的野怪符合現在的時辰：該出現的補上、時辰過了的退場。事件進行中不出怪。
 func refresh_wild() -> void:
-	var roster := wild_roster() if runner == null else {}
+	var roster := wild_roster() if not blocking() else {}
 	for id in wild.keys():
 		if not roster.has(id):
 			_remove_actor_view(id)
@@ -947,9 +1114,12 @@ func _wild_defeated(id: String) -> void:
 			state.add_item(item)
 			add_log("拾得：" + item)
 			audio.play("reward")
-	var kills: Dictionary = state.game_data.get("wild_kills", {})
-	kills[entry["template"]] = int(kills.get(entry["template"], 0)) + 1
-	state.game_data["wild_kills"] = kills
+	# 擊殺數記在引擎（state.kills）：觸發條件、導演和打怪目標都看它
+	if runner != null:
+		runner.notify({"type": "monster_killed", "monster_tag": entry["template"]})
+		refresh_objective()
+	else:
+		state.record_kill(entry["template"])
 	playlog.write("wild_kill", {"template": entry["template"], "region": state.region, "day": state.day})
 	autosave()
 
@@ -998,7 +1168,7 @@ func _build_portals() -> void:
 ## 地區的常駐 NPC，事件進行中先退場（事件可能自己會叫同一個人出來）。
 func _spawn_residents() -> void:
 	_clear_residents()
-	if runner != null:
+	if blocking():
 		return
 	for r in regions.get(state.region, {}).get("residents", []):
 		if not chunk_x.has(r["chunk"]):
@@ -1036,7 +1206,7 @@ func interact() -> bool:
 		return false
 	var portal := nearby_portal()
 	if not portal.is_empty():
-		if runner != null:
+		if blocking():
 			add_log("事情還沒了結，走不開。")
 			return true
 		travel_to(portal["to"], true)
@@ -1044,6 +1214,9 @@ func interact() -> bool:
 	var cache := nearby_cache()
 	if cache != "":
 		open_cache(cache)
+		return true
+	if nearby_board():
+		open_errand_board()
 		return true
 	var id := nearby_resident()
 	if id != "":
@@ -1076,7 +1249,7 @@ func region_name(id: String = "") -> String:
 ## 前往另一個地區：花掉 travel_hours 個時辰，換落腳地圖，請導演補貨，再看有沒有事件。
 ## by_portal：走傳送點過去的，出現在新地圖通往原地區的那一端。
 func travel_to(id: String, by_portal := false) -> bool:
-	if runner != null or not regions.has(id) or id == state.region:
+	if blocking() or not regions.has(id) or id == state.region:
 		return false
 	if state.tier_index < int(REGION_MIN_TIER.get(id, 0)):
 		add_log("師門規矩：%s需%s以上方可前往。" % [region_name(id), state.ruleset["tiers"][REGION_MIN_TIER[id]]])
@@ -1116,7 +1289,7 @@ func advance_time(steps: int) -> bool:
 
 
 func open_travel_menu() -> void:
-	if runner != null or dialogue_panel.visible:
+	if blocking() or dialogue_panel.visible:
 		return
 	travel_options = regions.keys().filter(func(id): return id != state.region)
 	var text := "前往何處？（目前在%s）" % region_name()
@@ -1170,17 +1343,16 @@ func start_pack(pack: Dictionary) -> void:
 	pack_stats = {"started": Time.get_ticks_msec(), "lines": 0, "skipped": 0, "rewritten": 0}
 	playlog.write("pack_start", {"pack": pack["id"], "title": pack["meta"]["title"], "author": pack["meta"].get("author", ""),
 		"request_tag": pack["meta"].get("request_tag", ""), "region": state.region, "day": state.day, "tier": state.tier_name()})
-	_clear_residents()
-	clear_wild()
+	if not is_field_pack(pack):
+		_clear_residents()
+		clear_wild()
 	runner = PackRunner.new(pack, state)
 	runner.actor_spawned.connect(_on_actor_spawned)
 	runner.actor_despawned.connect(_remove_actor_view)
 	runner.line_shown.connect(_on_line_shown)
 	runner.line_updated.connect(_on_line_updated)
 	runner.dialogue_ended.connect(_on_dialogue_ended)
-	runner.objective_changed.connect(func(t):
-		hud_objective.text = "目標：" + t
-		objective_panel.visible = true)
+	runner.objective_changed.connect(func(_t): refresh_objective())
 	runner.reward_requested.connect(_on_reward)
 	runner.presentation_requested.connect(_on_presentation)
 	runner.finished.connect(_on_pack_finished)
@@ -1538,7 +1710,7 @@ func gain_cultivation(amount: int) -> void:
 
 ## 打坐一個時辰：增加修為、回滿血。宗門靈氣足，進境較快。
 func meditate() -> void:
-	if runner != null:
+	if blocking():
 		return
 	var gain: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
 	var new_day := advance_time(1)
@@ -1708,14 +1880,14 @@ func player_down() -> void:
 		enemy_cooldown[id] = ENEMY_HIT_INTERVAL
 	for id in enemy_windup.keys():
 		_cancel_windup(id)
-	var in_event := runner != null
+	var in_event := blocking()
 	if in_event:
 		runner.abort("fail")
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index) / 2
 	if advance_time(1):
 		day_started()
 	add_log("醒來時已是%s。" % state.time_of_day)
-	if not in_event and runner == null:
+	if not in_event and not blocking():
 		# 被野怪打倒：醒在落腳點，野怪跟著新的時辰換班
 		_map_gen += 1
 		place_player(regions.get(state.region, {}).get("spawn", ""))
@@ -1803,7 +1975,7 @@ func active_camera_zone() -> Dictionary:
 
 
 func in_danger() -> bool:
-	if runner != null:
+	if blocking():
 		return true
 	for view in actor_views.values():
 		if view.get_meta("hostile") and absf(view.position.x - player.position.x) < DANGER_RANGE:
@@ -1831,6 +2003,8 @@ func _update_prompt() -> void:
 				text = "↑ 前往%s" % region_name(portal["to"])
 		elif nearby_cache() != "":
 			text = "↑ 拿取"
+		elif nearby_board():
+			text = "↑ 看差事榜"
 		elif nearby_resident() != "":
 			text = "↑ 交談"
 	prompt_label.text = text
@@ -1881,6 +2055,13 @@ func breakthrough() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	if not errand_options.is_empty():
+		if event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
+			choose_errand(event.physical_keycode - KEY_1)
+		elif event.physical_keycode in [KEY_ESCAPE, KEY_SPACE, KEY_UP, KEY_W, KEY_E]:
+			close_errand_board()
+		_refresh_status()
 		return
 	if not travel_options.is_empty():
 		if event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
