@@ -12,6 +12,7 @@ const PackPool = preload("res://addons/zeworld/pack_pool.gd")
 const TriggerJudge = preload("res://addons/zeworld/trigger_judge.gd")
 const PackRunner = preload("res://addons/zeworld/pack_runner.gd")
 const DirectorClient = preload("res://addons/zeworld/director_client.gd")
+const AssetLibrary = preload("res://addons/zeworld/asset_library.gd")
 const Player = preload("res://scripts/player.gd")
 const Cultivation = preload("res://scripts/cultivation.gd")
 
@@ -34,6 +35,9 @@ const SAVE_ID := "save.001"
 var save_path := "user://save.json"
 var generated_dir := "user://generated"
 var use_director := true
+## 素材清單；沒有圖的角色與場景畫色塊
+var assets_path := "res://content/assets.json"
+var art
 ## 每天有奇遇的機率（測試可設 1.0）
 var encounter_chance := 0.5
 var heart_demon_pending := ""     # 已請導演準備心魔、還沒回來的境界
@@ -101,6 +105,7 @@ func load_content() -> void:
 		pool += PackPool.for_save(PackPool.load_dir(generated_dir), SAVE_ID)
 	chunks = _read_json("res://content/chunks.json")
 	loot = _read_json("res://content/loot.json")
+	art = AssetLibrary.from_file(assets_path)
 	regions = _read_json("res://content/regions.json")
 	regions.erase("_comment")
 
@@ -132,8 +137,16 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 			push_error("Zetas: unknown chunk %s" % entry["chunk"])
 			continue
 		var width: float = info["width"]
-		var bg := ColorRect.new()
-		bg.color = Color(info["color"])
+		var tex: Texture2D = art.texture(entry["chunk"])
+		var bg: Control
+		if tex:
+			bg = TextureRect.new()
+			bg.texture = tex
+			bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			bg.stretch_mode = TextureRect.STRETCH_SCALE
+		else:
+			bg = ColorRect.new()
+			bg.color = Color(info["color"])
 		bg.position = Vector2(x, FLOOR_Y - 600)
 		bg.size = Vector2(width, 600)
 		level.add_child(bg)
@@ -408,11 +421,25 @@ func _on_actor_spawned(actor: Dictionary) -> void:
 	var view := Node2D.new()
 	var hostile: bool = actor["disposition"] == "hostile"
 	var size := Vector2(32, 60) * (1.3 if actor["template"].begins_with("boss.") else 1.0)
-	var body := ColorRect.new()
-	body.color = Color("#c0392b") if hostile else Color("#7fb3d5")
-	body.size = size
-	body.position = Vector2(-size.x / 2, -size.y)
-	view.add_child(body)
+	# 同模板的不同角色依 memory_key（沒有就用名字）固定分到同一張變體
+	var key: String = actor.get("memory_key", actor["name"])
+	var tex: Texture2D = art.texture(actor["template"], key, "mob.generic" if hostile else "npc.generic")
+	if tex:
+		var sprite := Sprite2D.new()
+		sprite.texture = tex
+		sprite.centered = false
+		var height := float(art.info(actor["template"]).get("height", 120))
+		sprite.scale = Vector2.ONE * height / tex.get_height()
+		sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, -height)
+		sprite.flip_h = hostile  # 立繪面朝右；敵人預設面向玩家來的方向
+		size = Vector2(tex.get_width() * sprite.scale.x, height)
+		view.add_child(sprite)
+	else:
+		var body := ColorRect.new()
+		body.color = Color("#c0392b") if hostile else Color("#7fb3d5")
+		body.size = size
+		body.position = Vector2(-size.x / 2, -size.y)
+		view.add_child(body)
 	var label := Label.new()
 	label.text = "%s・%s" % [actor.get("title", ""), actor["name"]] if actor.has("title") else actor["name"]
 	label.position = Vector2(-size.x, -size.y - 28)
