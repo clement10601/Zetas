@@ -1,5 +1,7 @@
 ## 遊戲主控：橫軸地圖、玩家、角色，並把 ZeWorld 內容包與導演接到畫面上。
-## T 開地圖在地區之間移動（青雲宗、青雲山腳、黑風嶺），移動要花時辰。
+## 地圖有單向平台與繩梯（chunks.json 的 platforms／ropes），操作見 scripts/player.gd。
+## 地圖兩端有傳送點，站上去按 ↑ 走到相鄰地區（regions.json 的 exits）；也可以按 T 開地圖直接去。
+## 移動要花時辰。地區裡的常駐 NPC（regions.json 的 residents）靠近按 ↑ 或 E 說話。
 ## J 攻擊，敵人近身會傷人，血量歸零就重傷倒地（事件以失敗結算）。M 打坐增加修為、回滿血，
 ## 修為圓滿後按 B 突破境界。
 ## 除錯鍵用來快速製造觸發條件：F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、
@@ -26,6 +28,10 @@ const RESTOCK_TARGET := 3
 const HEART_DEMON_HINT := "突破到%s時的心魔幻境。心魔是玩家的鏡像，拿玩家經歷裡最難面對的事（history 裡的選擇、NPC 的記憶、karma 傾向）來質問玩家，每個玩家的心魔都該不同。地圖只用心魔幻境區塊（地圖標籤 illusion），心魔用模板 boss.heart_demon_mirror。tier_range 從%s到%s，不要設定 meta.region。通過時設旗標 %s_heart_demon_cleared。"
 const ENCOUNTER_HINT := "今日奇遇：發生在玩家目前所在地區的小小偶遇，幾分鐘就能玩完，可以呼應玩家最近的經歷。今天就要能觸發：觸發條件只用這個地區區塊有的地圖標籤，可加時辰，不要用天數或其他事件才會立的旗標。獎勵要小。"
 const ATTACK_RANGE := 90.0
+## 敵人走在地面上：玩家腳離地面超過這個高度就打不到、也不會被打到
+const MELEE_HEIGHT := 90.0
+const PORTAL_INSET := 50.0        # 傳送點離地圖邊緣多遠
+const INTERACT_RANGE := 40.0
 const ATTACK_COOLDOWN := 0.35
 const ENEMY_REACH := 44.0
 const ENEMY_HIT_INTERVAL := 1.0
@@ -64,6 +70,11 @@ var runner = null
 var level: Node2D
 var player: CharacterBody2D
 var points: Dictionary = {}       # point id -> x
+var map_width := 0.0
+var chunk_x: Dictionary = {}      # chunk id -> 地圖上的起點 x
+var portals: Array = []           # 落腳地圖兩端的傳送點 {x, to, view}
+var residents: Dictionary = {}    # 常駐 NPC id -> {view, info, said}
+var prompt_label: Label           # 「↑ 前往……」「↑ 交談」提示
 var actor_views: Dictionary = {}  # actor id -> Node2D
 var actor_hp: Dictionary = {}
 var actor_power: Dictionary = {}  # actor id -> power，傷害與擊殺修為用
@@ -166,7 +177,11 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	add_child(level)
 	move_child(level, 0)
 	points.clear()
+	chunk_x.clear()
+	portals = []
+	residents.clear()
 	var tags: Array = []
+	var ropes: Array = []
 	var x := 0.0
 	var ordered := chunk_list.duplicate()
 	ordered.sort_custom(func(a, b): return a["order"] < b["order"])
@@ -194,8 +209,16 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		name_label.position = Vector2(x + 24, FLOOR_Y - 580)
 		name_label.modulate = Color(1, 1, 1, 0.5)
 		level.add_child(name_label)
+		chunk_x[entry["chunk"]] = x
 		for p in info.get("points", {}):
 			points[p] = x + float(info["points"][p])
+		for plat in info.get("platforms", []):
+			_add_platform(x + float(plat["x"]), FLOOR_Y - float(plat["h"]), float(plat["w"]))
+		for r in info.get("ropes", []):
+			var rope := {"x": x + float(r["x"]), "top": FLOOR_Y - float(r["top"]),
+				"bottom": FLOOR_Y - float(r.get("bottom", 0)), "kind": r.get("kind", "rope")}
+			_add_rope_view(rope)
+			ropes.append(rope)
 		for t in info.get("tags", []):
 			if t not in tags:
 				tags.append(t)
@@ -218,8 +241,63 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		wall.position = Vector2(wall_x, FLOOR_Y - 600)
 		ground.add_child(wall)
 	level.add_child(ground)
+	map_width = x
 	state.map_tags = tags
+	player.ropes = ropes
+	player.floor_y = FLOOR_Y
+	player.set_camera_limits(0.0, x, FLOOR_Y - 640.0, FLOOR_Y + 160.0)
 	place_player(spawn_point)
+
+
+## 單向平台：從下面跳得上去，站在上面按 ↓＋跳 下來。邊緣一條墨線（art-direction.md）。
+func _add_platform(left: float, top: float, width: float) -> void:
+	var body := StaticBody2D.new()
+	body.collision_layer = Player.PLATFORM_LAYER
+	body.collision_mask = 0
+	body.add_to_group("platform")
+	var shape := CollisionShape2D.new()
+	shape.shape = RectangleShape2D.new()
+	shape.shape.size = Vector2(width, 12)
+	shape.position = Vector2(left + width / 2, top + 6)
+	shape.one_way_collision = true
+	body.add_child(shape)
+	var slab := ColorRect.new()
+	slab.color = Color("#2a2620", 0.85)
+	slab.position = Vector2(left, top)
+	slab.size = Vector2(width, 14)
+	body.add_child(slab)
+	var edge := ColorRect.new()
+	edge.color = Color("#0e0d0b")
+	edge.position = Vector2(left, top)
+	edge.size = Vector2(width, 3)
+	body.add_child(edge)
+	level.add_child(body)
+
+
+func _add_rope_view(rope: Dictionary) -> void:
+	var view := Node2D.new()
+	view.add_to_group("rope")
+	var length: float = rope["bottom"] - rope["top"]
+	if rope["kind"] == "ladder":
+		for side in [-10.0, 8.0]:
+			var rail := ColorRect.new()
+			rail.color = Color("#6b4f35")
+			rail.position = Vector2(rope["x"] + side, rope["top"])
+			rail.size = Vector2(3, length)
+			view.add_child(rail)
+		for y in range(int(rope["top"]) + 10, int(rope["bottom"]), 18):
+			var rung := ColorRect.new()
+			rung.color = Color("#6b4f35")
+			rung.position = Vector2(rope["x"] - 10, y)
+			rung.size = Vector2(21, 3)
+			view.add_child(rung)
+	else:
+		var line := ColorRect.new()
+		line.color = Color("#4f7a3a") if rope["kind"] == "vine" else Color("#8a6d4a")
+		line.position = Vector2(rope["x"] - 2, rope["top"])
+		line.size = Vector2(4, length)
+		view.add_child(line)
+	level.add_child(view)
 
 
 ## 回到目前地區的落腳地圖。
@@ -229,6 +307,102 @@ func go_home() -> void:
 	for i in info.get("home", []).size():
 		list.append({"chunk": info["home"][i], "order": i})
 	build_map(list, info.get("spawn", ""))
+	_build_portals()
+	_spawn_residents()
+
+
+## 落腳地圖兩端的傳送點，通往 exits 裡相鄰的地區。
+func _build_portals() -> void:
+	var exits: Dictionary = regions.get(state.region, {}).get("exits", {})
+	for side in exits:
+		var to: String = exits[side]
+		var px := PORTAL_INSET if side == "left" else map_width - PORTAL_INSET
+		var view := Node2D.new()
+		view.position = Vector2(px, FLOOR_Y)
+		var glow := ColorRect.new()
+		glow.color = Color("#cfe3f0", 0.35)
+		glow.position = Vector2(-18, -84)
+		glow.size = Vector2(36, 84)
+		view.add_child(glow)
+		var label := Label.new()
+		var locked: bool = state.tier_index < int(REGION_MIN_TIER.get(to, 0))
+		label.text = "%s %s%s" % ["←" if side == "left" else "→", region_name(to),
+			"（需%s）" % state.ruleset["tiers"][REGION_MIN_TIER[to]] if locked else ""]
+		# 右端的字往左排，免得被畫面邊緣切掉
+		label.size = Vector2(200, 0)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if side == "left" else HORIZONTAL_ALIGNMENT_RIGHT
+		label.position = Vector2(-18 if side == "left" else -182, -112)
+		view.add_child(label)
+		level.add_child(view)
+		portals.append({"x": px, "to": to, "view": view})
+
+
+## 地區的常駐 NPC，事件進行中先退場（事件可能自己會叫同一個人出來）。
+func _spawn_residents() -> void:
+	_clear_residents()
+	if runner != null:
+		return
+	for r in regions.get(state.region, {}).get("residents", []):
+		if not chunk_x.has(r["chunk"]):
+			continue
+		var view := _make_actor_view(r, false)
+		view.position = Vector2(chunk_x[r["chunk"]] + float(r["x"]), FLOOR_Y)
+		level.add_child(view)
+		residents[r["id"]] = {"view": view, "info": r, "said": 0}
+
+
+func _clear_residents() -> void:
+	for id in residents:
+		residents[id]["view"].queue_free()
+	residents.clear()
+
+
+func nearby_portal() -> Dictionary:
+	for p in portals:
+		if absf(p["x"] - player.position.x) < INTERACT_RANGE and player.feet() > FLOOR_Y - 8.0:
+			return p
+	return {}
+
+
+func nearby_resident() -> String:
+	for id in residents:
+		var view: Node2D = residents[id]["view"]
+		if absf(view.position.x - player.position.x) < INTERACT_RANGE * 1.5 and player.feet() > FLOOR_Y - MELEE_HEIGHT:
+			return id
+	return ""
+
+
+## ↑／E：傳送點優先，再來是身邊的 NPC。回傳有沒有做事。
+func interact() -> bool:
+	if dialogue_panel.visible or player.climbing:
+		return false
+	var portal := nearby_portal()
+	if not portal.is_empty():
+		if runner != null:
+			add_log("事情還沒了結，走不開。")
+			return true
+		travel_to(portal["to"], true)
+		return true
+	var id := nearby_resident()
+	if id != "":
+		talk_to(id)
+		return true
+	return false
+
+
+## 常駐 NPC 一次說一句，輪著說。空白鍵關掉。
+func talk_to(id: String) -> void:
+	var r: Dictionary = residents[id]
+	var lines: Array = r["info"].get("lines", [])
+	if lines.is_empty():
+		return
+	var line: String = lines[r["said"] % lines.size()]
+	r["said"] += 1
+	dialogue_label.text = "%s：%s\n  （空白鍵繼續）" % [r["info"]["name"], line]
+	dialogue_panel.visible = true
+	player.frozen = true
+	lingering = true
+	playlog.write("talk", {"npc": r["info"].get("memory_key", id), "region": state.region})
 
 
 func region_name(id: String = "") -> String:
@@ -236,15 +410,23 @@ func region_name(id: String = "") -> String:
 
 
 ## 前往另一個地區：花掉 travel_hours 個時辰，換落腳地圖，請導演補貨，再看有沒有事件。
-func travel_to(id: String) -> bool:
+## by_portal：走傳送點過去的，出現在新地圖通往原地區的那一端。
+func travel_to(id: String, by_portal := false) -> bool:
 	if runner != null or not regions.has(id) or id == state.region:
 		return false
 	if state.tier_index < int(REGION_MIN_TIER.get(id, 0)):
 		add_log("師門規矩：%s需%s以上方可前往。" % [region_name(id), state.ruleset["tiers"][REGION_MIN_TIER[id]]])
 		return false
 	var new_day := advance_time(int(regions[id].get("travel_hours", 1)))
+	var from: String = state.region
 	state.region = id
 	go_home()
+	if by_portal:
+		for p in portals:
+			if p["to"] == from:
+				player.position = Vector2(p["x"] + (PORTAL_INSET if p["x"] < map_width / 2 else -PORTAL_INSET), FLOOR_Y - 40)
+				player.velocity = Vector2.ZERO
+				player.snap_camera()
 	add_log("你來到%s。（第 %d 天・%s）" % [region_name(), state.day, state.time_of_day])
 	playlog.write("travel", {"to": id, "day": state.day})
 	if new_day:
@@ -297,6 +479,7 @@ func choose_travel(i: int) -> void:
 func place_player(point: String) -> void:
 	player.position = Vector2(points.get(point, 100.0), FLOOR_Y - 40)
 	player.velocity = Vector2.ZERO
+	player.snap_camera()
 
 
 # ---------- 觸發與內容包 ----------
@@ -314,6 +497,7 @@ func start_pack(pack: Dictionary) -> void:
 	pack_stats = {"started": Time.get_ticks_msec(), "lines": 0, "skipped": 0, "rewritten": 0}
 	playlog.write("pack_start", {"pack": pack["id"], "title": pack["meta"]["title"], "author": pack["meta"].get("author", ""),
 		"request_tag": pack["meta"].get("request_tag", ""), "region": state.region, "day": state.day, "tier": state.tier_name()})
+	_clear_residents()
 	runner = PackRunner.new(pack, state)
 	runner.actor_spawned.connect(_on_actor_spawned)
 	runner.actor_despawned.connect(_remove_actor_view)
@@ -353,6 +537,8 @@ func _on_pack_finished(result: String) -> void:
 		_hide_dialogue()
 	if had_map:
 		go_home()
+	else:
+		_spawn_residents()
 	_refresh_status()
 	request_followups()
 	restock()
@@ -473,8 +659,21 @@ func load_game() -> void:
 
 
 func _on_actor_spawned(actor: Dictionary) -> void:
-	var view := Node2D.new()
 	var hostile: bool = actor["disposition"] == "hostile"
+	var view := _make_actor_view(actor, hostile)
+	view.position = Vector2(points.get(actor.get("spawn_at", ""), player.position.x + 200), FLOOR_Y)
+	view.set_meta("hostile", hostile)
+	level.add_child(view)
+	var power := float(actor.get("power", 1.0))
+	actor_views[actor["id"]] = view
+	actor_power[actor["id"]] = power
+	actor_hp[actor["id"]] = Cultivation.enemy_hp(power, pack_tier())
+	enemy_cooldown[actor["id"]] = ENEMY_HIT_INTERVAL
+
+
+## 角色的樣子：有圖畫圖，沒圖畫色塊，頭上掛名字。原點在腳底。
+func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
+	var view := Node2D.new()
 	var size := Vector2(32, 60) * (1.3 if actor["template"].begins_with("boss.") else 1.0)
 	# 同模板的不同角色依 memory_key（沒有就用名字）固定分到同一張變體
 	var key: String = actor.get("memory_key", actor["name"])
@@ -499,14 +698,7 @@ func _on_actor_spawned(actor: Dictionary) -> void:
 	label.text = "%s・%s" % [actor.get("title", ""), actor["name"]] if actor.has("title") else actor["name"]
 	label.position = Vector2(-size.x, -size.y - 28)
 	view.add_child(label)
-	view.position = Vector2(points.get(actor.get("spawn_at", ""), player.position.x + 200), FLOOR_Y)
-	view.set_meta("hostile", hostile)
-	level.add_child(view)
-	var power := float(actor.get("power", 1.0))
-	actor_views[actor["id"]] = view
-	actor_power[actor["id"]] = power
-	actor_hp[actor["id"]] = Cultivation.enemy_hp(power, pack_tier())
-	enemy_cooldown[actor["id"]] = ENEMY_HIT_INTERVAL
+	return view
 
 
 func _remove_actor_view(id: String) -> void:
@@ -654,8 +846,12 @@ func attack() -> void:
 	attack_cooldown = ATTACK_COOLDOWN
 	for id in actor_views.keys():
 		var view: Node2D = actor_views[id]
-		if view.get_meta("hostile") and absf(view.position.x - player.position.x) <= ATTACK_RANGE:
+		if view.get_meta("hostile") and absf(view.position.x - player.position.x) <= ATTACK_RANGE and player_near_ground():
 			damage_actor(id, Cultivation.player_damage(state.tier_index))
+
+
+func player_near_ground() -> bool:
+	return player.feet() > FLOOR_Y - MELEE_HEIGHT
 
 
 func damage_actor(id: String, amount: int) -> void:
@@ -701,6 +897,7 @@ func player_down() -> void:
 
 func _process(delta: float) -> void:
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
+	_update_prompt()
 	if runner == null:
 		return
 	for p in points:
@@ -717,13 +914,26 @@ func _process(delta: float) -> void:
 		var dx := player.position.x - view.position.x
 		if absf(dx) > 40.0:
 			view.position.x += signf(dx) * HOSTILE_SPEED * delta
-		if absf(dx) <= ENEMY_REACH:
+		if absf(dx) <= ENEMY_REACH and player_near_ground():
 			enemy_cooldown[id] = float(enemy_cooldown.get(id, ENEMY_HIT_INTERVAL)) - delta
 			if enemy_cooldown[id] <= 0.0:
 				enemy_cooldown[id] = ENEMY_HIT_INTERVAL
 				damage_player(Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), pack_tier()))
 				if runner == null:
 					return
+
+
+## 站在傳送點或 NPC 旁邊時，畫面下方提示可以按 ↑。
+func _update_prompt() -> void:
+	var text := ""
+	if not dialogue_panel.visible and not player.climbing:
+		var portal := nearby_portal()
+		if not portal.is_empty():
+			text = "↑ 前往%s" % region_name(portal["to"])
+		elif nearby_resident() != "":
+			text = "↑ 交談"
+	prompt_label.text = text
+	prompt_label.visible = text != ""
 
 
 # ---------- 除錯：製造觸發條件 ----------
@@ -772,6 +982,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	match event.physical_keycode:
 		KEY_T:
 			open_travel_menu()
+		KEY_UP, KEY_W, KEY_E:
+			interact()
 		KEY_SPACE, KEY_ENTER:
 			advance_dialogue()
 		KEY_1, KEY_2, KEY_3, KEY_4:
@@ -827,10 +1039,16 @@ func _build_hud() -> void:
 	dialogue_panel.add_child(dialogue_label)
 	hud.add_child(dialogue_panel)
 	var help := Label.new()
-	help.text = "←→ 移動　↑ 跳　J 攻擊　空白 對話　1-4 選擇　T 地圖　M 打坐　B 突破"
+	help.text = "←→ 移動　Alt/C/空白 跳　↑↓ 爬繩梯　↓+跳 下平台　↑/E 傳送點・交談　J 攻擊　1-4 選擇　T 地圖　M 打坐　B 突破"
 	help.position = Vector2(16, 690)
 	help.modulate = Color(1, 1, 1, 0.5)
 	hud.add_child(help)
+	prompt_label = Label.new()
+	prompt_label.visible = false
+	prompt_label.size = Vector2(400, 0)
+	prompt_label.position = Vector2(440, 650)
+	prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hud.add_child(prompt_label)
 	_refresh_status()
 
 

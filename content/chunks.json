@@ -1,5 +1,5 @@
 {
-  "_comment": "地圖區塊庫。內容包的 map.chunks 只能引用這裡的區塊；points 的 x 是區塊內的位置（像素）。M0 用色塊代替美術。",
+  "_comment": "地圖區塊庫。內容包的 map.chunks 只能引用這裡的區塊；points 的 x 是區塊內的位置（像素）。M0 用色塊代替美術。 platforms 是單向平台：x 為左緣、h 為離地高度、w 為寬；基本跳躍約 120 高，相鄰兩層差 100 左右。ropes 是繩子（rope）、藤蔓（vine）、梯子（ladder）：x 位置，top／bottom 是兩端離地高度（bottom 省略是地面），兩端要接在地面或平台上。",
   "chunk.qingyun_road": {
     "name": "青雲山道",
     "width": 960,
@@ -9,7 +9,31 @@
     ],
     "points": {
       "pt.home_start": 120
-    }
+    },
+    "platforms": [
+      {
+        "x": 260,
+        "h": 100,
+        "w": 180
+      },
+      {
+        "x": 480,
+        "h": 200,
+        "w": 200
+      },
+      {
+        "x": 760,
+        "h": 100,
+        "w": 140
+      }
+    ],
+    "ropes": [
+      {
+        "x": 640,
+        "top": 200,
+        "kind": "vine"
+      }
+    ]
   },
   "chunk.qingyun_woods": {
     "name": "青雲密林",
@@ -18,7 +42,31 @@
     "tags": [
       "forest"
     ],
-    "points": {}
+    "points": {},
+    "platforms": [
+      {
+        "x": 120,
+        "h": 110,
+        "w": 220
+      },
+      {
+        "x": 380,
+        "h": 210,
+        "w": 160
+      },
+      {
+        "x": 600,
+        "h": 300,
+        "w": 240
+      }
+    ],
+    "ropes": [
+      {
+        "x": 700,
+        "top": 300,
+        "kind": "vine"
+      }
+    ]
   },
   "chunk.forest_clearing_a": {
     "name": "林間空地",
@@ -31,7 +79,24 @@
       "pt.clearing_left": 120,
       "pt.clearing_center": 560,
       "pt.clearing_right": 960
-    }
+    },
+    "platforms": [
+      {
+        "x": 200,
+        "h": 100,
+        "w": 200
+      },
+      {
+        "x": 500,
+        "h": 190,
+        "w": 220
+      },
+      {
+        "x": 820,
+        "h": 100,
+        "w": 180
+      }
+    ]
   },
   "chunk.illusion_entry": {
     "name": "心魔幻境・入口",
@@ -78,7 +143,26 @@
     "points": {
       "pt.cave_mouth": 100,
       "pt.cave_inner": 650
-    }
+    },
+    "platforms": [
+      {
+        "x": 150,
+        "h": 90,
+        "w": 160
+      },
+      {
+        "x": 420,
+        "h": 170,
+        "w": 200
+      }
+    ],
+    "ropes": [
+      {
+        "x": 600,
+        "top": 170,
+        "kind": "rope"
+      }
+    ]
   },
   "chunk.ruined_shrine": {
     "name": "荒廢山神廟",
@@ -92,7 +176,26 @@
       "pt.shrine_gate": 120,
       "pt.shrine_hall": 520,
       "pt.shrine_back": 880
-    }
+    },
+    "platforms": [
+      {
+        "x": 300,
+        "h": 110,
+        "w": 400
+      },
+      {
+        "x": 420,
+        "h": 220,
+        "w": 160
+      }
+    ],
+    "ropes": [
+      {
+        "x": 330,
+        "top": 110,
+        "kind": "ladder"
+      }
+    ]
   },
   "chunk.mountain_village": {
     "name": "山腳村落",
@@ -106,7 +209,36 @@
       "pt.village_gate": 100,
       "pt.village_well": 550,
       "pt.village_end": 980
-    }
+    },
+    "platforms": [
+      {
+        "x": 150,
+        "h": 120,
+        "w": 220
+      },
+      {
+        "x": 520,
+        "h": 100,
+        "w": 200
+      },
+      {
+        "x": 820,
+        "h": 200,
+        "w": 180
+      }
+    ],
+    "ropes": [
+      {
+        "x": 240,
+        "top": 120,
+        "kind": "ladder"
+      },
+      {
+        "x": 850,
+        "top": 200,
+        "kind": "ladder"
+      }
+    ]
   },
   "chunk.sect_gate": {
     "name": "青雲宗・山門",
@@ -118,7 +250,24 @@
     "points": {
       "pt.sect_gate": 120,
       "pt.sect_steps": 640
-    }
+    },
+    "platforms": [
+      {
+        "x": 250,
+        "h": 60,
+        "w": 140
+      },
+      {
+        "x": 420,
+        "h": 120,
+        "w": 140
+      },
+      {
+        "x": 590,
+        "h": 180,
+        "w": 180
+      }
+    ]
   },
   "chunk.sect_plaza": {
     "name": "青雲宗・演武場",
@@ -131,7 +280,31 @@
       "pt.plaza_west": 160,
       "pt.plaza_center": 560,
       "pt.plaza_east": 960
-    }
+    },
+    "platforms": [
+      {
+        "x": 100,
+        "h": 110,
+        "w": 200
+      },
+      {
+        "x": 820,
+        "h": 110,
+        "w": 200
+      },
+      {
+        "x": 400,
+        "h": 210,
+        "w": 300
+      }
+    ],
+    "ropes": [
+      {
+        "x": 520,
+        "top": 210,
+        "kind": "rope"
+      }
+    ]
   },
   "chunk.sect_hall": {
     "name": "青雲宗・傳功殿",
@@ -144,7 +317,26 @@
     "points": {
       "pt.hall_door": 100,
       "pt.hall_dais": 600
-    }
+    },
+    "platforms": [
+      {
+        "x": 150,
+        "h": 100,
+        "w": 600
+      },
+      {
+        "x": 350,
+        "h": 200,
+        "w": 200
+      }
+    ],
+    "ropes": [
+      {
+        "x": 200,
+        "top": 100,
+        "kind": "ladder"
+      }
+    ]
   },
   "chunk.master_cave": {
     "name": "青玄峰・師父洞府",
@@ -157,7 +349,14 @@
     "points": {
       "pt.cave_door": 100,
       "pt.master_seat": 520
-    }
+    },
+    "platforms": [
+      {
+        "x": 500,
+        "h": 100,
+        "w": 200
+      }
+    ]
   },
   "chunk.heifeng_pass": {
     "name": "黑風嶺・山道",
@@ -169,7 +368,31 @@
     "points": {
       "pt.pass_start": 120,
       "pt.pass_bend": 620
-    }
+    },
+    "platforms": [
+      {
+        "x": 180,
+        "h": 90,
+        "w": 160
+      },
+      {
+        "x": 380,
+        "h": 180,
+        "w": 160
+      },
+      {
+        "x": 600,
+        "h": 270,
+        "w": 200
+      }
+    ],
+    "ropes": [
+      {
+        "x": 700,
+        "top": 270,
+        "kind": "rope"
+      }
+    ]
   },
   "chunk.heifeng_ravine": {
     "name": "黑風嶺・斷魂谷",
@@ -183,7 +406,31 @@
       "pt.ravine_edge": 140,
       "pt.ravine_floor": 560,
       "pt.ravine_far": 980
-    }
+    },
+    "platforms": [
+      {
+        "x": 100,
+        "h": 100,
+        "w": 220
+      },
+      {
+        "x": 850,
+        "h": 100,
+        "w": 220
+      },
+      {
+        "x": 420,
+        "h": 200,
+        "w": 260
+      }
+    ],
+    "ropes": [
+      {
+        "x": 540,
+        "top": 200,
+        "kind": "rope"
+      }
+    ]
   },
   "chunk.demon_den": {
     "name": "黑風嶺・狼妖巢穴",
@@ -197,6 +444,18 @@
     "points": {
       "pt.den_mouth": 100,
       "pt.den_heart": 640
-    }
+    },
+    "platforms": [
+      {
+        "x": 200,
+        "h": 100,
+        "w": 200
+      },
+      {
+        "x": 550,
+        "h": 180,
+        "w": 200
+      }
+    ]
   }
 }
