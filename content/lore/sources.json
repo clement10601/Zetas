@@ -23,7 +23,8 @@
       "乾": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/易藏/易经/周易.txt（殆知閣簡體本，繁簡轉換後逐字比對）",
       "說卦傳": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/易藏/易经/周易.txt（殆知閣簡體本，繁簡轉換後逐字比對）",
       "卦辭": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/易藏/易经/周易.txt（殆知閣簡體本，繁簡轉換後逐字比對）",
-      "乾·象": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/易藏/易经/周易.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+      "乾·象": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/易藏/易经/周易.txt（殆知閣簡體本，繁簡轉換後逐字比對）",
+      "繫辭上": "https://zh.wikisource.org/w/index.php?title=易傳/繫辭上&oldid=2611140（維基文庫，逐字比對）"
     }
   },
   "src.daodejing": {
@@ -111,7 +112,9 @@
     "author": "不詳",
     "about": "善惡報應、司命奪算、三尸上告。遊戲的因果與善惡軸可直接借用。",
     "text_url": "https://zh.wikisource.org/wiki/太上感應篇",
-    "checked": {}
+    "checked": {
+      "": "https://zh.wikisource.org/w/index.php?title=太上感應篇&oldid=2569348（維基文庫，逐字比對）"
+    }
   },
   "src.xinjing": {
     "title": "般若波羅蜜多心經",

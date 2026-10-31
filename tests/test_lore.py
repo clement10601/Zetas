@@ -35,7 +35,7 @@ class LoreTest(unittest.TestCase):
         self.assertTrue(any("第 3、4 卦" in err for err in lore.check(self.tmp)))
 
     def test_verified_needs_checked_chapter(self):
-        self.edit("cosmology.json", lambda d: d["lore.god.siming"]["quote"].update(verified=True))
+        self.edit("cosmology.json", lambda d: d["lore.god.siming"]["quote"].update(chapter="沒登記的篇"))
         self.assertTrue(any("lore.god.siming" in err and "checked" in err for err in lore.check(self.tmp)))
 
     def test_unknown_region_and_simplified_text(self):
