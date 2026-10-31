@@ -97,8 +97,7 @@
     "nodes": {
       "h1": {
         "speaker": "narrator",
-        "text": "靈氣逆流，眼前一黑。再睜眼時，你站在熟悉的青雲鎮，天上卻掛著血月。",
-        "next": "h2"
+        "text": "靈氣逆流，眼前一黑。再睜眼時，你站在熟悉的青雲鎮，天上卻掛著血月。遠處的廣場上，站著一個你記得的身影。"
       },
       "h2": {
         "speaker": "echo",
@@ -155,6 +154,12 @@
     {
       "id": "s1",
       "objective": "走到記憶中的廣場",
+      "on_enter": [
+        {
+          "type": "start_dialogue",
+          "node": "h1"
+        }
+      ],
       "complete_when": [
         {
           "type": "reach_point",
@@ -164,7 +169,7 @@
       "on_complete": [
         {
           "type": "start_dialogue",
-          "node": "h1"
+          "node": "h2"
         }
       ]
     },

@@ -135,13 +135,17 @@ func test_fox_repays_kindness() -> void:
 func test_heart_demon_trial() -> void:
 	var main: Node = await new_game()
 	main.breakthrough()
+	expect(main.log_lines.has("【築基心魔】"), "the log names the event without the designer summary")
 	expect(main.runner != null and main.runner.pack["id"] == "pack.heart_demon_trial.zhuji.s001", "breakthrough triggers heart demon")
 	expect(main.state.map_tags == ["illusion"], "illusion map built")
+	expect(main.dialogue_panel.visible, "the illusion is described as soon as you arrive")
+	main.advance_dialogue()
+	expect(not main.dialogue_panel.visible, "then you walk to the square yourself")
 	main.player.position.x = main.points["pt.memory_square"]
 	main._process(0.016)
 	expect(main.runner.reached_points.has("pt.memory_square"), "walking to the square is noticed")
 	expect(main.actor_views.has("demon"), "heart demon spawns")
-	for i in 3:
+	for i in 2:
 		main.advance_dialogue()
 	expect(main.current_choices.size() == 2, "face or fight choice")
 	main.choose_visible(0)
@@ -222,6 +226,15 @@ func test_director_offline_keeps_request() -> void:
 	expect(main.director.restock(main.state, main.pool, 3) == 0, "failed restock waits before asking again")
 	await process_frame  # await 在訊號發送途中恢復，下一格再釋放
 	main.free()
+	# 存取碼錯了：停用導演，只提示一次，不把 HTTP 錯誤原文丟給玩家
+	main = await new_game(true)
+	main.director.base_url = "http://127.0.0.1:9"
+	main._on_pack_failed({}, "HTTP 401 access code missing or invalid")
+	main._on_pack_failed({}, "HTTP 401 access code missing or invalid")
+	expect(not main.use_director, "a rejected access code turns the director off")
+	expect(main.log_lines.filter(func(l): return l.contains("存取碼")).size() == 1, "the player is told once")
+	expect(not main.log_lines.any(func(l): return l.contains("HTTP")), "no raw HTTP errors in the log")
+	main.free()
 
 
 func test_save_and_load() -> void:
@@ -279,6 +292,7 @@ func test_sect_first_lesson() -> void:
 	main.advance_dialogue()
 	expect(main.runner == null, "lesson ends on 師父's last line")
 	expect(main.dialogue_panel.visible and main.dialogue_label.text.contains("劍訣殘頁"), "last line stays on screen")
+	expect(main.points.has("pt.master_seat"), "still in the cave while 師父 is talking")
 	main.advance_dialogue()
 	expect(not main.dialogue_panel.visible, "space closes the last line")
 	expect(main.state.items.has("青雲劍訣殘頁"), "sect reward from loot table")
