@@ -86,7 +86,7 @@ func _ready() -> void:
 	load_content()
 	director = DirectorClient.new()
 	add_child(director)
-	_read_director_url()
+	_read_director_config()
 	director.pack_generated.connect(_on_pack_generated)
 	director.pack_failed.connect(_on_pack_failed)
 	director.line_rewritten.connect(func(node_id, text):
@@ -118,13 +118,22 @@ func _notification(what: int) -> void:
 		playlog.write("session_end", {"day": state.day, "tier": state.tier_name()})
 
 
-## 測試版：執行檔旁的 director_url.txt 指定導演位址（環境變數 ZEWORLD_DIRECTOR_URL 優先）。
-func _read_director_url() -> void:
-	var cfg := OS.get_executable_path().get_base_dir().path_join("director_url.txt")
-	if OS.get_environment("ZEWORLD_DIRECTOR_URL") == "" and not OS.has_feature("editor") and FileAccess.file_exists(cfg):
-		var url := FileAccess.get_file_as_string(cfg).strip_edges()
-		if url.begins_with("http"):
-			director.base_url = url
+## 測試版：執行檔旁的 director_url.txt 指定導演位址、director_code.txt 放存取碼
+## （環境變數 ZEWORLD_DIRECTOR_URL、ZEWORLD_DIRECTOR_CODE 優先）。
+func _read_director_config() -> void:
+	if OS.has_feature("editor"):
+		return
+	var dir := OS.get_executable_path().get_base_dir()
+	var url := _read_text(dir.path_join("director_url.txt"))
+	if OS.get_environment("ZEWORLD_DIRECTOR_URL") == "" and url.begins_with("http"):
+		director.base_url = url
+	var code := _read_text(dir.path_join("director_code.txt"))
+	if OS.get_environment("ZEWORLD_DIRECTOR_CODE") == "" and code != "":
+		director.access_code = code
+
+
+static func _read_text(path: String) -> String:
+	return FileAccess.get_file_as_string(path).strip_edges() if FileAccess.file_exists(path) else ""
 
 
 func load_content() -> void:

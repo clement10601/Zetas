@@ -3,3 +3,5 @@ addons/zeworld/
 __pycache__/
 *.import
 build/
+director_code.txt
+*codes.json
