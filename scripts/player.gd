@@ -47,6 +47,14 @@ var floor_y := 560.0            # 地面高度，用來分辨站在地上還是�
 var test_input = null           # 測試用：{"left", "right", "up", "down", "jump"} 布林值，設了就不讀鍵盤
 var camera: Camera2D
 var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
+var rig: Node2D                 # 立繪的軸心放在腳底：走路一頓一頓、跳起拉長、落地壓扁都繞這裡
+var shadow: TextureRect
+
+var _walk := 0.0
+var _squash := 0.0              # 落地壓扁，1 → 0
+var _lunge := 0.0               # 出劍前衝，1 → 0
+var _was_on_floor := true
+var _time := 0.0
 
 var _coyote := 0.0
 var _jump_buffer := 0.0
@@ -71,6 +79,18 @@ func _ready() -> void:
 	body.size = SIZE
 	body.position = -SIZE / 2
 	add_child(body)
+	rig = Node2D.new()
+	rig.name = "Rig"
+	rig.position = Vector2(0, SIZE.y / 2)
+	add_child(rig)
+	shadow = TextureRect.new()
+	shadow.texture = preload("res://scripts/actor_view.gd").shadow_texture()
+	shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shadow.size = Vector2(50, 13)
+	shadow.position = Vector2(-25, SIZE.y / 2 - 6.5)
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shadow.show_behind_parent = true
+	add_child(shadow)
 	camera = Camera2D.new()
 	camera.position = Vector2(0, -120)
 	camera.position_smoothing_enabled = true
@@ -92,16 +112,70 @@ func set_look(tex: Texture2D, height: float) -> void:
 	if sprite == null:
 		sprite = Sprite2D.new()
 		sprite.centered = false
-		add_child(sprite)
+		rig.add_child(sprite)
 	sprite.texture = tex
 	sprite.scale = Vector2.ONE * height / tex.get_height()
-	sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, SIZE.y / 2 - height)
+	sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, -height)
 	get_node("Body").visible = false
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if sprite:
 		sprite.flip_h = facing < 0
+	_animate(delta)
+
+
+## 程式做的小動作（立繪只有一張）：站著呼吸、走路一頓一頓往前傾、
+## 起跳拉長、下落微扁、落地壓扁揚塵、爬繩左右晃、御風飄、御劍前傾。
+func _animate(delta: float) -> void:
+	_time += delta
+	var grounded := is_on_floor()
+	var target_scale := Vector2.ONE
+	var target_rot := 0.0
+	var bob := 0.0
+	var speed := absf(velocity.x)
+	if flying > 0.0:
+		target_rot = facing * 0.35
+		target_scale = Vector2(1.06, 0.95)
+	elif climbing:
+		_walk += delta * absf(velocity.y) / 18.0
+		target_rot = sin(_walk) * 0.06
+	elif grounded:
+		if speed > 20.0:
+			_walk += delta * speed / 20.0
+			bob = -absf(sin(_walk)) * 3.5
+			target_rot = facing * 0.07 * speed / SPEED
+		else:
+			var b := sin(_time * 2.2) * 0.014
+			target_scale = Vector2(1.0 - b * 0.5, 1.0 + b)
+	elif velocity.y < -120.0:
+		target_scale = Vector2(0.92, 1.09)
+		target_rot = facing * 0.05
+	elif velocity.y > 0.0 and velocity.y <= GLIDE_FALL + 1.0 and glide:
+		target_rot = sin(_time * 3.0) * 0.08
+	else:
+		target_scale = Vector2(1.04, 0.97)
+		target_rot = facing * 0.08
+	if grounded and not _was_on_floor and not climbing:
+		_squash = 1.0
+		if is_inside_tree() and get_parent() != null:
+			preload("res://scripts/ink_fx.gd").dust(get_parent(), position + Vector2(0, SIZE.y / 2))
+	_was_on_floor = grounded
+	_squash = move_toward(_squash, 0.0, delta * 6.0)
+	_lunge = move_toward(_lunge, 0.0, delta * 5.0)
+	target_scale *= Vector2(1.0 + 0.14 * _squash, 1.0 - 0.14 * _squash)
+	var k := minf(1.0, delta * 16.0)
+	rig.scale = rig.scale.lerp(target_scale, k)
+	rig.rotation = lerp_angle(rig.rotation, target_rot + facing * 0.25 * _lunge, k)
+	rig.position = Vector2(facing * 10.0 * _lunge, SIZE.y / 2 + bob)
+	shadow.modulate.a = move_toward(shadow.modulate.a, 0.55 if grounded else 0.0, delta * 6.0)
+
+
+## 出劍：往前一衝，畫一道墨痕
+func play_attack() -> void:
+	_lunge = 1.0
+	if is_inside_tree() and get_parent() != null:
+		preload("res://scripts/ink_fx.gd").slash(get_parent(), position + Vector2(facing * 26.0, -8.0), facing)
 
 
 ## 平常會撞到的東西；學會土遁就不撞薄牆

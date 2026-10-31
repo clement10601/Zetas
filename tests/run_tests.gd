@@ -30,6 +30,7 @@ func _run() -> void:
 	await test_cultivation()
 	await test_combat()
 	await test_art_and_placeholders()
+	await test_ink_look()
 	await test_playlog()
 	await test_map_layout_data()
 	await test_walk_and_jump()
@@ -407,6 +408,29 @@ func test_combat() -> void:
 	main.free()
 
 
+## 水墨介面與畫面：區塊接縫有霧、地面依區塊染色、出劍有墨痕、敵人被打會閃、倒下淡出才移除。
+func test_ink_look() -> void:
+	var main: Node = await new_game()
+	var seams: Array = main.level.get_children().filter(func(n): return n.is_in_group("seam"))
+	expect(seams.size() == 2 * (main.regions[main.state.region]["home"].size() - 1), "each chunk seam gets two mist halves")
+	expect(main.level.get_children().any(func(n): return n is StaticBody2D and n.get_children().any(func(c): return c is Polygon2D)), "ground is a tinted strip")
+	main.state.time_of_day = "夜"
+	main._refresh_status()
+	await create_timer(1.4).timeout
+	expect(main.tint.color.b > main.tint.color.r, "night tints the world blue")
+	main._on_actor_spawned({"id": "wolf", "template": "mob.wolf_demon", "name": "狼妖", "disposition": "hostile", "spawn_at": ""})
+	var wolf: Node2D = main.actor_views["wolf"]
+	wolf.position.x = main.player.position.x + 40
+	main.actor_hp["wolf"] = 1
+	main.attack()
+	expect(main.get_children().any(func(n): return n.get_script() == main.InkFx and n.kind == 0), "attack draws an ink slash")
+	expect(not main.actor_views.has("wolf") and is_instance_valid(wolf), "defeated enemy fades out before it is removed")
+	await create_timer(0.8).timeout
+	expect(not is_instance_valid(wolf), "faded enemy is freed")
+	main.queue_free()
+	await process_frame
+
+
 func test_art_and_placeholders() -> void:
 	var dir := "user://zetas_test_art"
 	DirAccess.make_dir_recursive_absolute(dir)
@@ -626,8 +650,9 @@ func test_portals_and_residents() -> void:
 	main.player.position = Vector2(mo.position.x + 20, main.FLOOR_Y - 27)
 	main._process(0.016)
 	expect(main.prompt_label.text.contains("交談"), "standing next to an NPC shows the talk prompt")
-	expect(main.interact() and main.dialogue_panel.visible and main.dialogue_label.text.contains("莫老三"), "talk to the resident")
+	expect(main.interact() and main.dialogue_panel.visible and main.dialogue_name.text.contains("莫老三"), "talk to the resident")
 	expect(main.player.frozen, "player stands still while talking")
+	expect(main.portrait_frame.visible and main.portrait.texture is AtlasTexture, "talking shows the speaker's portrait cropped from the sprite")
 	main.advance_dialogue()
 	expect(not main.dialogue_panel.visible and not main.player.frozen, "space closes the talk")
 	main.interact()
