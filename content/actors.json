@@ -1,0 +1,13 @@
+{
+  "_comment": "角色與怪物模板。內容包的 actor.template 只能用這裡的 id；M1 仍用色塊顯示，boss. 開頭的會畫大一點。",
+  "npc.fox_girl": { "name": "狐女", "description": "化形的狐妖少女，可友善可敵對。" },
+  "npc.memory_echo": { "name": "記憶殘影", "description": "幻境中玩家記憶裡的人物。" },
+  "npc.villager": { "name": "村民", "description": "山腳村落的凡人，男女老少皆可。" },
+  "npc.cultivator": { "name": "修士", "description": "各門派或散修的修行者，可作同道、對手、師長。" },
+  "npc.merchant": { "name": "行商", "description": "走山路的商販或藥販。" },
+  "mob.demon_hunter": { "name": "獵妖人", "description": "鎮妖司的人，專捕妖族，對人也不客氣。" },
+  "mob.bandit": { "name": "山賊", "description": "攔路的凡人匪徒或墮落散修。" },
+  "mob.wolf_demon": { "name": "狼妖", "description": "成群出沒的低階妖獸。" },
+  "boss.heart_demon_mirror": { "name": "心魔", "description": "玩家的鏡像，只在突破幻境中出現。" },
+  "boss.demon_lord": { "name": "妖王", "description": "一方妖族之首，強敵。" }
+}

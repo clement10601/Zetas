@@ -15,6 +15,10 @@ func _run() -> void:
 	await test_content_references()
 	await test_fox_repays_kindness()
 	await test_heart_demon_trial()
+	await test_director_followup_event()
+	await test_live_rewrite_updates_dialogue()
+	await test_director_offline_keeps_request()
+	await test_save_and_load()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -26,8 +30,12 @@ func expect(ok: bool, what: String) -> void:
 		printerr("FAIL: " + what)
 
 
-func new_game() -> Node:
+## 測試預設不讀寫存檔、不連導演，避免互相影響。
+func new_game(director := false, save := "") -> Node:
 	var main: Node = load("res://scenes/main.tscn").instantiate()
+	main.save_path = save
+	main.generated_dir = ""
+	main.use_director = director
 	root.add_child(main)
 	await process_frame
 	return main
@@ -110,3 +118,79 @@ func test_heart_demon_trial() -> void:
 	main.breakthrough()
 	expect(main.runner == null, "no pack for 金丹 yet")
 	main.free()
+
+
+## 白狐事件結局交出後續請求 → 導演生成的內容包進池 → 等滿天數後在白天觸發。
+func test_director_followup_event() -> void:
+	var main: Node = await new_game()
+	main.spare_fox()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	for i in 3:
+		main.advance_dialogue()
+	main.choose_visible(0)
+	main.advance_dialogue()
+	main.damage_actor("hunter", 10)
+	var f: Dictionary = main.state.followups[0]
+	expect(f["flag"] == "followup:pack.fox_repays_kindness.s001", "fox followup carries its flag")
+	var pack = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/generated_zhenyao.json"))
+	f["status"] = "requested"
+	main._on_pack_generated(pack, f.duplicate())
+	expect(main.pool.size() == 3, "generated pack joins the pool")
+	expect(f["status"] == "ready" and f["pack"] == pack["id"], "followup marked ready")
+	main._on_pack_generated(pack, f.duplicate())
+	expect(main.pool.size() == 3, "same pack not added twice")
+	main.next_time()
+	main.next_time()
+	expect(main.runner == null, "followup waits for its days")
+	for i in 5:
+		main.pass_day()
+	if main.runner == null:
+		main.next_time()
+	expect(main.runner != null and main.runner.pack["id"] == pack["id"], "generated event triggers after 5 days in the daytime")
+	expect(main.points.has("pt.village_well"), "village map built from catalog chunks")
+	main.free()
+
+
+func test_live_rewrite_updates_dialogue() -> void:
+	var main: Node = await new_game()
+	main.spare_fox()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	expect(main.dialogue_label.text.contains("三日前山崖下"), "authored line shown first")
+	main.director.line_rewritten.emit("d1", "恩公，那日崖下一念之仁，白蘅記到今日。")
+	expect(main.dialogue_label.text.contains("一念之仁"), "rewritten line replaces the authored one")
+	main.advance_dialogue()
+	main.director.line_rewritten.emit("d1", "遲到的改寫")
+	expect(not main.dialogue_label.text.contains("遲到的改寫"), "late rewrite for an old line is ignored")
+	main.free()
+
+
+## 導演沒開：請求失敗後退回待送，遊戲照常。
+func test_director_offline_keeps_request() -> void:
+	var main: Node = await new_game(true)
+	main.director.base_url = "http://127.0.0.1:9"
+	main.state.followups.append({"hint": "h", "after_days": 1, "from_pack": "p", "day": 0, "flag": "followup:p", "status": ""})
+	main.request_followups()
+	expect(main.state.followups[0]["status"] == "requested", "followup sent")
+	await main.director.pack_failed
+	expect(main.state.followups[0]["status"] == "", "failed request goes back to pending")
+	await process_frame  # await 在訊號發送途中恢復，下一格再釋放
+	main.free()
+
+
+func test_save_and_load() -> void:
+	var path := "user://zetas_test_save.json"
+	var main: Node = await new_game(false, path)
+	main.spare_fox()
+	main.pass_day()
+	main.autosave()
+	main.free()
+	var again: Node = await new_game(false, path)
+	expect(again.state.day == 1 and again.state.flags.get("spared_white_fox") == true, "save restored on start")
+	again.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

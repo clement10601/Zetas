@@ -1,11 +1,14 @@
-## M0 遊戲主控：橫軸地圖、玩家、角色，並把 ZeWorld 內容包接到畫面上。
-## 除錯鍵用來快速製造觸發條件：F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界。
+## 遊戲主控：橫軸地圖、玩家、角色，並把 ZeWorld 內容包與導演接到畫面上。
+## 除錯鍵用來快速製造觸發條件：F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、
+## F6 請導演生成一個新事件、F5 存檔、F9 讀檔。
+## 導演服務沒開時一切照常，只是不會有新事件與即時台詞。
 extends Node2D
 
 const WorldState = preload("res://addons/zeworld/world_state.gd")
 const PackPool = preload("res://addons/zeworld/pack_pool.gd")
 const TriggerJudge = preload("res://addons/zeworld/trigger_judge.gd")
 const PackRunner = preload("res://addons/zeworld/pack_runner.gd")
+const DirectorClient = preload("res://addons/zeworld/director_client.gd")
 const Player = preload("res://scripts/player.gd")
 
 const FLOOR_Y := 560.0
@@ -13,6 +16,13 @@ const HOME_CHUNKS := [{"chunk": "chunk.qingyun_road", "order": 0}, {"chunk": "ch
 const HOME_SPAWN := "pt.home_start"
 const ATTACK_RANGE := 90.0
 const HOSTILE_SPEED := 70.0
+const SAVE_ID := "save.001"
+
+## 測試時設成空字串可停用存檔／導演生成資料夾；use_director 設 false 可完全不連導演。
+var save_path := "user://save.json"
+var generated_dir := "user://generated"
+var use_director := true
+var director
 
 var state
 var pool: Array = []
@@ -37,17 +47,30 @@ var current_choices: Array = []
 
 func _ready() -> void:
 	load_content()
+	director = DirectorClient.new()
+	add_child(director)
+	director.pack_generated.connect(_on_pack_generated)
+	director.pack_failed.connect(_on_pack_failed)
+	director.line_rewritten.connect(func(node_id, text):
+		if runner != null:
+			runner.apply_rewrite(node_id, text))
 	_build_hud()
 	player = Player.new()
 	add_child(player)
 	build_map(HOME_CHUNKS, HOME_SPAWN)
-	add_log("青雲山腳。F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界。")
+	add_log("青雲山腳。F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。")
+	if save_path != "" and state.load_file(save_path):
+		add_log("讀取存檔：第 %d 天。" % state.day)
+	request_followups()
 	check_triggers({"type": "enter_map"})
 
 
 func load_content() -> void:
 	state = WorldState.new(PackPool.load_ruleset("res://content/ruleset.json"))
+	state.save_id = SAVE_ID
 	pool = PackPool.load_dir("res://content/packs")
+	if generated_dir != "":
+		pool += PackPool.for_save(PackPool.load_dir(generated_dir), SAVE_ID)
 	chunks = _read_json("res://content/chunks.json")
 	loot = _read_json("res://content/loot.json")
 
@@ -138,6 +161,7 @@ func start_pack(pack: Dictionary) -> void:
 	runner.actor_spawned.connect(_on_actor_spawned)
 	runner.actor_despawned.connect(_remove_actor_view)
 	runner.line_shown.connect(_on_line_shown)
+	runner.line_updated.connect(_on_line_updated)
 	runner.dialogue_ended.connect(_on_dialogue_ended)
 	runner.objective_changed.connect(func(t): hud_objective.text = "目標：" + t)
 	runner.reward_requested.connect(_on_reward)
@@ -161,6 +185,59 @@ func _on_pack_finished(result: String) -> void:
 	if had_map:
 		build_map(HOME_CHUNKS, HOME_SPAWN)
 	_refresh_status()
+	request_followups()
+	autosave()
+
+
+# ---------- 導演 ----------
+
+## 把還沒送出的後續劇情請求交給導演。導演沒開就失敗退回，下次再送。
+func request_followups() -> void:
+	if not use_director:
+		return
+	for f in state.pending_followups():
+		f["status"] = "requested"
+		director.request_pack(state, f)
+
+
+func request_fresh_event() -> void:
+	if use_director:
+		add_log("（請導演構思新事件……）")
+		director.request_pack(state)
+
+
+func _on_pack_generated(pack: Dictionary, followup: Dictionary) -> void:
+	for p in pool:
+		if p["id"] == pack["id"]:
+			return
+	pool.append(pack)
+	if generated_dir != "":
+		PackPool.save_pack(pack, generated_dir)
+	if not followup.is_empty():
+		for f in state.followups:
+			if f.get("flag") == followup.get("flag"):
+				f["status"] = "ready"
+				f["pack"] = pack["id"]
+	add_log("（導演備好了新事件：%s）" % pack["meta"]["title"])
+	autosave()
+
+
+func _on_pack_failed(followup: Dictionary, reason: String) -> void:
+	for f in state.followups:
+		if f.get("flag") == followup.get("flag") and f.get("status") == "requested":
+			f["status"] = ""
+	if followup.is_empty():
+		add_log("（導演沒有回應：%s）" % reason)
+
+
+func autosave() -> void:
+	if save_path != "":
+		state.save_file(save_path)
+
+
+func load_game() -> void:
+	if save_path != "" and state.load_file(save_path):
+		add_log("讀取存檔：第 %d 天。" % state.day)
 
 
 func _on_actor_spawned(actor: Dictionary) -> void:
@@ -206,7 +283,17 @@ func _on_presentation(effect: Dictionary) -> void:
 
 # ---------- 對話 ----------
 
-func _on_line_shown(_id: String, line: Dictionary) -> void:
+func _on_line_shown(id: String, line: Dictionary) -> void:
+	_show_line(line)
+	if line["live_rewrite"] and use_director:
+		director.request_rewrite(id, line["text"], runner.pack, state)
+
+
+func _on_line_updated(_id: String, line: Dictionary) -> void:
+	_show_line(line)
+
+
+func _show_line(line: Dictionary) -> void:
 	var speaker: String = {"narrator": "", "player": "你"}.get(line["speaker"], line["speaker_name"])
 	var text: String = ("%s：%s" % [speaker, line["text"]]) if speaker != "" else line["text"]
 	current_choices = line["choices"]
@@ -288,6 +375,7 @@ func spare_fox() -> void:
 func pass_day() -> void:
 	state.day += 1
 	add_log("過了一天，現在是第 %d 天。" % state.day)
+	request_followups()
 	check_triggers({"type": "time_changed"})
 
 
@@ -325,6 +413,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			next_time()
 		KEY_F4:
 			breakthrough()
+		KEY_F5:
+			autosave()
+			add_log("已存檔。")
+		KEY_F6:
+			request_fresh_event()
+		KEY_F9:
+			load_game()
 	_refresh_status()
 
 
