@@ -1,6 +1,7 @@
 """每個角色模板的立繪設定。同一模板多張就是變體（檔名 _a、_b…，見 content/assets.json）。"""
 from functools import partial
 
+from . import beasts as B
 from . import figures as F
 from .ink import Canvas, seed_of
 
@@ -82,7 +83,8 @@ SPECS = {
     ],
 }
 
-SPECIAL = {"mob.wolf_demon": F.wolf_demon, "boss.demon_lord": F.demon_lord}
+SPECIAL = {"mob.wolf_demon": F.wolf_demon, "boss.demon_lord": F.demon_lord,
+           "mob.shengsheng": B.shengsheng, "mob.gudiao": B.gudiao, "mob.wandering_ghost": B.wandering_ghost}
 
 
 

@@ -117,6 +117,10 @@ var actor_hp: Dictionary = {}
 var actor_power: Dictionary = {}  # actor id -> power，傷害與擊殺修為用
 var actor_max_hp: Dictionary = {}
 var actor_boss: Dictionary = {}   # Boss 的 actor id -> 是否已發狠
+var actor_tier: Dictionary = {}   # 野怪的 actor id -> 強度境界（事件裡的敵人跟著 pack_tier）
+var wild: Dictionary = {}         # 落腳地圖上的野怪 id -> regions.json 的 wild 條目
+var wild_drop_chance := 0.5       # 野怪掉普通物品的機率（測試設成 1）
+var _map_gen := 0                 # 地圖重建或玩家倒地就加一，敵人迴圈看到變了就停
 var enemy_cooldown: Dictionary = {}  # actor id -> 收招破綻還剩幾秒（這段時間不動、不出招）
 var enemy_windup: Dictionary = {}    # actor id -> 前搖還剩幾秒（只有正在蓄力的敵人）
 var player_invuln := 0.0
@@ -318,6 +322,8 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		level.queue_free()
 	for id in actor_views.keys():
 		_remove_actor_view(id)
+	wild.clear()
+	_map_gen += 1
 	level = Node2D.new()
 	add_child(level)
 	move_child(level, 0)
@@ -853,6 +859,99 @@ func go_home() -> void:
 	build_map(list, info.get("spawn", ""))
 	_build_portals()
 	_spawn_residents()
+	refresh_wild()
+
+
+# ---------- 野怪 ----------
+
+## 這個地區的野怪強度：跟著地區的境界門檻走（煉氣去黑風嶺會很難打）
+func wild_tier() -> int:
+	return int(REGION_MIN_TIER.get(state.region, 0))
+
+
+## 今天打倒過的野怪 id。換了一天就清空，野怪隔天重生。
+func wild_defeated() -> Array:
+	var rec: Dictionary = state.game_data.get("wild_defeated", {})
+	if int(rec.get("day", -1)) != state.day:
+		return []
+	return rec.get("ids", [])
+
+
+## 現在這個時辰該在地圖上的野怪：id -> 條目（加上 x）
+func wild_roster() -> Dictionary:
+	var out := {}
+	var gone := wild_defeated()
+	var list: Array = regions.get(state.region, {}).get("wild", [])
+	for e in list.size():
+		var entry: Dictionary = list[e]
+		if not chunk_x.has(entry["chunk"]):
+			continue
+		if entry.has("times") and not state.time_of_day in entry["times"]:
+			continue
+		var width := float(chunks.get(entry["chunk"], {}).get("width", 900))
+		var n := int(entry.get("count", 1))
+		for i in n:
+			var id := "wild.%s.%d.%d" % [entry["chunk"].trim_prefix("chunk."), e, i]
+			if id in gone:
+				continue
+			var x: float = chunk_x[entry["chunk"]] + width * (i + 1) / (n + 1) + 50.0 * (e % 3)
+			out[id] = entry.merged({"x": x})
+	return out
+
+
+## 讓地圖上的野怪符合現在的時辰：該出現的補上、時辰過了的退場。事件進行中不出怪。
+func refresh_wild() -> void:
+	var roster := wild_roster() if runner == null else {}
+	for id in wild.keys():
+		if not roster.has(id):
+			_remove_actor_view(id)
+			wild.erase(id)
+	for id in roster:
+		if wild.has(id):
+			continue
+		var entry: Dictionary = roster[id]
+		var actor := {"id": id, "template": entry["template"], "name": entry["name"], "disposition": "hostile"}
+		var view := _make_actor_view(actor, true)
+		view.position = Vector2(entry["x"], FLOOR_Y)
+		view.set_meta("hostile", true)
+		level.add_child(view)
+		wild[id] = entry
+		actor_views[id] = view
+		actor_power[id] = float(entry.get("power", 1.0))
+		actor_tier[id] = wild_tier()
+		actor_hp[id] = Cultivation.enemy_hp(actor_power[id], actor_tier[id])
+		actor_max_hp[id] = actor_hp[id]
+		actor_boss.erase(id)
+		enemy_cooldown[id] = 0.0
+
+
+func clear_wild() -> void:
+	for id in wild.keys():
+		_remove_actor_view(id)
+	wild.clear()
+
+
+## 打倒野怪：記下來（今天不再出現）、給修為（強度越高給越多）、可能掉普通物品
+func _wild_defeated(id: String) -> void:
+	var entry: Dictionary = wild[id]
+	wild.erase(id)
+	var ids := wild_defeated().duplicate()
+	ids.append(id)
+	state.game_data["wild_defeated"] = {"day": state.day, "ids": ids}
+	gain_cultivation(Cultivation.kill_exp(float(entry.get("power", 1.0))) * (1 + int(actor_tier.get(id, 0))))
+	var table: String = entry.get("loot", "")
+	if table != "" and randf() < wild_drop_chance:
+		var items: Array = loot.get(table, {}).get("common", [])
+		if not items.is_empty():
+			var item: String = items[randi() % items.size()]
+			state.add_item(item)
+			add_log("拾得：" + item)
+			audio.play("reward")
+	var kills: Dictionary = state.game_data.get("wild_kills", {})
+	kills[entry["template"]] = int(kills.get(entry["template"], 0)) + 1
+	state.game_data["wild_kills"] = kills
+	playlog.write("wild_kill", {"template": entry["template"], "region": state.region, "day": state.day})
+	autosave()
 
 
 ## 落腳地圖兩端的傳送點，通往 exits 裡相鄰的地區。
@@ -1072,6 +1171,7 @@ func start_pack(pack: Dictionary) -> void:
 	playlog.write("pack_start", {"pack": pack["id"], "title": pack["meta"]["title"], "author": pack["meta"].get("author", ""),
 		"request_tag": pack["meta"].get("request_tag", ""), "region": state.region, "day": state.day, "tier": state.tier_name()})
 	_clear_residents()
+	clear_wild()
 	runner = PackRunner.new(pack, state)
 	runner.actor_spawned.connect(_on_actor_spawned)
 	runner.actor_despawned.connect(_remove_actor_view)
@@ -1119,6 +1219,7 @@ func _on_pack_finished(result: String) -> void:
 		go_home()
 	else:
 		_spawn_residents()
+		refresh_wild()
 	_refresh_status()
 	request_followups()
 	restock()
@@ -1277,6 +1378,7 @@ func _on_actor_spawned(actor: Dictionary) -> void:
 	actor_views[actor["id"]] = view
 	actor_power[actor["id"]] = power
 	var boss: bool = hostile and actor["template"].begins_with("boss.")
+	actor_tier.erase(actor["id"])
 	actor_hp[actor["id"]] = Cultivation.enemy_hp(power, pack_tier(), boss)
 	actor_max_hp[actor["id"]] = actor_hp[actor["id"]]
 	actor_boss.erase(actor["id"])
@@ -1448,6 +1550,7 @@ func meditate() -> void:
 	if new_day:
 		day_started()
 		restock()
+	refresh_wild()
 	check_triggers({"type": "time_changed"})
 
 
@@ -1467,6 +1570,11 @@ func try_breakthrough() -> bool:
 # ---------- 戰鬥 ----------
 
 ## 內容包的最低境界，敵人強度跟著它走
+## 這個敵人的強度境界：野怪看地區，事件裡的敵人看內容包
+func enemy_tier(id: String) -> int:
+	return int(actor_tier.get(id, pack_tier()))
+
+
 func pack_tier() -> int:
 	if runner == null:
 		return 0
@@ -1519,7 +1627,10 @@ func damage_actor(id: String, amount: int) -> void:
 		else:
 			_remove_actor_view(id)
 		enemy_windup.erase(id)
-		gain_cultivation(Cultivation.kill_exp(float(actor_power.get(id, 1.0))))
+		if wild.has(id):
+			_wild_defeated(id)
+		else:
+			gain_cultivation(Cultivation.kill_exp(float(actor_power.get(id, 1.0))))
 		if runner != null:
 			runner.notify({"type": "actor_defeated", "actor": id})
 	else:
@@ -1563,10 +1674,12 @@ func _enemy_strike(id: String) -> void:
 		return
 	player_invuln = PLAYER_INVULN
 	player.knock_back(view.position.x)
-	damage_player(Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), pack_tier()))
+	damage_player(Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), enemy_tier(id)))
 
 
 func actor_label(id: String) -> String:
+	if wild.has(id):
+		return wild[id]["name"]
 	if runner != null:
 		for a in runner.pack.get("actors", []):
 			if a["id"] == id:
@@ -1595,12 +1708,18 @@ func player_down() -> void:
 		enemy_cooldown[id] = ENEMY_HIT_INTERVAL
 	for id in enemy_windup.keys():
 		_cancel_windup(id)
-	if runner != null:
+	var in_event := runner != null
+	if in_event:
 		runner.abort("fail")
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index) / 2
 	if advance_time(1):
 		day_started()
 	add_log("醒來時已是%s。" % state.time_of_day)
+	if not in_event and runner == null:
+		# 被野怪打倒：醒在落腳點，野怪跟著新的時辰換班
+		_map_gen += 1
+		place_player(regions.get(state.region, {}).get("spawn", ""))
+		refresh_wild()
 	_refresh_status()
 
 
@@ -1613,15 +1732,16 @@ func _process(delta: float) -> void:
 	player.modulate.a = 0.35 if player_invuln > 0.0 and fmod(player_invuln, 0.14) < 0.07 else 1.0
 	audio.set_mood(absf(player.velocity.x) > 10.0 or player.climbing, in_danger(), dialogue_panel.visible, delta)
 	_update_prompt()
-	if runner == null:
+	if runner != null:
+		for p in points:
+			if not runner.reached_points.has(p) and absf(points[p] - player.position.x) < 32.0:
+				runner.notify({"type": "reach_point", "point": p})
+				if runner == null:
+					return
+	if dialogue_panel.visible or player.frozen:
 		return
-	for p in points:
-		if not runner.reached_points.has(p) and absf(points[p] - player.position.x) < 32.0:
-			runner.notify({"type": "reach_point", "point": p})
-			if runner == null:
-				return
-	if dialogue_panel.visible:
-		return
+	var gen := _map_gen
+	var was_runner = runner
 	for id in actor_views.keys():
 		var view: Node2D = actor_views[id]
 		if not view.get_meta("hostile"):
@@ -1632,7 +1752,7 @@ func _process(delta: float) -> void:
 			enemy_windup[id] -= delta
 			if enemy_windup[id] <= 0.0:
 				_enemy_strike(id)
-				if runner == null:
+				if gen != _map_gen or runner != was_runner or not actor_views.has(id):
 					return
 			continue
 		enemy_cooldown[id] = maxf(0.0, float(enemy_cooldown.get(id, 0.0)) - delta)
@@ -1641,7 +1761,7 @@ func _process(delta: float) -> void:
 		if absf(dx) > 40.0:
 			view.position.x += signf(dx) * HOSTILE_SPEED * delta
 		if absf(dx) <= ENEMY_REACH and player_near_ground():
-			enemy_windup[id] = Cultivation.enemy_windup(pack_tier()) * _enemy_speed(id)
+			enemy_windup[id] = Cultivation.enemy_windup(enemy_tier(id)) * _enemy_speed(id)
 			if view.has_method("telegraph"):
 				view.telegraph(true, float(view.get_meta("height", 120.0)))
 			audio.play("enemy_windup")
@@ -1733,6 +1853,7 @@ func pass_day() -> void:
 	add_log("過了一天，現在是第 %d 天。" % state.day)
 	day_started()
 	restock()
+	refresh_wild()
 	check_triggers({"type": "time_changed"})
 
 
@@ -1740,6 +1861,7 @@ func next_time() -> void:
 	var times: Array = state.ruleset["times_of_day"]
 	state.time_of_day = times[(times.find(state.time_of_day) + 1) % times.size()]
 	add_log("時辰：" + state.time_of_day)
+	refresh_wild()
 	check_triggers({"type": "time_changed"})
 
 

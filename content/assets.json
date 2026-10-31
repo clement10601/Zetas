@@ -258,6 +258,27 @@
       "files": [
         "props/cache.png"
       ]
+    },
+    "mob.shengsheng": {
+      "type": "sprite",
+      "files": [
+        "sprites/mob.shengsheng.png"
+      ],
+      "height": 96
+    },
+    "mob.gudiao": {
+      "type": "sprite",
+      "files": [
+        "sprites/mob.gudiao.png"
+      ],
+      "height": 96
+    },
+    "mob.wandering_ghost": {
+      "type": "sprite",
+      "files": [
+        "sprites/mob.wandering_ghost.png"
+      ],
+      "height": 96
     }
   }
 }

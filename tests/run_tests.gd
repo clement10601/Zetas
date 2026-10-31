@@ -49,6 +49,7 @@ func _run() -> void:
 	await test_glide()
 	await test_earth_escape_and_flight()
 	await test_audio()
+	await test_wild_mobs()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -1128,4 +1129,93 @@ func test_audio() -> void:
 	var piece: String = audio.current_music
 	expect(not audio.toggle_music() and not audio.music_on, "N turns the music off")
 	expect(audio.toggle_music() and audio.current_music == piece, "and back on with the same piece (%s)" % piece)
+	main.free()
+
+
+## 野怪：依時辰出現、打倒給修為與掉落、當天不再出現、隔天重生；事件開始時退場；被打倒醒在落腳點。
+func test_wild_mobs() -> void:
+	var main: Node = await new_game()
+	main.wild_drop_chance = 1.0
+	await at_region(main, "region.qingyun_sect", 0)
+	expect(main.wild.is_empty(), "no wild mobs inside the sect")
+	main.state.time_of_day = "晨"
+	await at_region(main, "region.qingyun_foothills", 0)
+	var monkeys: Array = main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.shengsheng")
+	expect(monkeys.size() == 2, "two 狌狌 roam the woods in the morning")
+	expect(main.wild.keys().all(func(id): return main.wild[id]["template"] != "mob.wandering_ghost"), "no ghosts by day")
+	var first_end: float = main.chunk_x["chunk.qingyun_woods"]
+	expect(main.wild.keys().all(func(id): return main.actor_views[id].position.x >= first_end), "no mobs in the first chunk where the player arrives")
+	for id in main.wild:
+		expect(main.actor_views[id].get_meta("hostile"), "wild mobs are hostile")
+	# 時辰到夜：狌狌回巢、遊魂出來
+	main.state.time_of_day = "暮"
+	main.next_time()
+	expect(main.state.time_of_day == "夜", "night falls")
+	expect(main.wild.keys().all(func(id): return main.wild[id]["template"] != "mob.shengsheng"), "狌狌 are gone at night")
+	var ghosts: Array = main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.wandering_ghost")
+	expect(ghosts.size() == 2, "ghosts haunt the shrine at night")
+	# 野怪也會出招
+	var g: String = ghosts[0]
+	var gv: Node2D = main.actor_views[g]
+	main.player.position = Vector2(gv.position.x - 30, main.FLOOR_Y - 40)
+	await step(main, {}, 5)
+	main.player.position.x = gv.position.x - 30
+	main.player_invuln = 0.0
+	main._process(0.1)
+	expect(main.enemy_windup.has(g), "wild mobs wind up and strike even with no event running")
+	# 打倒：修為、掉落、當天不再出現
+	var exp_before: int = main.cultivation()
+	var hits := 0
+	while main.wild.has(g) and hits < 20:
+		main.attack_cooldown = 0.0
+		main.actor_views[g].position.x = main.player.position.x + 30
+		main.attack()
+		hits += 1
+	expect(hits == 4, "a 煉氣 ghost (power 0.8) takes about 4 hits")
+	expect(main.cultivation() - exp_before == 4, "killing a wild mob gives a little cultivation (about half a meditation)")
+	expect(main.state.items.has("陰魂殘絲"), "wild mobs drop common loot")
+	expect(g in main.wild_defeated(), "the defeat is remembered")
+	main.go_home()
+	expect(not main.wild.has(g) and main.wild.size() == 1, "a defeated mob stays gone for the day")
+	main.pass_day()
+	expect(main.wild_defeated().is_empty() and main.wild.has(g), "mobs respawn the next day")
+	expect(int(main.state.game_data["wild_kills"]["mob.wandering_ghost"]) == 1, "wild kills are counted by template")
+	# 黑風嶺：強度跟著地區門檻（築基），夜裡狼妖加倍
+	main.state.time_of_day = "夜"
+	await at_region(main, "region.heifeng_ridge", 1)
+	var wolves: Array = main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.wolf_demon")
+	expect(wolves.size() == 4, "the den has twice the wolves at night")
+	expect(main.actor_hp[wolves[0]] == 8 and main.enemy_tier(wolves[0]) == 1, "heifeng mobs are as tough as a 築基 event")
+	main.state.time_of_day = "晨"
+	main.go_home()
+	expect(main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.wolf_demon").size() == 2, "two wolves by day")
+	expect(main.wild.keys().all(func(id): return main.wild[id]["template"] != "mob.gudiao"), "蠱雕 only come out at dusk and night")
+	# 被野怪打倒：醒在落腳點，時辰往前
+	main.state.tier_index = 0
+	main.state.game_data["hp"] = 1
+	var w: String = wolves[0]
+	var wv: Node2D = main.actor_views[w]
+	main.player.position = Vector2(wv.position.x - 30, main.FLOOR_Y - 40)
+	main.player_invuln = 0.0
+	for i in 20:
+		main.player.position.x = wv.position.x - 30
+		main._process(0.3)
+		if main.hp() != 1:
+			break
+	expect(main.hp() == main.Cultivation.max_hp(0) / 2, "knocked out by a wild mob, wake with half hp")
+	expect(absf(main.player.position.x - main.points["pt.pass_start"]) < 1.0, "wake up at the region's spawn point")
+	expect(main.state.time_of_day == "午", "an hour passed")
+	# 事件開始時野怪退場，結束後回來
+	main.state.region = "region.qingyun_foothills"
+	main.state.time_of_day = "晨"
+	main.go_home()
+	expect(not main.wild.is_empty(), "foothills has mobs in the morning")
+	main.spare_fox()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	expect(main.runner != null and main.wild.is_empty(), "wild mobs leave when an event starts")
+	main.runner.abort("abandon")
+	expect(main.runner == null and not main.wild.is_empty(), "wild mobs come back after the event")
 	main.free()
