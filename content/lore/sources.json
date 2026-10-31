@@ -1,0 +1,136 @@
+{
+  "_comment": "典籍目錄。全部是公有領域古籍。checked 列出已逐字核對過引文的篇章與當時看的版本網址；條目的 quote.verified 為 true 時，quote.chapter 必須在這裡。",
+  "src.shanhaijing": {
+    "title": "山海經",
+    "era": "先秦至漢初",
+    "author": "不詳；晉郭璞注",
+    "about": "記山川、物產、異獸、神祇與遠國。仙俠世界的異獸、靈草、神山多出於此。",
+    "text_url": "https://zh.wikisource.org/wiki/山海經",
+    "checked": {
+      "南山經": "https://zh.wikisource.org/w/index.php?title=山海經/南山經&oldid=2650929",
+      "西山經": "https://zh.wikisource.org/wiki/山海經/西山經（2026-10-31 讀取）",
+      "北山經": "https://zh.wikisource.org/w/index.php?title=山海經/北山經&oldid=442532",
+      "大荒北經": "https://zh.wikisource.org/w/index.php?title=山海經/大荒北經&oldid=316477"
+    }
+  },
+  "src.zhouyi": {
+    "title": "周易",
+    "era": "西周（經）；戰國至漢（傳）",
+    "author": "不詳；《易傳》舊題孔子",
+    "about": "六十四卦與卦辭、爻辭，及解經的《易傳》（彖、象、繫辭、說卦等）。陰陽、八卦、變易的觀念是陣法、占卜、五行術法的根。",
+    "text_url": "https://zh.wikisource.org/wiki/周易",
+    "checked": {}
+  },
+  "src.daodejing": {
+    "title": "道德經",
+    "era": "春秋末至戰國",
+    "author": "舊題老子",
+    "about": "道、無為、陰陽沖和。道門心法、宗門訓詞的來源。",
+    "text_url": "https://zh.wikisource.org/wiki/道德經",
+    "checked": {}
+  },
+  "src.zhuangzi": {
+    "title": "莊子",
+    "era": "戰國",
+    "author": "莊周及後學",
+    "about": "鯤鵬、藐姑射神人、逍遙與齊物。仙人形象與「逍遙」境界的源頭。",
+    "text_url": "https://zh.wikisource.org/wiki/莊子",
+    "checked": {}
+  },
+  "src.huainanzi": {
+    "title": "淮南子",
+    "era": "西漢",
+    "author": "劉安及門客",
+    "about": "宇宙生成、女媧補天、后羿射日等神話，兼論陰陽五行。",
+    "text_url": "https://zh.wikisource.org/wiki/淮南子",
+    "checked": {}
+  },
+  "src.liexianzhuan": {
+    "title": "列仙傳",
+    "era": "東漢前後",
+    "author": "舊題劉向",
+    "about": "七十餘位仙人小傳：赤松子、王子喬等。服食、尸解、乘鶴升仙的早期形象。",
+    "text_url": "https://zh.wikisource.org/wiki/列仙傳",
+    "checked": {}
+  },
+  "src.baopuzi": {
+    "title": "抱朴子內篇",
+    "era": "東晉",
+    "author": "葛洪",
+    "about": "論仙可學、金丹、服食、三尸、符籙、入山禁忌。天仙、地仙、尸解仙之分與「金丹」一詞出於此。",
+    "text_url": "https://zh.wikisource.org/wiki/抱朴子/內篇",
+    "checked": {}
+  },
+  "src.xuanzhongji": {
+    "title": "玄中記",
+    "era": "晉",
+    "author": "舊題郭璞",
+    "about": "志怪輯佚，有狐修行五十歲、百歲、千歲的說法，是「狐修成仙」設定的根。",
+    "text_url": "https://zh.wikisource.org/wiki/玄中記",
+    "checked": {}
+  },
+  "src.soushenji": {
+    "title": "搜神記",
+    "era": "東晉",
+    "author": "干寶",
+    "about": "神仙、鬼怪、精魅、報應故事。妖物報恩、報仇、化形的事件題材。",
+    "text_url": "https://zh.wikisource.org/wiki/搜神記",
+    "checked": {}
+  },
+  "src.wuzhenpian": {
+    "title": "悟真篇",
+    "era": "北宋",
+    "author": "張伯端",
+    "about": "內丹經典。以身為爐鼎，精氣神為藥，結丹、出神。煉氣、築基、結丹、元嬰等修煉次第的源頭。",
+    "text_url": "https://zh.wikisource.org/wiki/悟真篇",
+    "checked": {}
+  },
+  "src.ganyingpian": {
+    "title": "太上感應篇",
+    "era": "宋",
+    "author": "不詳",
+    "about": "善惡報應、司命奪算、三尸上告。遊戲的因果與善惡軸可直接借用。",
+    "text_url": "https://zh.wikisource.org/wiki/太上感應篇",
+    "checked": {}
+  },
+  "src.xinjing": {
+    "title": "般若波羅蜜多心經",
+    "era": "唐",
+    "author": "玄奘譯",
+    "about": "色空、無罣礙、遠離顛倒夢想。佛緣、禪功與心魔試煉「放下」選項的用語。",
+    "text_url": "https://zh.wikisource.org/wiki/般若波羅蜜多心經",
+    "checked": {}
+  },
+  "src.jingangjing": {
+    "title": "金剛般若波羅蜜經",
+    "era": "姚秦",
+    "author": "鳩摩羅什譯",
+    "about": "一切有為法如夢幻泡影。佛門破執、看破幻境的用語。",
+    "text_url": "https://zh.wikisource.org/wiki/金剛般若波羅蜜經",
+    "checked": {}
+  },
+  "src.fengshen": {
+    "title": "封神演義",
+    "era": "明",
+    "author": "許仲琳（一說陸西星）",
+    "about": "闡教、截教、封神榜、法寶鬥法。仙魔大戰、法寶與陣法的通俗原型。",
+    "text_url": "https://zh.wikisource.org/wiki/封神演義",
+    "checked": {}
+  },
+  "src.liezi": {
+    "title": "列子",
+    "era": "戰國至魏晉",
+    "author": "舊題列禦寇",
+    "about": "湯問篇有渤海五仙山、巨鼇負山、龍伯釣鼇等故事。",
+    "text_url": "https://zh.wikisource.org/wiki/列子",
+    "checked": {}
+  },
+  "src.shangshu": {
+    "title": "尚書",
+    "era": "先秦",
+    "author": "不詳",
+    "about": "洪範篇最早列出水火木金土五行及其性質。",
+    "text_url": "https://zh.wikisource.org/wiki/尚書",
+    "checked": {}
+  }
+}

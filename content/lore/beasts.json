@@ -1,0 +1,347 @@
+{
+  "_comment": "異獸、神獸、靈草。原文出《山海經》，引文已刪去郭璞注。summary 是白話整理，hooks 是給設計與導演的用法建議，不是原典內容。",
+  "lore.beast.jiuwei_hu": {
+    "name": "九尾狐",
+    "kind": "beast",
+    "summary": "青丘山的狐，九條尾巴，叫聲像嬰兒，會吃人；吃了牠的肉不受妖邪蠱惑。後世演變成修煉千年的天狐、狐仙。",
+    "quote": {"text": "又東三百里，曰青丘之山，其陽多玉，其陰多青雘。有獸焉，其狀如狐而九尾，其音如嬰兒，能食人；食者不蠱。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["狐", "青丘", "妖", "化形", "吉凶兩面"],
+    "hooks": {"regions": ["region.qingyun_foothills"], "tier_min": "煉氣", "actor": "npc.fox_girl", "uses": ["事件", "角色", "怪物"], "idea": "青丘狐族的祖源。白蘅一族自稱九尾後裔；九尾是狐修的終點，尾數可當狐族的境界標記。「食者不蠱」可做成爭奪狐肉、狐丹的道德抉擇。"}
+  },
+  "lore.beast.guanguan": {
+    "name": "灌灌",
+    "kind": "beast",
+    "summary": "青丘山的鳥，像斑鳩，叫聲像人在吆喝；把牠的羽毛佩在身上就不會被迷惑。",
+    "quote": {"text": "有鳥焉，其狀如鳩，其音若呵，名曰灌灌，佩之不惑。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["鳥", "青丘", "破幻", "飾品"],
+    "hooks": {"regions": ["region.qingyun_foothills"], "tier_min": "煉氣", "uses": ["掉落", "事件"], "idea": "灌灌羽：抵擋狐族幻術、心魔幻境的飾品。可當進入幻境事件前的準備物。"}
+  },
+  "lore.beast.chiru": {
+    "name": "赤鱬",
+    "kind": "beast",
+    "summary": "青丘山英水裡的人面魚，叫聲像鴛鴦，吃了不生疥瘡。",
+    "quote": {"text": "英水出焉，南流注于即翼之澤。其中多赤鱬，其狀如魚而人面，其音如鴛鴦，食之不疥。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["魚", "人面", "水", "青丘"],
+    "hooks": {"regions": ["region.qingyun_foothills"], "planned_regions": ["region.yunmeng_marsh"], "tier_min": "煉氣", "uses": ["怪物", "掉落"], "idea": "水邊的小怪或藥材。人面魚在夜裡浮出水面，適合做村民誤以為是溺死者冤魂的小事件。"}
+  },
+  "lore.beast.shengsheng": {
+    "name": "狌狌",
+    "kind": "beast",
+    "summary": "招搖山的獸，像猴而耳白，會趴著走也會像人一樣站著走；吃了跑得快。後世寫作猩猩，傳說能說人話、知往事。",
+    "quote": {"text": "有獸焉，其狀如禺而白耳，伏行人走，其名曰狌狌，食之善走。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["猿", "身法", "速度"],
+    "hooks": {"tier_min": "煉氣", "uses": ["怪物", "掉落", "技能"], "idea": "與「輕身術」身法掛鉤：取狌狌之血或拜狌狌為師學步法。"}
+  },
+  "lore.plant.migu": {
+    "name": "迷穀",
+    "kind": "plant",
+    "summary": "招搖山的樹，黑色紋理，花會發光照亮四方；把它戴在身上就不會迷路。",
+    "quote": {"text": "有木焉，其狀如榖而黑理，其華四照，其名曰迷穀，佩之不迷。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["靈木", "照明", "不迷", "秘境"],
+    "hooks": {"tier_min": "煉氣", "uses": ["掉落", "地圖"], "idea": "迷穀枝：在迷陣、霧林、秘境裡顯示正確出口。也可做夜裡發光的地標樹。"}
+  },
+  "lore.plant.zhuyu": {
+    "name": "祝餘",
+    "kind": "plant",
+    "summary": "招搖山的草，像韭菜開青花，吃了不會餓。",
+    "quote": {"text": "有草焉，其狀如韭而青華，其名曰祝餘，食之不饑。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["靈草", "辟穀"],
+    "hooks": {"tier_min": "煉氣", "uses": ["掉落"], "idea": "辟穀草：閉關、長途跋涉事件的消耗品，或洞府藥圃的入門作物。"}
+  },
+  "lore.beast.lushu": {
+    "name": "鹿蜀",
+    "kind": "beast",
+    "summary": "杻陽山的獸，馬身白頭，虎紋紅尾，叫聲像人唱歌；佩戴牠的皮毛子孫興旺。",
+    "quote": {"text": "有獸焉，其狀如馬而白首，其文如虎而赤尾，其音如謠，其名曰鹿蜀，佩之宜子孫。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["瑞獸", "坐騎", "歌聲"],
+    "hooks": {"tier_min": "築基", "fate": "xian", "uses": ["靈獸", "事件"], "idea": "溫順瑞獸，可做第一隻坐騎或洞府靈獸。村中求子的委託可引出獵鹿蜀與放生的抉擇。"}
+  },
+  "lore.beast.xuangui": {
+    "name": "旋龜",
+    "kind": "beast",
+    "summary": "怪水裡的黑龜，鳥頭蛇尾，聲音像劈木頭；佩戴不會耳聾，還能治病。",
+    "quote": {"text": "其中多玄龜，其狀如龜而鳥首虺尾，其名曰旋龜，其音如判木，佩之不聾，可以為底。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["龜", "水", "護身"],
+    "hooks": {"planned_regions": ["region.yunmeng_marsh"], "tier_min": "築基", "uses": ["怪物", "掉落"], "idea": "雲夢澤的防禦型怪物；龜甲可做抵擋音波、尖嘯類攻擊的護具。"}
+  },
+  "lore.beast.boshi": {
+    "name": "猼訑",
+    "kind": "beast",
+    "summary": "基山的獸，像羊，九尾四耳，眼睛長在背上；佩戴牠的皮毛就不知恐懼。",
+    "quote": {"text": "有獸焉，其狀如羊，九尾四耳，其目在背，其名曰猼訑，佩之不畏。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["獸", "無畏", "心魔"],
+    "hooks": {"tier_min": "築基", "uses": ["掉落", "事件"], "idea": "猼訑皮：心魔試煉、恐懼類幻境的抗性道具；也可做魔修以恐懼為食的反面設定。"}
+  },
+  "lore.beast.fenghuang": {
+    "name": "鳳皇",
+    "kind": "beast",
+    "summary": "丹穴山的鳥，像雞，五彩花紋，頭、翼、背、胸、腹的紋路分別是德、義、禮、仁、信；自歌自舞，出現時天下安寧。",
+    "quote": {"text": "有鳥焉，其狀如雞，五采而文，名曰鳳皇，首文曰德，翼文曰義，背文曰禮，膺文曰仁，腹文曰信。是鳥也，飲食自然，自歌自舞，見則天下安寧。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["神鳥", "祥瑞", "五德"],
+    "hooks": {"planned_regions": ["region.penglai_shore", "region.cloud_palace"], "tier_min": "元嬰", "fate": "xian", "uses": ["事件", "靈獸"], "idea": "仙緣頂級機緣：五德紋可對應五種心性考驗，玩家通過幾項就得到幾片鳳羽。"}
+  },
+  "lore.beast.gudiao": {
+    "name": "蠱雕",
+    "kind": "beast",
+    "summary": "鹿吳山澤更水的獸，像鵰而有角，叫聲像嬰兒，會吃人。",
+    "quote": {"text": "水有獸焉，名曰蠱雕，其狀如雕而有角，其音如嬰兒之音，是食人。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["凶獸", "鵰", "嬰啼", "食人"],
+    "hooks": {"planned_regions": ["region.yunmeng_marsh"], "tier_min": "築基", "uses": ["怪物", "首領"], "idea": "以嬰啼誘人的水澤凶獸。適合做「夜裡河邊有嬰兒哭」的引子事件，真相是蠱雕。"}
+  },
+  "lore.beast.yong": {
+    "name": "顒",
+    "kind": "beast",
+    "summary": "令丘山的鳥，像貓頭鷹，人面四目有耳，叫聲是自己的名字；出現時天下大旱。",
+    "quote": {"text": "有鳥焉，其狀如梟，人面四目而有耳，其名曰顒，其鳴自號也，見則天下大旱。", "source": "src.shanhaijing", "chapter": "南山經", "verified": true},
+    "tags": ["凶兆", "旱", "鳥"],
+    "hooks": {"tier_min": "築基", "uses": ["事件", "天象"], "idea": "天象系統的「旱」：顒出現後幾天不下雨，村子求雨的事件鏈由此展開。"}
+  },
+  "lore.beast.luanniao": {
+    "name": "鸞鳥",
+    "kind": "beast",
+    "summary": "女牀山的鳥，像野雞而有五彩紋，出現時天下安寧。",
+    "quote": {"text": "有鳥焉，其狀如翟而五采文，名曰鸞鳥，見則天下安寧。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["神鳥", "祥瑞"],
+    "hooks": {"planned_regions": ["region.penglai_shore"], "tier_min": "金丹", "fate": "xian", "uses": ["靈獸", "事件"], "idea": "仙人坐騎與信使。仙緣事件「白鶴銜玉簡」可換成鸞鳥傳書。"}
+  },
+  "lore.beast.fuxi": {
+    "name": "鳧徯",
+    "kind": "beast",
+    "summary": "鹿臺山的鳥，像公雞而人面，叫聲是自己的名字；出現時就有兵禍。",
+    "quote": {"text": "有鳥焉，其狀如雄雞而人面，名曰鳧徯，其鳴自叫也，見則有兵。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["凶兆", "兵禍", "人面"],
+    "hooks": {"tier_min": "煉氣", "uses": ["事件", "天象"], "idea": "戰亂預兆。宗門之間開戰、山賊大舉來犯之前，讓 NPC 先看見鳧徯。"}
+  },
+  "lore.beast.zhuyan": {
+    "name": "朱厭",
+    "kind": "beast",
+    "summary": "小次山的獸，像猿而白頭紅腳，出現時就有大戰。",
+    "quote": {"text": "有獸焉，其狀如猿，而白首赤足，名曰朱厭，見則大兵。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["凶兆", "兵禍", "猿"],
+    "hooks": {"regions": ["region.heifeng_ridge"], "tier_min": "築基", "uses": ["怪物", "事件"], "idea": "黑風嶺狼妖之外的第二種妖：朱厭現身表示妖群將下山。"}
+  },
+  "lore.god.luwu": {
+    "name": "陸吾",
+    "kind": "god",
+    "summary": "崑崙之丘的守山神，虎身九尾、人面虎爪，掌管天上九部的疆界與天帝園囿的時節。",
+    "quote": {"text": "西南四百里，曰昆侖之丘，是實惟帝之下都，神陸吾司之。其神狀虎身而九尾，人面而虎爪；是神也，司天之九部及帝之囿時。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["崑崙", "守門神", "天帝"],
+    "hooks": {"planned_regions": ["region.kunlun_snow", "region.kunlun_ruins"], "tier_min": "合體", "uses": ["首領", "事件"], "idea": "崑崙墟的守山神獸。不一定要打：答得出他的問題就放行。"}
+  },
+  "lore.god.yingzhao": {
+    "name": "英招",
+    "kind": "god",
+    "summary": "槐江山的神，馬身人面、虎紋鳥翼，巡行四海，看守天帝的花園「平圃」。",
+    "quote": {"text": "實惟帝之平圃，神英招司之，其狀馬身而人面，虎文而鳥翼，狥于四海，其音如橊。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["崑崙", "天帝", "花園", "飛"],
+    "hooks": {"planned_regions": ["region.kunlun_ruins"], "tier_min": "合體", "uses": ["首領", "事件"], "idea": "守護仙草園的神。偷採平圃仙草會被英招追擊，屬於仙緣與魔緣都能走的事件。"}
+  },
+  "lore.god.xiwangmu": {
+    "name": "西王母",
+    "kind": "god",
+    "summary": "住在玉山，人形而豹尾虎齒，善於長嘯，亂髮戴玉勝，掌管天降的災厲與刑殺。後世演變為瑤池金母，掌不死藥。",
+    "quote": {"text": "又西三百五十里，曰玉山，是西王母所居也。西王母其狀如人，豹尾虎齒而善嘯，蓬髪戴勝，是司天之厲及五殘。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["崑崙", "瑤池", "不死藥", "女神"],
+    "hooks": {"planned_regions": ["region.jade_pool"], "tier_min": "大乘", "uses": ["事件", "主線"], "idea": "瑤池之主。古本是凶神，後世是仙母，正好做「同一位神在仙緣與魔緣線裡面目不同」。"}
+  },
+  "lore.beast.sanqingniao": {
+    "name": "三青鳥",
+    "kind": "beast",
+    "summary": "住在三危山的三隻青鳥。郭璞注說牠們替西王母取食。後世當作西王母的信使。",
+    "quote": {"text": "又西二百二十里，曰三危之山，三青鳥居之。是山也，廣員百里。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["信使", "西王母", "鳥"],
+    "hooks": {"planned_regions": ["region.desert_road"], "tier_min": "化神", "uses": ["事件", "角色"], "idea": "傳遞瑤池消息的信使，可做跨大區主線的引路角色。"}
+  },
+  "lore.beast.tulou": {
+    "name": "土螻",
+    "kind": "beast",
+    "summary": "崑崙之丘的獸，像羊而四角，會吃人。",
+    "quote": {"text": "有獸焉，其狀如羊而四角，名曰土螻，是食人。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["崑崙", "凶獸", "食人"],
+    "hooks": {"planned_regions": ["region.kunlun_snow"], "tier_min": "合體", "uses": ["怪物"], "idea": "崑崙雪原的常見凶獸。"}
+  },
+  "lore.plant.shatang": {
+    "name": "沙棠",
+    "kind": "plant",
+    "summary": "崑崙之丘的樹，像棠梨，黃花紅果，味道像李子沒有核；吃了落水不沉。",
+    "quote": {"text": "有木焉，其狀如棠，黃華赤實，其味如李而無核，名曰沙棠，可以禦水，食之使人不溺。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["靈果", "水", "崑崙"],
+    "hooks": {"planned_regions": ["region.kunlun_ruins"], "tier_min": "金丹", "uses": ["掉落", "技能"], "idea": "沙棠果：暫時獲得水上行走或水下不溺，可當學會「水遁」前的替代品。"}
+  },
+  "lore.beast.zheng": {
+    "name": "猙",
+    "kind": "beast",
+    "summary": "章莪山的獸，像赤豹，五尾一角，叫聲像擊石。",
+    "quote": {"text": "有獸焉，其狀如赤豹，五尾一角，其音如擊石，其名如猙。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["凶獸", "豹"],
+    "hooks": {"regions": ["region.heifeng_ridge"], "tier_min": "築基", "uses": ["怪物", "首領"], "idea": "黑風嶺深處的首領候選，比狼妖王更兇。"}
+  },
+  "lore.beast.bifang": {
+    "name": "畢方",
+    "kind": "beast",
+    "summary": "章莪山的鳥，像鶴，一隻腳，紅紋青身白嘴，叫聲是自己的名字；出現的地方會起怪火。",
+    "quote": {"text": "有鳥焉，其狀如鶴，一足，赤文青質而白喙，名曰畢方，其鳴自叫也，見則其邑有譌火。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["火", "鶴", "凶兆"],
+    "hooks": {"tier_min": "金丹", "uses": ["怪物", "事件", "技能"], "idea": "村子無故失火的元凶；五行法訣火系術法可以畢方為名（畢方火）。"}
+  },
+  "lore.beast.tiangou": {
+    "name": "天狗",
+    "kind": "beast",
+    "summary": "陰山的獸，像狸貓而白頭，叫聲「榴榴」，能抵禦凶邪。",
+    "quote": {"text": "有獸焉，其狀如狸而白首，名曰天狗，其音如榴榴，可以禦凶。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["辟邪", "靈獸"],
+    "hooks": {"tier_min": "煉氣", "fate": "xian", "uses": ["靈獸"], "idea": "原典的天狗是辟邪小獸，不是食月的凶物，可做反差的可愛靈獸。"}
+  },
+  "lore.god.dijiang": {
+    "name": "帝江",
+    "kind": "god",
+    "summary": "天山的神，形如黃色口袋，紅如火焰，六腳四翼，渾沌沒有面目，卻懂得歌舞。",
+    "quote": {"text": "有神焉，其狀如黃囊，赤如丹火，六足四翼，渾敦無面目，是識歌舞，實為帝江也。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["渾沌", "無面", "歌舞", "上古神"],
+    "hooks": {"planned_regions": ["region.kunlun_ruins"], "tier_min": "大乘", "uses": ["首領", "事件"], "idea": "無面之神：心魔試煉的高階形態，玩家看不見它的臉，只能聽它唱歌辨認真假。"}
+  },
+  "lore.beast.huan": {
+    "name": "讙",
+    "kind": "beast",
+    "summary": "翼望山的獸，像狸，一眼三尾，能模仿上百種聲音，可以抵禦凶邪，服用能治黃疸。",
+    "quote": {"text": "有獸焉，其狀如狸，一目而三尾，名曰讙，其音如奪百聲，是可以禦凶，服之已癉。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["擬聲", "辟邪"],
+    "hooks": {"tier_min": "煉氣", "uses": ["怪物", "事件"], "idea": "會學人說話的小妖，學師父或同門的聲音把弟子引走。"}
+  },
+  "lore.beast.qiongqi": {
+    "name": "窮奇",
+    "kind": "beast",
+    "summary": "邽山的獸，像牛，滿身刺蝟毛，叫聲像狗嚎，會吃人。後世列為四凶之一。",
+    "quote": {"text": "其上有獸焉，其狀如牛，猬毛，名曰窮奇，音如獆狗，是食人。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["四凶", "凶獸", "食人"],
+    "hooks": {"planned_regions": ["region.demon_abyss"], "tier_min": "元嬰", "fate": "mo", "uses": ["首領", "事件"], "idea": "魔淵的上古凶獸殘魂；魔緣「血契」的頂級對象。"}
+  },
+  "lore.beast.bo": {
+    "name": "駮",
+    "kind": "beast",
+    "summary": "中曲山的獸，像白馬黑尾，一角，虎牙虎爪，叫聲像擊鼓；吃虎豹，養了可以避兵刃。",
+    "quote": {"text": "有獸焉，其狀如馬而白身黑尾，一角，虎牙爪，音如鼓音，其名曰駮，是食虎豹，可以禦兵。", "source": "src.shanhaijing", "chapter": "西山經", "verified": true},
+    "tags": ["坐騎", "護身", "猛獸"],
+    "hooks": {"tier_min": "金丹", "uses": ["靈獸", "首領"], "idea": "打敗後可收服的強力坐騎；收服後減少受到的兵刃傷害。"}
+  },
+  "lore.beast.heluo": {
+    "name": "何羅魚",
+    "kind": "beast",
+    "summary": "譙明山譙水裡的魚，一個頭十個身體，叫聲像狗吠，吃了能治癰腫。",
+    "quote": {"text": "其中多何羅之魚，一首而十身，其音如吠犬，食之已癰。", "source": "src.shanhaijing", "chapter": "北山經", "verified": true},
+    "tags": ["魚", "怪", "藥"],
+    "hooks": {"planned_regions": ["region.yunmeng_marsh"], "tier_min": "築基", "uses": ["怪物", "掉落"], "idea": "一頭十身：打掉一個身體會分裂，適合做水澤的群體怪。"}
+  },
+  "lore.beast.mengkui": {
+    "name": "孟槐",
+    "kind": "beast",
+    "summary": "譙明山的獸，像豪豬而毛紅，叫聲「榴榴」，可以抵禦凶邪。",
+    "quote": {"text": "有獸焉，其狀如貆而赤豪，其音如榴榴，名曰孟槐，可以禦凶。", "source": "src.shanhaijing", "chapter": "北山經", "verified": true},
+    "tags": ["辟邪", "靈獸"],
+    "hooks": {"tier_min": "煉氣", "uses": ["靈獸", "掉落"], "idea": "村民家門口掛孟槐圖辟邪的民俗細節。"}
+  },
+  "lore.beast.ershu": {
+    "name": "耳鼠",
+    "kind": "beast",
+    "summary": "丹熏山的獸，像鼠，兔頭麋身，叫聲像狗嚎，靠尾巴飛行；吃了不生腫病，還能抵禦百毒。",
+    "quote": {"text": "有獸焉，其狀如鼠，而菟首麋身，其音如獆犬，以其尾飛，名曰耳鼠，食之不䐆，又可以禦百毒。", "source": "src.shanhaijing", "chapter": "北山經", "verified": true},
+    "tags": ["解毒", "飛", "小獸"],
+    "hooks": {"planned_regions": ["region.gu_forest"], "tier_min": "金丹", "uses": ["掉落", "靈獸"], "idea": "南疆蠱林的解毒關鍵：沒有耳鼠就過不了毒沼。"}
+  },
+  "lore.beast.yayu": {
+    "name": "窫窳",
+    "kind": "beast",
+    "summary": "少咸山的獸，像牛，紅身人面馬足，叫聲像嬰兒，會吃人。",
+    "quote": {"text": "有獸焉，其狀如牛，而赤身、人面、馬足，名曰窫窳，其音如嬰兒，是食人。", "source": "src.shanhaijing", "chapter": "北山經", "verified": true},
+    "tags": ["凶獸", "人面", "嬰啼", "食人"],
+    "hooks": {"tier_min": "金丹", "fate": "mo", "uses": ["首領"], "idea": "傳說窫窳本是天神，被殺後化為凶獸，可做「墮落的神」的魔緣故事。"}
+  },
+  "lore.beast.zhuhuai": {
+    "name": "諸懷",
+    "kind": "beast",
+    "summary": "北嶽山的獸，像牛，四角，人眼豬耳，叫聲像大雁，會吃人。",
+    "quote": {"text": "有獸焉，其狀如牛，而四角、人目、彘耳，其名曰諸懷，其音如鳴鴈，是食人。", "source": "src.shanhaijing", "chapter": "北山經", "verified": true},
+    "tags": ["凶獸", "食人"],
+    "hooks": {"tier_min": "築基", "uses": ["怪物"], "idea": "人眼獸身，看起來像在哭的怪物。"}
+  },
+  "lore.beast.paoxiao": {
+    "name": "狍鴞",
+    "kind": "beast",
+    "summary": "鉤吾山的獸，羊身人面，眼睛長在腋下，虎齒人爪，叫聲像嬰兒，會吃人。後世認為就是饕餮。",
+    "quote": {"text": "有獸焉，其狀如羊身人面，其目在腋下，虎齒人爪，其音如嬰兒，名曰狍鴞，是食人。", "source": "src.shanhaijing", "chapter": "北山經", "verified": true},
+    "tags": ["饕餮", "四凶", "貪", "食人"],
+    "hooks": {"planned_regions": ["region.ghost_city"], "tier_min": "元嬰", "fate": "mo", "uses": ["首領", "事件"], "idea": "貪欲的化身。鬼市裡什麼都能換，最後連自己都賣給狍鴞。"}
+  },
+  "lore.beast.tianma": {
+    "name": "天馬",
+    "kind": "beast",
+    "summary": "馬成山的獸，像白狗而黑頭，看見人就飛走，叫聲是自己的名字。",
+    "quote": {"text": "有獸焉，其狀如白犬而黑頭，見人則飛，其名曰天馬，其鳴自訆。", "source": "src.shanhaijing", "chapter": "北山經", "verified": true},
+    "tags": ["飛", "靈獸", "膽小"],
+    "hooks": {"tier_min": "築基", "fate": "xian", "uses": ["靈獸", "事件"], "idea": "原典天馬是會飛的白狗。追捕天馬的小事件可教玩家用「御風」。"}
+  },
+  "lore.beast.jingwei": {
+    "name": "精衛",
+    "kind": "beast",
+    "summary": "發鳩山的鳥，像烏鴉，花頭白嘴紅腳，叫聲是自己的名字。原是炎帝的小女兒女娃，在東海溺死，化為精衛，常銜西山的木石去填東海。",
+    "quote": {"text": "有鳥焉，其狀如烏，文首、白喙、赤足，名曰精衛，其鳴自詨。是炎帝之少女，名曰女娃，女娃游于東海，溺而不返，故為精衛，常銜西山之木石，以堙于東海。", "source": "src.shanhaijing", "chapter": "北山經", "verified": true},
+    "tags": ["執念", "化形", "東海", "悲願"],
+    "hooks": {"planned_regions": ["region.penglai_shore"], "tier_min": "金丹", "fate": "fo", "uses": ["事件", "角色"], "idea": "佛緣事件「執念」：勸精衛放下，或幫她填海。兩種結局都說得通。"}
+  },
+  "lore.god.yuqiang": {
+    "name": "禺彊",
+    "kind": "god",
+    "summary": "北海島上的神，人面鳥身，耳掛兩條青蛇，腳踩兩條紅蛇。",
+    "quote": {"text": "北海之渚中，有神，人面鳥身，珥兩青蛇，踐兩赤蛇，名曰禺彊。", "source": "src.shanhaijing", "chapter": "大荒北經", "verified": true},
+    "tags": ["海神", "風", "北海"],
+    "hooks": {"tier_min": "化神", "uses": ["首領", "事件"], "idea": "北海之神，可做未來北方大區的守護神。"}
+  },
+  "lore.god.jiufeng": {
+    "name": "九鳳",
+    "kind": "god",
+    "summary": "北極天櫃山的神，九個頭，人面鳥身。",
+    "quote": {"text": "大荒之中，有山名曰北極天櫃，海外北注焉。有神，九首人面鳥身，名曰九鳳。", "source": "src.shanhaijing", "chapter": "大荒北經", "verified": true},
+    "tags": ["九首", "神鳥"],
+    "hooks": {"tier_min": "化神", "uses": ["首領"], "idea": "九個頭各說一句話，只有一句是真的。"}
+  },
+  "lore.god.kuafu": {
+    "name": "夸父",
+    "kind": "god",
+    "summary": "成都載天山的人，耳掛兩條黃蛇，手握兩條黃蛇。不自量力追趕太陽，到禺谷時渴了，喝黃河不夠，要去大澤，半路渴死。",
+    "quote": {"text": "夸父不量力，欲追日景，逮之于禺谷。將飲河而不足也，將走大澤，未至，死于此。", "source": "src.shanhaijing", "chapter": "大荒北經", "verified": true},
+    "tags": ["巨人", "執念", "逐日"],
+    "hooks": {"tier_min": "金丹", "uses": ["事件", "傳說"], "idea": "「不量力」的警示。突破失敗、強行越級的心魔可以借夸父的影子。"}
+  },
+  "lore.god.yinglong": {
+    "name": "應龍",
+    "kind": "god",
+    "summary": "黃帝的神龍。殺了蚩尤，又殺了夸父，之後住到南方，所以南方多雨。黃帝伐蚩尤時，應龍蓄水作戰。",
+    "quote": {"text": "應龍已殺蚩尤，又殺夸父，乃去南方處之，故南方多雨。", "source": "src.shanhaijing", "chapter": "大荒北經", "verified": true},
+    "tags": ["龍", "雨", "黃帝", "蚩尤"],
+    "hooks": {"planned_regions": ["region.sunken_palace"], "tier_min": "金丹", "uses": ["傳說", "主線"], "idea": "沉龍宮龍族遺民的祖先；雲夢澤多雨的由來。"}
+  },
+  "lore.god.nvba": {
+    "name": "女魃",
+    "kind": "god",
+    "summary": "黃帝的天女，穿青衣。蚩尤請風伯雨師降大風雨，黃帝派魃下凡止雨，殺了蚩尤；魃回不了天上，她住的地方從此不下雨，被安置在赤水北邊，有時逃走，人們便喊「神北行」驅她。",
+    "quote": {"text": "有人衣青衣，名曰黄帝女魃。蚩尤作兵伐黄帝，黄帝乃令應龍攻之冀州之野。應龍畜水。蚩尤請風伯雨師，縱大風雨。黄帝乃下天女曰魃，雨止，遂殺蚩尤。魃不得復上，所居不雨。", "source": "src.shanhaijing", "chapter": "大荒北經", "verified": true},
+    "tags": ["旱", "天女", "放逐", "蚩尤"],
+    "hooks": {"planned_regions": ["region.desert_road"], "tier_min": "化神", "fate": "fo", "uses": ["事件", "角色"], "idea": "功成卻回不了家的神，走到哪裡哪裡就旱。西漠流沙道的悲劇角色，佛緣線可渡她。"}
+  },
+  "lore.beast.xiangliu": {
+    "name": "相繇",
+    "kind": "beast",
+    "summary": "共工的臣子，九頭蛇身，盤成一圈，九個頭分吃九座山的東西。吐出、停留的地方都變成又辣又苦的沼澤，百獸不能住。大禹治水殺了牠，血腥臭，土地長不出五穀。",
+    "quote": {"text": "共工臣名曰相繇，九首蛇身，自環，食于九土。其所歍所尼，即為源澤，不辛乃苦，百獸莫能處。禹湮洪水，殺相繇，其血腥臭，不可生榖；其地多水，不可居也。", "source": "src.shanhaijing", "chapter": "大荒北經", "verified": true},
+    "tags": ["九首蛇", "毒沼", "共工", "洪水"],
+    "hooks": {"planned_regions": ["region.gu_forest", "region.blood_sea"], "tier_min": "元嬰", "fate": "mo", "uses": ["首領", "地圖"], "idea": "南疆毒沼、血海的成因：相繇的血浸透的土地。"}
+  },
+  "lore.god.zhulong": {
+    "name": "燭龍",
+    "kind": "god",
+    "summary": "章尾山的神，人面蛇身，紅色，眼睛直豎；閉眼天就黑，睜眼天就亮，不吃不睡不呼吸，風雨隨他召來。照亮九陰之地。",
+    "quote": {"text": "有神，人面蛇身而赤，直目正乘，其暝乃晦，其視乃明，不食不寢不息，風雨是謁。是燭九陰，是謂燭龍。", "source": "src.shanhaijing", "chapter": "大荒北經", "verified": true},
+    "tags": ["晝夜", "龍", "上古神"],
+    "hooks": {"tier_min": "渡劫", "uses": ["傳說", "時辰"], "idea": "時辰系統的神話解釋：晨午暮夜是燭龍眨眼。也可以做讓時間停止的終局機關。"}
+  }
+}

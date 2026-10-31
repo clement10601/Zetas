@@ -1,0 +1,1385 @@
+{
+  "_comment": "《周易》八卦與六十四卦。卦畫 lines 由下往上，1 為陽爻、0 為陰爻。八卦的性質、家人、方位出《說卦傳》；五行配屬是漢代以後的說法。六十四卦的上下卦由卦畫推出，檢查工具會驗證文王卦序兩兩相綜或相錯。卦辭目前憑記憶引錄，verified 為 false。",
+  "lore.trigram.qian": {
+    "name": "乾",
+    "kind": "trigram",
+    "lines": "111",
+    "summary": "乾為天，性健。《說卦傳》以乾為父，後天八卦方位在西北，五行屬金。",
+    "quote": {
+      "text": "乾，健也。",
+      "source": "src.zhouyi",
+      "chapter": "說卦傳",
+      "verified": false
+    },
+    "nature": "天",
+    "family": "父",
+    "direction": "西北",
+    "element": "金",
+    "tags": [
+      "八卦",
+      "天",
+      "金"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "剛健、進攻。劍訣的主幹，天雷系高傷害術法。"
+    }
+  },
+  "lore.trigram.dui": {
+    "name": "兌",
+    "kind": "trigram",
+    "lines": "110",
+    "summary": "兌為澤，性說。《說卦傳》以兌為少女，後天八卦方位在西，五行屬金。",
+    "quote": {
+      "text": "兌，說也。",
+      "source": "src.zhouyi",
+      "chapter": "說卦傳",
+      "verified": false
+    },
+    "nature": "澤",
+    "family": "少女",
+    "direction": "西",
+    "element": "金",
+    "tags": [
+      "八卦",
+      "澤",
+      "金"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "喜悅、言說。魅惑、交易、說服類術法；狐族擅長。"
+    }
+  },
+  "lore.trigram.li": {
+    "name": "離",
+    "kind": "trigram",
+    "lines": "101",
+    "summary": "離為火，性麗。《說卦傳》以離為中女，後天八卦方位在南，五行屬火。",
+    "quote": {
+      "text": "離，麗也。",
+      "source": "src.zhouyi",
+      "chapter": "說卦傳",
+      "verified": false
+    },
+    "nature": "火",
+    "family": "中女",
+    "direction": "南",
+    "element": "火",
+    "tags": [
+      "八卦",
+      "火",
+      "火"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "附麗、光明。火系術法與破幻、照明。"
+    }
+  },
+  "lore.trigram.zhen": {
+    "name": "震",
+    "kind": "trigram",
+    "lines": "100",
+    "summary": "震為雷，性動。《說卦傳》以震為長男，後天八卦方位在東，五行屬木。",
+    "quote": {
+      "text": "震，動也。",
+      "source": "src.zhouyi",
+      "chapter": "說卦傳",
+      "verified": false
+    },
+    "nature": "雷",
+    "family": "長男",
+    "direction": "東",
+    "element": "木",
+    "tags": [
+      "八卦",
+      "雷",
+      "木"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "震動、奮起。雷系術法、衝刺、擊退。"
+    }
+  },
+  "lore.trigram.xun": {
+    "name": "巽",
+    "kind": "trigram",
+    "lines": "011",
+    "summary": "巽為風，性入。《說卦傳》以巽為長女，後天八卦方位在東南，五行屬木。",
+    "quote": {
+      "text": "巽，入也。",
+      "source": "src.zhouyi",
+      "chapter": "說卦傳",
+      "verified": false
+    },
+    "nature": "風",
+    "family": "長女",
+    "direction": "東南",
+    "element": "木",
+    "tags": [
+      "八卦",
+      "風",
+      "木"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "滲入、順從。風系身法（御風）、暗器、穿透。"
+    }
+  },
+  "lore.trigram.kan": {
+    "name": "坎",
+    "kind": "trigram",
+    "lines": "010",
+    "summary": "坎為水，性陷。《說卦傳》以坎為中男，後天八卦方位在北，五行屬水。",
+    "quote": {
+      "text": "坎，陷也。",
+      "source": "src.zhouyi",
+      "chapter": "說卦傳",
+      "verified": false
+    },
+    "nature": "水",
+    "family": "中男",
+    "direction": "北",
+    "element": "水",
+    "tags": [
+      "八卦",
+      "水",
+      "水"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "險陷、流動。水系術法、陷阱、水遁。"
+    }
+  },
+  "lore.trigram.gen": {
+    "name": "艮",
+    "kind": "trigram",
+    "lines": "001",
+    "summary": "艮為山，性止。《說卦傳》以艮為少男，後天八卦方位在東北，五行屬土。",
+    "quote": {
+      "text": "艮，止也。",
+      "source": "src.zhouyi",
+      "chapter": "說卦傳",
+      "verified": false
+    },
+    "nature": "山",
+    "family": "少男",
+    "direction": "東北",
+    "element": "土",
+    "tags": [
+      "八卦",
+      "山",
+      "土"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "停止、穩固。防禦、定身符、困陣。"
+    }
+  },
+  "lore.trigram.kun": {
+    "name": "坤",
+    "kind": "trigram",
+    "lines": "000",
+    "summary": "坤為地，性順。《說卦傳》以坤為母，後天八卦方位在西南，五行屬土。",
+    "quote": {
+      "text": "坤，順也。",
+      "source": "src.zhouyi",
+      "chapter": "說卦傳",
+      "verified": false
+    },
+    "nature": "地",
+    "family": "母",
+    "direction": "西南",
+    "element": "土",
+    "tags": [
+      "八卦",
+      "地",
+      "土"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "柔順、承載。護體、治療、召喚與土遁。"
+    }
+  },
+  "lore.hexagram.01": {
+    "name": "乾",
+    "kind": "hexagram",
+    "number": 1,
+    "upper": "lore.trigram.qian",
+    "lower": "lore.trigram.qian",
+    "summary": "第1卦。乾為天，上下皆乾。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "元亨利貞。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "純陽至剛。可做劍訣最終節點或乾天陣。"
+    }
+  },
+  "lore.hexagram.02": {
+    "name": "坤",
+    "kind": "hexagram",
+    "number": 2,
+    "upper": "lore.trigram.kun",
+    "lower": "lore.trigram.kun",
+    "summary": "第2卦。坤為地，上下皆坤。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "元亨，利牝馬之貞。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "純陰至柔。護體、承載類心法。"
+    }
+  },
+  "lore.hexagram.03": {
+    "name": "屯",
+    "kind": "hexagram",
+    "number": 3,
+    "upper": "lore.trigram.kan",
+    "lower": "lore.trigram.zhen",
+    "summary": "第3卦。上坎（水）下震（雷）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.04": {
+    "name": "蒙",
+    "kind": "hexagram",
+    "number": 4,
+    "upper": "lore.trigram.gen",
+    "lower": "lore.trigram.kan",
+    "summary": "第4卦。上艮（山）下坎（水）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "亨。匪我求童蒙，童蒙求我。初筮告，再三瀆，瀆則不告。利貞。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "求師問道：玩家第一次拜師或問卦，問太多次師父就不答。"
+    }
+  },
+  "lore.hexagram.05": {
+    "name": "需",
+    "kind": "hexagram",
+    "number": 5,
+    "upper": "lore.trigram.kan",
+    "lower": "lore.trigram.qian",
+    "summary": "第5卦。上坎（水）下乾（天）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.06": {
+    "name": "訟",
+    "kind": "hexagram",
+    "number": 6,
+    "upper": "lore.trigram.qian",
+    "lower": "lore.trigram.kan",
+    "summary": "第6卦。上乾（天）下坎（水）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.07": {
+    "name": "師",
+    "kind": "hexagram",
+    "number": 7,
+    "upper": "lore.trigram.kun",
+    "lower": "lore.trigram.kan",
+    "summary": "第7卦。上坤（地）下坎（水）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.08": {
+    "name": "比",
+    "kind": "hexagram",
+    "number": 8,
+    "upper": "lore.trigram.kan",
+    "lower": "lore.trigram.kun",
+    "summary": "第8卦。上坎（水）下坤（地）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.09": {
+    "name": "小畜",
+    "kind": "hexagram",
+    "number": 9,
+    "upper": "lore.trigram.xun",
+    "lower": "lore.trigram.qian",
+    "summary": "第9卦。上巽（風）下乾（天）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.10": {
+    "name": "履",
+    "kind": "hexagram",
+    "number": 10,
+    "upper": "lore.trigram.qian",
+    "lower": "lore.trigram.dui",
+    "summary": "第10卦。上乾（天）下兌（澤）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.11": {
+    "name": "泰",
+    "kind": "hexagram",
+    "number": 11,
+    "upper": "lore.trigram.kun",
+    "lower": "lore.trigram.qian",
+    "summary": "第11卦。上坤（地）下乾（天）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.12": {
+    "name": "否",
+    "kind": "hexagram",
+    "number": 12,
+    "upper": "lore.trigram.qian",
+    "lower": "lore.trigram.kun",
+    "summary": "第12卦。上乾（天）下坤（地）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.13": {
+    "name": "同人",
+    "kind": "hexagram",
+    "number": 13,
+    "upper": "lore.trigram.qian",
+    "lower": "lore.trigram.li",
+    "summary": "第13卦。上乾（天）下離（火）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.14": {
+    "name": "大有",
+    "kind": "hexagram",
+    "number": 14,
+    "upper": "lore.trigram.li",
+    "lower": "lore.trigram.qian",
+    "summary": "第14卦。上離（火）下乾（天）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.15": {
+    "name": "謙",
+    "kind": "hexagram",
+    "number": 15,
+    "upper": "lore.trigram.kun",
+    "lower": "lore.trigram.gen",
+    "summary": "第15卦。上坤（地）下艮（山）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "亨，君子有終。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "謙卦六爻皆吉：仙心分支的代表卦。"
+    }
+  },
+  "lore.hexagram.16": {
+    "name": "豫",
+    "kind": "hexagram",
+    "number": 16,
+    "upper": "lore.trigram.zhen",
+    "lower": "lore.trigram.kun",
+    "summary": "第16卦。上震（雷）下坤（地）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.17": {
+    "name": "隨",
+    "kind": "hexagram",
+    "number": 17,
+    "upper": "lore.trigram.dui",
+    "lower": "lore.trigram.zhen",
+    "summary": "第17卦。上兌（澤）下震（雷）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.18": {
+    "name": "蠱",
+    "kind": "hexagram",
+    "number": 18,
+    "upper": "lore.trigram.gen",
+    "lower": "lore.trigram.xun",
+    "summary": "第18卦。上艮（山）下巽（風）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "元亨，利涉大川。先甲三日，後甲三日。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "蠱是積弊敗壞：處理宗門或村子舊案的事件鏈。"
+    }
+  },
+  "lore.hexagram.19": {
+    "name": "臨",
+    "kind": "hexagram",
+    "number": 19,
+    "upper": "lore.trigram.kun",
+    "lower": "lore.trigram.dui",
+    "summary": "第19卦。上坤（地）下兌（澤）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.20": {
+    "name": "觀",
+    "kind": "hexagram",
+    "number": 20,
+    "upper": "lore.trigram.xun",
+    "lower": "lore.trigram.kun",
+    "summary": "第20卦。上巽（風）下坤（地）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.21": {
+    "name": "噬嗑",
+    "kind": "hexagram",
+    "number": 21,
+    "upper": "lore.trigram.li",
+    "lower": "lore.trigram.zhen",
+    "summary": "第21卦。上離（火）下震（雷）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.22": {
+    "name": "賁",
+    "kind": "hexagram",
+    "number": 22,
+    "upper": "lore.trigram.gen",
+    "lower": "lore.trigram.li",
+    "summary": "第22卦。上艮（山）下離（火）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.23": {
+    "name": "剝",
+    "kind": "hexagram",
+    "number": 23,
+    "upper": "lore.trigram.gen",
+    "lower": "lore.trigram.kun",
+    "summary": "第23卦。上艮（山）下坤（地）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "不利有攸往。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "剝落之象：突破失敗、修為倒退時的卦象。"
+    }
+  },
+  "lore.hexagram.24": {
+    "name": "復",
+    "kind": "hexagram",
+    "number": 24,
+    "upper": "lore.trigram.kun",
+    "lower": "lore.trigram.zhen",
+    "summary": "第24卦。上坤（地）下震（雷）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "亨。出入无疾，朋來无咎。反復其道，七日來復，利有攸往。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "一陽來復：重傷倒地後七個時辰回復的說法；魔心回頭的轉機。"
+    }
+  },
+  "lore.hexagram.25": {
+    "name": "无妄",
+    "kind": "hexagram",
+    "number": 25,
+    "upper": "lore.trigram.qian",
+    "lower": "lore.trigram.zhen",
+    "summary": "第25卦。上乾（天）下震（雷）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.26": {
+    "name": "大畜",
+    "kind": "hexagram",
+    "number": 26,
+    "upper": "lore.trigram.gen",
+    "lower": "lore.trigram.qian",
+    "summary": "第26卦。上艮（山）下乾（天）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.27": {
+    "name": "頤",
+    "kind": "hexagram",
+    "number": 27,
+    "upper": "lore.trigram.gen",
+    "lower": "lore.trigram.zhen",
+    "summary": "第27卦。上艮（山）下震（雷）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.28": {
+    "name": "大過",
+    "kind": "hexagram",
+    "number": 28,
+    "upper": "lore.trigram.dui",
+    "lower": "lore.trigram.xun",
+    "summary": "第28卦。上兌（澤）下巽（風）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.29": {
+    "name": "坎",
+    "kind": "hexagram",
+    "number": 29,
+    "upper": "lore.trigram.kan",
+    "lower": "lore.trigram.kan",
+    "summary": "第29卦。坎為水，上下皆坎。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "習坎，有孚，維心亨，行有尚。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "重重險陷：水牢、深淵類秘境。"
+    }
+  },
+  "lore.hexagram.30": {
+    "name": "離",
+    "kind": "hexagram",
+    "number": 30,
+    "upper": "lore.trigram.li",
+    "lower": "lore.trigram.li",
+    "summary": "第30卦。離為火，上下皆離。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.31": {
+    "name": "咸",
+    "kind": "hexagram",
+    "number": 31,
+    "upper": "lore.trigram.dui",
+    "lower": "lore.trigram.gen",
+    "summary": "第31卦。上兌（澤）下艮（山）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.32": {
+    "name": "恆",
+    "kind": "hexagram",
+    "number": 32,
+    "upper": "lore.trigram.zhen",
+    "lower": "lore.trigram.xun",
+    "summary": "第32卦。上震（雷）下巽（風）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.33": {
+    "name": "遯",
+    "kind": "hexagram",
+    "number": 33,
+    "upper": "lore.trigram.qian",
+    "lower": "lore.trigram.gen",
+    "summary": "第33卦。上乾（天）下艮（山）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.34": {
+    "name": "大壯",
+    "kind": "hexagram",
+    "number": 34,
+    "upper": "lore.trigram.zhen",
+    "lower": "lore.trigram.qian",
+    "summary": "第34卦。上震（雷）下乾（天）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.35": {
+    "name": "晉",
+    "kind": "hexagram",
+    "number": 35,
+    "upper": "lore.trigram.li",
+    "lower": "lore.trigram.kun",
+    "summary": "第35卦。上離（火）下坤（地）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.36": {
+    "name": "明夷",
+    "kind": "hexagram",
+    "number": 36,
+    "upper": "lore.trigram.kun",
+    "lower": "lore.trigram.li",
+    "summary": "第36卦。上坤（地）下離（火）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.37": {
+    "name": "家人",
+    "kind": "hexagram",
+    "number": 37,
+    "upper": "lore.trigram.xun",
+    "lower": "lore.trigram.li",
+    "summary": "第37卦。上巽（風）下離（火）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.38": {
+    "name": "睽",
+    "kind": "hexagram",
+    "number": 38,
+    "upper": "lore.trigram.li",
+    "lower": "lore.trigram.dui",
+    "summary": "第38卦。上離（火）下兌（澤）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.39": {
+    "name": "蹇",
+    "kind": "hexagram",
+    "number": 39,
+    "upper": "lore.trigram.kan",
+    "lower": "lore.trigram.gen",
+    "summary": "第39卦。上坎（水）下艮（山）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.40": {
+    "name": "解",
+    "kind": "hexagram",
+    "number": 40,
+    "upper": "lore.trigram.zhen",
+    "lower": "lore.trigram.kan",
+    "summary": "第40卦。上震（雷）下坎（水）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.41": {
+    "name": "損",
+    "kind": "hexagram",
+    "number": 41,
+    "upper": "lore.trigram.gen",
+    "lower": "lore.trigram.dui",
+    "summary": "第41卦。上艮（山）下兌（澤）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.42": {
+    "name": "益",
+    "kind": "hexagram",
+    "number": 42,
+    "upper": "lore.trigram.xun",
+    "lower": "lore.trigram.zhen",
+    "summary": "第42卦。上巽（風）下震（雷）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.43": {
+    "name": "夬",
+    "kind": "hexagram",
+    "number": 43,
+    "upper": "lore.trigram.dui",
+    "lower": "lore.trigram.qian",
+    "summary": "第43卦。上兌（澤）下乾（天）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.44": {
+    "name": "姤",
+    "kind": "hexagram",
+    "number": 44,
+    "upper": "lore.trigram.qian",
+    "lower": "lore.trigram.xun",
+    "summary": "第44卦。上乾（天）下巽（風）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.45": {
+    "name": "萃",
+    "kind": "hexagram",
+    "number": 45,
+    "upper": "lore.trigram.dui",
+    "lower": "lore.trigram.kun",
+    "summary": "第45卦。上兌（澤）下坤（地）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.46": {
+    "name": "升",
+    "kind": "hexagram",
+    "number": 46,
+    "upper": "lore.trigram.kun",
+    "lower": "lore.trigram.xun",
+    "summary": "第46卦。上坤（地）下巽（風）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.47": {
+    "name": "困",
+    "kind": "hexagram",
+    "number": 47,
+    "upper": "lore.trigram.dui",
+    "lower": "lore.trigram.kan",
+    "summary": "第47卦。上兌（澤）下坎（水）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "亨，貞，大人吉，无咎。有言不信。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "受困：心魔試煉中說什麼都沒人信的情境。"
+    }
+  },
+  "lore.hexagram.48": {
+    "name": "井",
+    "kind": "hexagram",
+    "number": 48,
+    "upper": "lore.trigram.kan",
+    "lower": "lore.trigram.xun",
+    "summary": "第48卦。上坎（水）下巽（風）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.49": {
+    "name": "革",
+    "kind": "hexagram",
+    "number": 49,
+    "upper": "lore.trigram.dui",
+    "lower": "lore.trigram.li",
+    "summary": "第49卦。上兌（澤）下離（火）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "已日乃孚。元亨利貞，悔亡。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "變革：轉修功法、改換心性的事件。"
+    }
+  },
+  "lore.hexagram.50": {
+    "name": "鼎",
+    "kind": "hexagram",
+    "number": 50,
+    "upper": "lore.trigram.li",
+    "lower": "lore.trigram.xun",
+    "summary": "第50卦。上離（火）下巽（風）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.51": {
+    "name": "震",
+    "kind": "hexagram",
+    "number": 51,
+    "upper": "lore.trigram.zhen",
+    "lower": "lore.trigram.zhen",
+    "summary": "第51卦。震為雷，上下皆震。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.52": {
+    "name": "艮",
+    "kind": "hexagram",
+    "number": 52,
+    "upper": "lore.trigram.gen",
+    "lower": "lore.trigram.gen",
+    "summary": "第52卦。艮為山，上下皆艮。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.53": {
+    "name": "漸",
+    "kind": "hexagram",
+    "number": 53,
+    "upper": "lore.trigram.xun",
+    "lower": "lore.trigram.gen",
+    "summary": "第53卦。上巽（風）下艮（山）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.54": {
+    "name": "歸妹",
+    "kind": "hexagram",
+    "number": 54,
+    "upper": "lore.trigram.zhen",
+    "lower": "lore.trigram.dui",
+    "summary": "第54卦。上震（雷）下兌（澤）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.55": {
+    "name": "豐",
+    "kind": "hexagram",
+    "number": 55,
+    "upper": "lore.trigram.zhen",
+    "lower": "lore.trigram.li",
+    "summary": "第55卦。上震（雷）下離（火）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.56": {
+    "name": "旅",
+    "kind": "hexagram",
+    "number": 56,
+    "upper": "lore.trigram.li",
+    "lower": "lore.trigram.gen",
+    "summary": "第56卦。上離（火）下艮（山）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.57": {
+    "name": "巽",
+    "kind": "hexagram",
+    "number": 57,
+    "upper": "lore.trigram.xun",
+    "lower": "lore.trigram.xun",
+    "summary": "第57卦。巽為風，上下皆巽。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.58": {
+    "name": "兌",
+    "kind": "hexagram",
+    "number": 58,
+    "upper": "lore.trigram.dui",
+    "lower": "lore.trigram.dui",
+    "summary": "第58卦。兌為澤，上下皆兌。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.59": {
+    "name": "渙",
+    "kind": "hexagram",
+    "number": 59,
+    "upper": "lore.trigram.xun",
+    "lower": "lore.trigram.kan",
+    "summary": "第59卦。上巽（風）下坎（水）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.60": {
+    "name": "節",
+    "kind": "hexagram",
+    "number": 60,
+    "upper": "lore.trigram.kan",
+    "lower": "lore.trigram.dui",
+    "summary": "第60卦。上坎（水）下兌（澤）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.61": {
+    "name": "中孚",
+    "kind": "hexagram",
+    "number": 61,
+    "upper": "lore.trigram.xun",
+    "lower": "lore.trigram.dui",
+    "summary": "第61卦。上巽（風）下兌（澤）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.62": {
+    "name": "小過",
+    "kind": "hexagram",
+    "number": 62,
+    "upper": "lore.trigram.zhen",
+    "lower": "lore.trigram.gen",
+    "summary": "第62卦。上震（雷）下艮（山）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "basis": {
+      "source": "src.zhouyi",
+      "note": "卦名與卦畫。"
+    }
+  },
+  "lore.hexagram.63": {
+    "name": "既濟",
+    "kind": "hexagram",
+    "number": 63,
+    "upper": "lore.trigram.kan",
+    "lower": "lore.trigram.li",
+    "summary": "第63卦。上坎（水）下離（火）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "亨小，利貞。初吉終亂。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "事已成而將亂：突破成功後埋下的隱患。"
+    }
+  },
+  "lore.hexagram.64": {
+    "name": "未濟",
+    "kind": "hexagram",
+    "number": 64,
+    "upper": "lore.trigram.li",
+    "lower": "lore.trigram.kan",
+    "summary": "第64卦。上離（火）下坎（水）。",
+    "tags": [
+      "六十四卦"
+    ],
+    "quote": {
+      "text": "亨。小狐汔濟，濡其尾，无攸利。",
+      "source": "src.zhouyi",
+      "chapter": "卦辭",
+      "verified": false
+    },
+    "hooks": {
+      "uses": [
+        "事件",
+        "占卜"
+      ],
+      "idea": "小狐渡河將到對岸卻沾濕了尾巴：白蘅與青丘狐族的命運卦。"
+    }
+  },
+  "lore.concept.taiji": {
+    "name": "太極生八卦",
+    "kind": "concept",
+    "summary": "易從太極生出陰陽兩儀，兩儀生四象，四象生八卦。陣法、五行術法、占卜的總綱。",
+    "quote": {
+      "text": "易有太極，是生兩儀，兩儀生四象，四象生八卦。",
+      "source": "src.zhouyi",
+      "chapter": "繫辭上",
+      "verified": false
+    },
+    "tags": [
+      "太極",
+      "陰陽",
+      "陣法"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "技能樹可照這個層次分枝：一門功法分陰陽兩路，再分四象、八卦。"
+    }
+  },
+  "lore.concept.bagua_pairs": {
+    "name": "八卦相對",
+    "kind": "concept",
+    "summary": "天與地定上下之位，山與澤氣息相通，雷與風相互激盪，水與火不相厭棄。八卦兩兩成對。",
+    "quote": {
+      "text": "天地定位，山澤通氣，雷風相薄，水火不相射。",
+      "source": "src.zhouyi",
+      "chapter": "說卦傳",
+      "verified": false
+    },
+    "tags": [
+      "八卦",
+      "相對"
+    ],
+    "hooks": {
+      "uses": [
+        "技能",
+        "陣法"
+      ],
+      "idea": "八卦陣的機關：踩對兩兩相對的方位才能破陣。"
+    }
+  },
+  "lore.concept.qian_lines": {
+    "name": "乾卦六龍",
+    "kind": "concept",
+    "summary": "乾卦六爻以龍為喻：初九潛龍勿用，九五飛龍在天，上九亢龍有悔。時機未到要潛藏，到頂則必有悔。",
+    "quote": {
+      "text": "初九：潛龍勿用。",
+      "source": "src.zhouyi",
+      "chapter": "乾",
+      "verified": false
+    },
+    "tags": [
+      "龍",
+      "時機",
+      "境界"
+    ],
+    "hooks": {
+      "uses": [
+        "境界",
+        "技能"
+      ],
+      "idea": "劍訣三段轉折節點可命名為潛龍、見龍、飛龍；修為到頂硬衝會「亢龍有悔」。"
+    }
+  },
+  "lore.concept.daxiang_qian_kun": {
+    "name": "自強不息，厚德載物",
+    "kind": "concept",
+    "summary": "乾卦大象：天道運行剛健，君子效法而自強不息。坤卦大象：地勢柔順，君子效法而以厚德承載萬物。",
+    "quote": {
+      "text": "天行健，君子以自強不息。",
+      "source": "src.zhouyi",
+      "chapter": "乾·象",
+      "verified": false
+    },
+    "tags": [
+      "宗門訓詞",
+      "乾",
+      "坤"
+    ],
+    "hooks": {
+      "uses": [
+        "對話"
+      ],
+      "idea": "青雲宗門規或傳功長老的訓詞。"
+    }
+  }
+}
