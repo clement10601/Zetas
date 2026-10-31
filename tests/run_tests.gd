@@ -21,6 +21,8 @@ func _run() -> void:
 	await test_save_and_load()
 	await test_regions_and_travel()
 	await test_sect_first_lesson()
+	await test_personal_heart_demon()
+	await test_daily_encounter()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -254,4 +256,61 @@ func test_sect_first_lesson() -> void:
 	expect(main.state.history.back()["pack"] == "pack.sect_first_lesson.s001", "lesson written to history")
 	expect(main.points.has("pt.sect_gate"), "back at the sect gate")
 	expect(main.state.followups.back()["after_days"] == 2, "師父's errand queued for the director")
+	main.free()
+
+
+func generated(tag: String, trigger_all: Array, expires := 0) -> Dictionary:
+	var pack = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/generated_zhenyao.json"))
+	pack["id"] = "pack.gen.%s.test" % tag
+	pack["meta"]["request_tag"] = tag
+	pack["trigger"]["all"] = trigger_all
+	if expires > 0:
+		pack["trigger"]["expires_after_days"] = expires
+	return pack
+
+
+func test_personal_heart_demon() -> void:
+	var main: Node = await new_game(true)
+	main.director.base_url = "http://127.0.0.1:9"
+	expect(main.heart_demon_pending == "", "築基 already has a hand-written trial")
+	main.breakthrough()
+	main.player.position.x = main.points["pt.memory_square"]
+	main._process(0.016)
+	for i in 3:
+		main.advance_dialogue()
+	main.choose_visible(0)
+	main.advance_dialogue()
+	main.damage_actor("demon", 10)
+	expect(main.runner == null, "築基 trial finished")
+	expect(main.state.tier_name() == "築基" and main.heart_demon_pending == "金丹", "the director is asked for the 金丹 heart demon")
+	main.prepare_heart_demon()
+	await main.director.pack_failed
+	await process_frame
+	expect(main.heart_demon_pending == "", "a failed request can be sent again later")
+	var pack := generated("heart_demon", [{"type": "tier_up", "to": "金丹"}])
+	main.heart_demon_pending = "金丹"
+	main._on_pack_generated(pack, {})
+	expect(main.heart_demon_pending == "" and main.has_breakthrough_pack("金丹"), "heart demon arrives for 金丹")
+	main.prepare_heart_demon()
+	expect(main.heart_demon_pending == "", "no second request while one is waiting in the pool")
+	main.breakthrough()
+	expect(main.runner != null and main.runner.pack["id"] == pack["id"], "breakthrough to 金丹 opens the personal heart demon")
+	await process_frame
+	main.free()
+
+
+func test_daily_encounter() -> void:
+	var main: Node = await new_game()
+	var pack := generated("encounter", [{"type": "enter_map", "map_tag": "forest"}], 1)
+	main._on_pack_generated(pack, {})
+	expect(main.state.pack_arrivals.get(pack["id"]) == 0, "arrival day recorded")
+	expect(main.runner != null and main.runner.pack["id"] == pack["id"], "today's encounter starts right away")
+	main.free()
+	main = await new_game()
+	main.runner = Object.new()  # 玩家正在別的事件裡，奇遇等著
+	main._on_pack_generated(pack, {})
+	main.runner.free()
+	main.runner = null
+	main.pass_day()
+	expect(not main.pool.has(pack) and main.runner == null, "unplayed encounter expires the next day")
 	main.free()

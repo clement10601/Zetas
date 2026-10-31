@@ -18,6 +18,8 @@ const START_REGION := "region.qingyun_foothills"
 const REGION_MIN_TIER := {"region.heifeng_ridge": 1}
 ## 補貨排程：每個地區、目前境界至少備著幾個沒玩過的事件
 const RESTOCK_TARGET := 3
+const HEART_DEMON_HINT := "突破到%s時的心魔幻境。心魔是玩家的鏡像，拿玩家經歷裡最難面對的事（history 裡的選擇、NPC 的記憶、karma 傾向）來質問玩家，每個玩家的心魔都該不同。地圖只用心魔幻境區塊（地圖標籤 illusion），心魔用模板 boss.heart_demon_mirror。tier_range 從%s到%s，不要設定 meta.region。通過時設旗標 %s_heart_demon_cleared。"
+const ENCOUNTER_HINT := "今日奇遇：發生在玩家目前所在地區的小小偶遇，幾分鐘就能玩完，可以呼應玩家最近的經歷。今天就要能觸發：觸發條件只用這個地區區塊有的地圖標籤，可加時辰，不要用天數或其他事件才會立的旗標。獎勵要小。"
 const ATTACK_RANGE := 90.0
 const HOSTILE_SPEED := 70.0
 const SAVE_ID := "save.001"
@@ -26,6 +28,10 @@ const SAVE_ID := "save.001"
 var save_path := "user://save.json"
 var generated_dir := "user://generated"
 var use_director := true
+## 每天有奇遇的機率（測試可設 1.0）
+var encounter_chance := 0.5
+var heart_demon_pending := ""     # 已請導演準備心魔、還沒回來的境界
+var encounter_pending := false
 var director
 
 var state
@@ -72,6 +78,7 @@ func _ready() -> void:
 	add_log("%s。T 地圖、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。" % region_name())
 	request_followups()
 	restock()
+	prepare_heart_demon()
 	check_triggers({"type": "enter_map"})
 
 
@@ -178,7 +185,7 @@ func travel_to(id: String) -> bool:
 	go_home()
 	add_log("你來到%s。（第 %d 天・%s）" % [region_name(), state.day, state.time_of_day])
 	if state.day != day_before:
-		request_followups()
+		day_started()
 	restock()
 	autosave()
 	check_triggers({"type": "enter_map"})
@@ -292,6 +299,42 @@ func restock() -> void:
 		director.restock(state, PackPool.for_save(pool, SAVE_ID), RESTOCK_TARGET)
 
 
+## 新的一天：清掉過期的導演事件、送出後續劇情、擲今天的奇遇。
+func day_started() -> void:
+	for p in PackPool.expired(pool, state):
+		pool.erase(p)
+		if generated_dir != "":
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(generated_dir.path_join(p["id"] + ".json")))
+	request_followups()
+	if use_director and not encounter_pending and randf() < encounter_chance:
+		encounter_pending = true
+		director.request_pack(state, {}, ENCOUNTER_HINT, state.region, {"tag": "encounter", "expires_after_days": 1})
+
+
+## 請導演依玩家經歷準備下一個境界的心魔。池子裡已有該境界的突破事件（例如手寫的築基心魔）就不請。
+func prepare_heart_demon() -> void:
+	var tiers: Array = state.ruleset["tiers"]
+	if not use_director or state.tier_index + 1 >= tiers.size():
+		return
+	var next: String = tiers[state.tier_index + 1]
+	if heart_demon_pending == next or has_breakthrough_pack(next):
+		return
+	heart_demon_pending = next
+	var gate := [{"type": "tier_up", "to": next}]
+	director.request_pack(state, {}, HEART_DEMON_HINT % [next, state.tier_name(), next, next], "",
+		{"tag": "heart_demon", "gate": gate})
+
+
+func has_breakthrough_pack(tier: String) -> bool:
+	for p in pool:
+		if state.seen_packs.has(p["id"]):
+			continue
+		for c in p["trigger"]["all"]:
+			if c.get("type") == "tier_up" and c.get("to") == tier:
+				return true
+	return false
+
+
 func request_fresh_event() -> void:
 	if use_director:
 		add_log("（請導演構思新事件……）")
@@ -303,8 +346,14 @@ func _on_pack_generated(pack: Dictionary, followup: Dictionary) -> void:
 		if p["id"] == pack["id"]:
 			return
 	pool.append(pack)
+	state.note_arrival(pack["id"])
 	if generated_dir != "":
 		PackPool.save_pack(pack, generated_dir)
+	match pack["meta"].get("request_tag", ""):
+		"heart_demon":
+			heart_demon_pending = ""
+		"encounter":
+			encounter_pending = false
 	if not followup.is_empty():
 		for f in state.followups:
 			if f.get("flag") == followup.get("flag"):
@@ -312,6 +361,8 @@ func _on_pack_generated(pack: Dictionary, followup: Dictionary) -> void:
 				f["pack"] = pack["id"]
 	add_log("（導演備好了新事件：%s）" % pack["meta"]["title"])
 	autosave()
+	if pack["meta"].get("request_tag", "") == "encounter":
+		check_triggers({"type": "enter_map"})
 
 
 func _on_pack_failed(followup: Dictionary, reason: String) -> void:
@@ -319,6 +370,9 @@ func _on_pack_failed(followup: Dictionary, reason: String) -> void:
 		if f.get("flag") == followup.get("flag") and f.get("status") == "requested":
 			f["status"] = ""
 	if followup.is_empty():
+		# 失敗訊號不帶請求種類：把主動請求都放掉，下次時機到了再請
+		heart_demon_pending = ""
+		encounter_pending = false
 		add_log("（導演沒有回應：%s）" % reason)
 
 
@@ -473,7 +527,7 @@ func spare_fox() -> void:
 func pass_day() -> void:
 	state.day += 1
 	add_log("過了一天，現在是第 %d 天。" % state.day)
-	request_followups()
+	day_started()
 	restock()
 	check_triggers({"type": "time_changed"})
 
@@ -491,6 +545,7 @@ func breakthrough() -> void:
 	state.tier_index += 1
 	add_log("突破至" + state.tier_name() + "！")
 	check_triggers({"type": "tier_up", "to": state.tier_name()})
+	prepare_heart_demon()
 
 
 func _unhandled_input(event: InputEvent) -> void:
