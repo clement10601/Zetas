@@ -1,0 +1,174 @@
+{
+ "_comment": "導演實測情境：白狐報恩三條結局後的後續，加一個沒有後續請求的新事件。python -m director.bench 讀這個檔。",
+ "scenarios": [
+  {
+   "name": "fox_protected",
+   "note": "護住白蘅、擊退獵妖人",
+   "state": {
+    "time_of_day": "暮",
+    "tier_index": 0,
+    "kills": {
+     "wolf": 6,
+     "demon_hunter": 1
+    },
+    "items": {},
+    "seen_packs": {
+     "pack.fox_repays_kindness.s001": 6
+    },
+    "day": 8,
+    "flags": {
+     "spared_white_fox": true,
+     "baiheng_ally": true,
+     "followup:pack.fox_repays_kindness.s001": true
+    },
+    "karma": {
+     "正邪": 4,
+     "仁殺": 17
+    },
+    "relations": {
+     "npc.baiheng": 25
+    },
+    "memories": {
+     "npc.baiheng": [
+      "恩公為我與鎮妖司動手。"
+     ]
+    },
+    "followups": [
+     {
+      "hint": "鎮妖司記下玩家，之後在城中刁難；白蘅可能再出現求助或報信。",
+      "after_days": 5,
+      "from_pack": "pack.fox_repays_kindness.s001",
+      "day": 8,
+      "flag": "followup:pack.fox_repays_kindness.s001",
+      "status": ""
+     }
+    ]
+   },
+   "followup": 0,
+   "rewrite": [
+    {
+     "pack": "content/packs/fox-repays-kindness.json",
+     "node": "d1"
+    },
+    {
+     "pack": "content/packs/fox-repays-kindness.json",
+     "node": "d2"
+    }
+   ]
+  },
+  {
+   "name": "fox_betrayed",
+   "note": "親手擒下白蘅交給鎮妖司",
+   "state": {
+    "time_of_day": "暮",
+    "tier_index": 1,
+    "kills": {
+     "wolf": 9
+    },
+    "items": {},
+    "seen_packs": {
+     "pack.fox_repays_kindness.s001": 6
+    },
+    "day": 7,
+    "flags": {
+     "spared_white_fox": true,
+     "baiheng_captured": true,
+     "followup:pack.fox_repays_kindness.s001": true
+    },
+    "karma": {
+     "正邪": 42,
+     "仁殺": -12
+    },
+    "relations": {
+     "npc.baiheng": 0
+    },
+    "memories": {},
+    "followups": [
+     {
+      "hint": "青丘狐族得知白蘅被擒，對玩家結下仇怨。",
+      "after_days": 7,
+      "from_pack": "pack.fox_repays_kindness.s001",
+      "day": 7,
+      "flag": "followup:pack.fox_repays_kindness.s001",
+      "status": ""
+     }
+    ]
+   },
+   "followup": 0,
+   "rewrite": []
+  },
+  {
+   "name": "fox_abandoned",
+   "note": "讓開不插手",
+   "state": {
+    "time_of_day": "暮",
+    "tier_index": 0,
+    "kills": {
+     "wolf": 6
+    },
+    "items": {},
+    "seen_packs": {
+     "pack.fox_repays_kindness.s001": 6
+    },
+    "day": 6,
+    "flags": {
+     "spared_white_fox": true,
+     "followup:pack.fox_repays_kindness.s001": true
+    },
+    "karma": {
+     "正邪": 0,
+     "仁殺": 2
+    },
+    "relations": {
+     "npc.baiheng": -30
+    },
+    "memories": {
+     "npc.baiheng": [
+      "那個人類袖手旁觀。"
+     ]
+    },
+    "followups": [
+     {
+      "hint": "白蘅下落不明，可能日後以敵對身分出現。",
+      "after_days": 10,
+      "from_pack": "pack.fox_repays_kindness.s001",
+      "day": 6,
+      "flag": "followup:pack.fox_repays_kindness.s001",
+      "status": ""
+     }
+    ]
+   },
+   "followup": 0,
+   "rewrite": [
+    {
+     "pack": "content/packs/fox-repays-kindness.json",
+     "node": "d1"
+    }
+   ]
+  },
+  {
+   "name": "fresh_ruthless",
+   "note": "沒有後續請求，殺很多的玩家",
+   "state": {
+    "time_of_day": "暮",
+    "tier_index": 0,
+    "kills": {
+     "wolf": 30,
+     "bandit": 8
+    },
+    "items": {},
+    "seen_packs": {},
+    "day": 12,
+    "flags": {},
+    "karma": {
+     "正邪": -15,
+     "仁殺": -25
+    },
+    "relations": {},
+    "memories": {}
+   },
+   "hint": null,
+   "rewrite": []
+  }
+ ]
+}
