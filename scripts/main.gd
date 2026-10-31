@@ -60,7 +60,7 @@ const SKIP_FACTOR := 0.3
 const READ_CHARS_PER_SEC := 8.0
 const HOSTILE_SPEED := 70.0
 const SAVE_ID := "save.001"
-## 相鄰區塊接縫的交疊寬度（每邊），見 _blend_seam
+## 相鄰區塊接縫處地面顏色漸變的寬度（每邊）；背景畫的接縫由 ParallaxPainting 交疊淡入
 const SEAM_BLEND := 150
 ## 背景整體壓暗一點，角色與可互動物件（平台、繩梯）才跳得出來（reference-study.md A1）
 const BACKDROP_DIM := Color(0.87, 0.86, 0.84)
@@ -127,8 +127,10 @@ var dialogue_name_box: PanelContainer
 var portrait: TextureRect
 var portrait_frame: PanelContainer
 var tint: CanvasModulate
+var vignette: TextureRect
+var hud_layer: CanvasLayer
+var fx_layer: CanvasLayer        # 暗角、紙紋、突破染色：在世界之上、介面之下
 var ambience: CPUParticles2D
-var _seam_cache: Dictionary = {}  # "左區塊|右區塊" -> [左半貼圖, 右半貼圖]
 var _ground_tone: Dictionary = {} # 區塊 id -> 地面染色
 var hud_objective: Label
 var hud_log: Label
@@ -374,8 +376,6 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		wall.position = Vector2(wall_x, FLOOR_Y - 600)
 		ground.add_child(wall)
 	level.add_child(ground)
-	for i in range(1, backgrounds.size()):
-		_blend_seam(backgrounds[i - 1], backgrounds[i])
 	map_width = x
 	_set_ambience(tags)
 	Scenery.add_layers(level, FLOOR_Y, tags, hash(ordered.map(func(e): return e["chunk"])))
@@ -457,67 +457,6 @@ func _chunk_ground_tone(b: Dictionary) -> Color:
 	return c
 
 
-## 接縫：交界左右各 SEAM_BLEND 像素疊一層「霧」：把兩邊邊緣糊開只留顏色，越靠交界越濃、
-## 交界那一條兩邊都是兩塊顏色的平均，所以看不到硬切口，像古畫卷裡兩段之間的一縷雲；任兩個區塊都能接。
-## 在低解析度算完再放大，網頁版也不會卡。
-func _blend_seam(a: Dictionary, b: Dictionary) -> void:
-	var ta: Texture2D = a["tex"]
-	var tb: Texture2D = b["tex"]
-	if ta == null or tb == null:
-		return
-	var key := "%s|%s" % [a["id"], b["id"]]
-	if not _seam_cache.has(key):
-		var ia := ta.get_image()
-		var ib := tb.get_image()
-		if ia == null or ib == null:
-			return
-		for img: Image in [ia, ib]:
-			if img.is_compressed():
-				img.decompress()
-			img.convert(Image.FORMAT_RGBA8)
-		var w := mini(SEAM_BLEND, mini(ia.get_width(), ib.get_width()) / 3)
-		var h := ia.get_height()
-		var lw := maxi(4, w / 6)
-		var lh := maxi(4, h / 4)
-		var ea := ia.get_region(Rect2i(ia.get_width() - w, 0, w, h))   # A 的結尾
-		var eb := ib.get_region(Rect2i(0, 0, w, h))                    # B 的開頭
-		ea.resize(lw, lh, Image.INTERPOLATE_BILINEAR)
-		eb.resize(lw, lh, Image.INTERPOLATE_BILINEAR)
-		var left := Image.create(lw, lh, false, Image.FORMAT_RGBA8)
-		var right := Image.create(lw, lh, false, Image.FORMAT_RGBA8)
-		for xi in lw:
-			var t := float(xi) / float(lw - 1)       # 左半：0 在外、1 在交界
-			for y in lh:
-				var ca := ea.get_pixel(xi, y)
-				var cb_m := eb.get_pixel(lw - 1 - xi, y)
-				var c := _mist(ca.lerp(cb_m, 0.5 * t), t)
-				c.a = smoothstep(0.0, 0.8, t)
-				left.set_pixel(xi, y, c)
-				var cb := eb.get_pixel(xi, y)
-				var ca_m := ea.get_pixel(lw - 1 - xi, y)
-				var s := 1.0 - t                           # 右半：1 在交界、0 在外
-				var d := _mist(cb.lerp(ca_m, 0.5 * s), s)
-				d.a = smoothstep(0.0, 0.8, s)
-				right.set_pixel(xi, y, d)
-		left.resize(w, h, Image.INTERPOLATE_BILINEAR)
-		right.resize(w, h, Image.INTERPOLATE_BILINEAR)
-		_seam_cache[key] = [ImageTexture.create_from_image(left), ImageTexture.create_from_image(right), w]
-	var parts: Array = _seam_cache[key]
-	# 兩半各往交界多蓋 1 像素，免得濾鏡在交界留一條細縫
-	var seam_x: float = b["x"]
-	for i in 2:
-		var view := TextureRect.new()
-		view.texture = parts[i]
-		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		view.size = Vector2(parts[2] + 1, 760)   # 視差底圖等比放大過，比 600 高
-		view.position = Vector2(seam_x - parts[2] if i == 0 else seam_x - 1, FLOOR_Y - 760)
-		view.add_to_group("seam")
-		view.modulate = BACKDROP_DIM
-		view.z_index = -9      # 底圖是 -10：疊在兩張底圖之上、平台與角色之下
-		level.add_child(view)
-
-
 ## 氛圍粒子：依地圖標籤飄落葉、花瓣、洞裡的浮塵、心魔幻境的餘燼。粒子掛在鏡頭上、用世界座標，
 ## 所以走動時會自然被拋在後面。
 func _set_ambience(tags: Array) -> void:
@@ -561,10 +500,154 @@ func _set_ambience(tags: Array) -> void:
 	ambience.restart()
 
 
-## 霧色：往同一色調的淡色靠，靠交界越淡，像卷軸上留白的雲氣
-static func _mist(c: Color, t: float) -> Color:
-	var light := c.lightened(0.35)
-	return c.lerp(light, 0.45 * smoothstep(0.3, 1.0, t))
+# ---------- 事件包裝（reference-study.md A6）與境界、正邪的顏色（A3） ----------
+
+## 事件的印文：心魔、奇遇（每日奇遇）、機緣（導演生成的後續）、事件（手寫）。
+func event_seal(pack: Dictionary) -> String:
+	var meta: Dictionary = pack.get("meta", {})
+	if meta.get("request_tag", "") == "heart_demon" or _pack_has_tag(pack, "illusion"):
+		return "心魔"
+	if meta.get("request_tag", "") == "encounter":
+		return "奇遇"
+	if meta.get("author", "") == "director" or meta.get("request_tag", "") != "":
+		return "機緣"
+	return "事件"
+
+
+## 卷軸標題卡：開始時卷軸展開、朱印蓋下，停一下再收卷；結束時一張小的、印文是了／敗／罷。
+func _scroll_card(title: String, seal_text: String, opening: bool) -> void:
+	if hud_layer == null or not is_inside_tree():
+		return
+	var old := hud_layer.get_node_or_null("ScrollCard")
+	if old:
+		old.free()
+	var card := Control.new()
+	card.name = "ScrollCard"
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	card.position.y = 150.0 if opening else 120.0
+	hud_layer.add_child(card)
+	var full := 560.0 if opening else 380.0
+	var h := 96.0 if opening else 64.0
+	var paper := Panel.new()
+	var box := InkUI.paper_box()
+	box.shadow_size = 6
+	paper.add_theme_stylebox_override("panel", box)
+	paper.clip_contents = true
+	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	paper.size = Vector2(0, h)
+	card.add_child(paper)
+	var label := Label.new()
+	label.text = title
+	label.theme_type_variation = "PaperLabel"
+	label.add_theme_font_size_override("font_size", 30 if opening else 22)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size = Vector2(full, h)
+	paper.add_child(label)
+	var rollers: Array = []
+	for i in 2:
+		var r := Panel.new()
+		r.add_theme_stylebox_override("panel", InkUI.roller())
+		r.size = Vector2(16, h + 20)
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(r)
+		rollers.append(r)
+	var seal := PanelContainer.new()
+	seal.add_theme_stylebox_override("panel", InkUI.seal_box())
+	var seal_label := Label.new()
+	seal_label.text = "\n".join(seal_text.split("")) if seal_text.length() > 1 else seal_text
+	seal_label.theme_type_variation = "NameLabel"
+	seal_label.add_theme_font_size_override("font_size", 20 if opening else 18)
+	seal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	seal.add_child(seal_label)
+	seal.modulate.a = 0.0
+	card.add_child(seal)
+	var set_width := func(w: float) -> void:
+		paper.size.x = w
+		paper.position.x = -w / 2
+		label.position.x = (w - full) / 2
+		rollers[0].position = Vector2(-w / 2 - 12, -10)
+		rollers[1].position = Vector2(w / 2 - 4, -10)
+	set_width.call(0.0)
+	var tw := card.create_tween()
+	tw.tween_method(set_width, 0.0, full, 0.45 if opening else 0.3).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	# 朱印：從大到小蓋下，印在卷末右下
+	tw.tween_callback(func():
+		seal.reset_size()
+		seal.pivot_offset = seal.size / 2
+		seal.position = Vector2(full / 2 - seal.size.x - 26, h - seal.size.y * 0.75)
+		seal.scale = Vector2.ONE * 2.2
+		seal.rotation = -0.08)
+	tw.tween_property(seal, "modulate:a", 1.0, 0.12)
+	tw.parallel().tween_property(seal, "scale", Vector2.ONE, 0.16).set_ease(Tween.EASE_IN)
+	tw.tween_interval(1.8 if opening else 1.0)
+	tw.tween_property(seal, "modulate:a", 0.0, 0.15)
+	tw.tween_method(set_width, full, 0.0, 0.35).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_callback(card.queue_free)
+
+
+## 事件 NPC 頭上的小朱印，一眼看出「這是這次事件的人」
+func _add_event_mark(view: Node2D, ch: String) -> void:
+	var mark := PanelContainer.new()
+	var box := InkUI.seal_box()
+	box.content_margin_left = 4
+	box.content_margin_right = 4
+	box.content_margin_top = 1
+	box.content_margin_bottom = 2
+	mark.add_theme_stylebox_override("panel", box)
+	var l := Label.new()
+	l.text = ch
+	l.theme_type_variation = "NameLabel"
+	l.add_theme_font_size_override("font_size", 13)
+	mark.add_child(l)
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var top := 0.0
+	for n in view.get_children():
+		if n is Label:
+			top = n.position.y
+	mark.position = Vector2(-11, top - 26)
+	mark.add_to_group("event_mark")
+	view.add_child(mark)
+
+
+## 正邪的傾向，-1（偏邪）到 1（偏正）；60 以上就算到頂
+func _karma_lean() -> float:
+	if state == null:
+		return 0.0
+	return clampf(float(state.karma.get("正邪", 0)) / 60.0, -1.0, 1.0)
+
+
+## 突破：以玩家為中心，一圈顏色由紙色漸染開來再退去（2 秒）。偏正青、偏邪朱、居中金。
+func _breakthrough_wash() -> void:
+	if fx_layer == null or not is_inside_tree() or player == null:
+		return
+	var lean := _karma_lean()
+	var color := InkUI.JADE if lean > 0.15 else (InkUI.CINNABAR if lean < -0.15 else InkUI.GOLD)
+	var wash := TextureRect.new()
+	var g := Gradient.new()
+	g.set_color(0, Color(color, 0.55))
+	g.set_color(1, Color(color, 0.0))
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	wash.texture = tex
+	wash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wash.size = Vector2(400, 400)
+	wash.pivot_offset = wash.size / 2
+	var screen := player.get_global_transform_with_canvas().origin
+	wash.position = screen - wash.size / 2 + Vector2(0, -40)
+	wash.scale = Vector2.ONE * 0.2
+	wash.name = "BreakthroughWash"
+	fx_layer.add_child(wash)
+	var tw := wash.create_tween()
+	tw.tween_property(wash, "scale", Vector2.ONE * 6.0, 1.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.parallel().tween_property(wash, "modulate:a", 1.0, 0.3).from(0.0)
+	tw.tween_property(wash, "modulate:a", 0.0, 0.8)
+	tw.tween_callback(wash.queue_free)
 
 
 ## 單向平台：從下面跳得上去，站在上面按 ↓＋跳 下來。邊緣一條墨線（art-direction.md）。
@@ -934,6 +1017,7 @@ func check_triggers(event: Dictionary) -> void:
 
 func start_pack(pack: Dictionary) -> void:
 	add_log("【%s】%s" % [pack["meta"]["title"], pack["meta"]["summary"]])
+	_scroll_card(pack["meta"]["title"], event_seal(pack), true)
 	if pack["meta"].get("request_tag", "") == "heart_demon" or _pack_has_tag(pack, "illusion"):
 		audio.stinger("heart_demon", "event_start")
 	else:
@@ -972,6 +1056,7 @@ func _on_pack_finished(result: String) -> void:
 	var title: String = runner.pack["meta"]["title"]
 	var had_map: bool = runner.pack.has("map")
 	add_log("【%s】結束：%s" % [title, {"complete": "完成", "fail": "失敗", "abandon": "放棄"}[result]])
+	_scroll_card(title, {"complete": "了", "fail": "敗", "abandon": "罷"}[result], false)
 	audio.stinger("event_end", "event_end")
 	for f in state.followups:
 		if f["from_pack"] == runner.pack["id"]:
@@ -1131,6 +1216,8 @@ func _on_actor_spawned(actor: Dictionary) -> void:
 	var hostile: bool = actor["disposition"] == "hostile"
 	var view := _make_actor_view(actor, hostile)
 	view.position = Vector2(points.get(actor.get("spawn_at", ""), player.position.x + 200), FLOOR_Y)
+	if not hostile and runner != null:
+		_add_event_mark(view, event_seal(runner.pack).left(1))
 	view.set_meta("hostile", hostile)
 	level.add_child(view)
 	var power := float(actor.get("power", 1.0))
@@ -1328,12 +1415,14 @@ func attack() -> void:
 	if attack_cooldown > 0.0:
 		return
 	attack_cooldown = ATTACK_COOLDOWN
-	player.play_attack()
+	var glyph: Node2D = player.play_attack()
 	audio.play("attack")
 	for id in actor_views.keys():
 		var view: Node2D = actor_views[id]
 		if view.get_meta("hostile") and absf(view.position.x - player.position.x) <= ATTACK_RANGE and player_near_ground():
 			damage_actor(id, Cultivation.player_damage(state.tier_index))
+			if glyph != null:
+				glyph.shatter()
 
 
 func player_near_ground() -> bool:
@@ -1542,6 +1631,7 @@ func breakthrough() -> void:
 	if state.tier_index + 1 >= state.ruleset["tiers"].size():
 		return
 	state.tier_index += 1
+	_breakthrough_wash()
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	playlog.write("breakthrough", {"tier": state.tier_name(), "day": state.day})
 	audio.stinger("breakthrough", "breakthrough")
@@ -1605,7 +1695,8 @@ func _build_hud() -> void:
 	var vignette_layer := CanvasLayer.new()
 	vignette_layer.layer = 1
 	add_child(vignette_layer)
-	var vignette := TextureRect.new()
+	fx_layer = vignette_layer
+	vignette = TextureRect.new()
 	vignette.texture = InkUI.vignette_texture()
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1626,6 +1717,7 @@ func _build_hud() -> void:
 	var hud := CanvasLayer.new()
 	hud.layer = 2
 	add_child(hud)
+	hud_layer = hud
 	# 左上：墨底狀態列，朱砂邊
 	var status_panel := PanelContainer.new()
 	status_panel.add_theme_stylebox_override("panel", InkUI.ink_box(0.62, InkUI.CINNABAR))
@@ -1819,7 +1911,9 @@ func _refresh_status() -> void:
 	hp_bar.value = hp()
 	hud_detail.text = "修為 %d／%d　氣血 %d／%d　%s" % [cultivation(), need, hp(), Cultivation.max_hp(state.tier_index), "　".join(karma)]
 	if tint != null:
-		var target := InkUI.time_tint(state.time_of_day)
+		var target := InkUI.time_tint(state.time_of_day) * InkUI.karma_tint(_karma_lean())
+		if vignette != null:
+			vignette.modulate.a = 0.85 + 0.15 * maxf(0.0, -_karma_lean())
 		if tint.color != target:
 			if is_inside_tree() and tint.color != Color.WHITE:
 				tint.create_tween().tween_property(tint, "color", target, 1.2)
