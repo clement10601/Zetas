@@ -7,6 +7,12 @@
 ## 美術未到前用色塊。
 extends CharacterBody2D
 
+## 動作音效：jump、double_jump、wall_jump、flight、land。main 接到 scripts/audio.gd。
+signal sound(name: String)
+
+## 落地速度超過這個才有落地聲（小跳不響）
+const LAND_SOUND_SPEED := 500.0
+
 const SPEED := 260.0
 const GROUND_ACCEL := 2600.0
 const GROUND_DECEL := 3200.0
@@ -246,6 +252,8 @@ func _physics_process(delta: float) -> void:
 	if _try_grab_rope(input):
 		return
 	if flying > 0.0 or (fly_pressed and sword_flight and not _flight_used and not is_on_floor()):
+		if flying <= 0.0:
+			sound.emit("flight")
 		_fly(input, dir, delta)
 		return
 
@@ -277,21 +285,28 @@ func _physics_process(delta: float) -> void:
 		velocity.y = JUMP_VELOCITY
 		_jump_buffer = 0.0
 		_coyote = 0.0
+		sound.emit("jump")
 	elif jump_pressed and _coyote <= 0.0 and wall_dir != 0:
 		velocity = Vector2(-wall_dir * WALL_JUMP.x, WALL_JUMP.y)
 		_wall_lock = WALL_JUMP_LOCK
 		_jump_buffer = 0.0
 		_air_jumps = 1 if double_jump else 0
+		sound.emit("wall_jump")
 	elif jump_pressed and _coyote <= 0.0 and _air_jumps > 0 and not input.get("down", false):
 		velocity.y = DOUBLE_JUMP_VELOCITY
 		_air_jumps -= 1
 		_jump_buffer = 0.0
+		sound.emit("double_jump")
 
 	if _wall_lock <= 0.0:
 		var target := dir * SPEED
 		var rate := AIR_ACCEL if not is_on_floor() else (GROUND_ACCEL if dir != 0.0 else GROUND_DECEL)
 		velocity.x = move_toward(velocity.x, target, rate * delta)
+	var was_airborne := not is_on_floor()
+	var fall_speed := velocity.y
 	move_and_slide()
+	if was_airborne and is_on_floor() and fall_speed >= LAND_SOUND_SPEED:
+		sound.emit("land")
 
 
 ## 御劍：不受重力，方向鍵往四方飛，時間到或落地就停。一次離地只能飛一次。
@@ -333,6 +348,7 @@ func _try_grab_rope(input: Dictionary) -> bool:
 func _climb(input: Dictionary, dir: float, jump_pressed: bool, delta: float) -> void:
 	if jump_pressed and dir != 0.0:
 		_let_go()
+		sound.emit("jump")
 		velocity = Vector2(ROPE_JUMP.x * dir, ROPE_JUMP.y)
 		move_and_slide()
 		return
