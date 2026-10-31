@@ -158,7 +158,17 @@ def head(f, s, alpha, ink):
     # 眼與眉
     ex, ey = hx + rx * 0.62, hy + ry * 0.02
     eye_c = s.get("eye", ink)
-    cv.stroke([(ex - 5, ey), (ex + 3, ey - 1)], 2.6, eye_c, alpha, taper=(0.1, 0.4))
+    # 耳：臉後緣一個小弧，頭像裁出來時側臉才有結構
+    ear_x, ear_y = hx - rx * 0.1, hy + ry * 0.15
+    cv.paint(cv.ellipse(ear_x, ear_y, rx * 0.16, ry * 0.22, blur=0.5), mix(skin, INK, 0.12), alpha)
+    cv.stroke([(ear_x + rx * 0.05, ear_y - ry * 0.18), (ear_x - rx * 0.14, ear_y), (ear_x + rx * 0.02, ear_y + ry * 0.2)], 1.2, ink, 0.6 * alpha, dry=0.2)
+    # 眼：上眼線＋瞳仁，眼角一點下眼線
+    cv.stroke([(ex - 6, ey - 0.5), (ex - 1, ey - 2.2), (ex + 4, ey - 1)], 2.4, eye_c, alpha, taper=(0.1, 0.4))
+    if not s.get("glow_eyes"):
+        cv.paint(cv.ellipse(ex - 0.5, ey + 0.6, 1.9, 2.1, blur=0.4), eye_c, alpha)
+        cv.stroke([(ex - 4, ey + 2.6), (ex + 2, ey + 2.4)], 0.9, ink, 0.35 * alpha, smooth=0)
+    # 頰上一抹淡紅
+    cv.paint(cv.ellipse(hx + rx * 0.45, hy + ry * 0.38, rx * 0.22, ry * 0.12, blur=2.0), (205, 120, 105), 0.25 * alpha)
     if s.get("glow_eyes"):
         cv.paint(cv.ellipse(ex, ey, 10, 7, blur=4), s["glow_eyes"], 0.9, "over")
         cv.paint(cv.ellipse(ex, ey, 3.5, 2.2, blur=0.6), (255, 230, 200), 1.0)

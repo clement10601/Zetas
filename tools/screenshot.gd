@@ -104,4 +104,18 @@ func _run() -> void:
 	main._breakthrough_wash()
 	await create_timer(0.7).timeout
 	await _shot("09_breakthrough")
+	# 10. 夜裡的青雲宗：角色、平台要看得清
+	main.travel_to("region.qingyun_sect")
+	if main.runner != null:
+		main.runner.abort("abandon")
+		main._hide_dialogue()
+	main.go_home()
+	main.state.time_of_day = "夜"
+	main.state.karma["正邪"] = 0
+	main._refresh_status()
+	main.tint.color = main.InkUI.time_tint("夜")
+	main.player.position.x = 700
+	main.player.snap_camera()
+	await create_timer(1.6).timeout
+	await _shot("10_sect_night")
 	quit(0)

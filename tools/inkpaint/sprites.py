@@ -51,9 +51,9 @@ SPECS = {
     ],
     "npc.merchant": [
         dict(robe=(160, 120, 70), inner=(220, 206, 176), sash=(100, 60, 40), trim=(100, 60, 40), hair="topknot", sleeve="tight",
-             short_robe=True, pants=(110, 90, 66), head_items=[F.douli], back_items=[F.book_box], lean=0.12, height=410),
+             short_robe=True, pants=(110, 90, 66), head_items=[F.douli, partial(F.beard, color=(48, 40, 34))], back_items=[F.book_box], lean=0.12, height=410),
         dict(robe=(110, 120, 90), inner=(210, 200, 176), sash=(140, 50, 40), trim=(140, 50, 40), hair="bun", sleeve="tight",
-             pose="clasp", head_items=[F.headband], front=[F.basket], belt=[F.gourd], height=405),
+             pose="clasp", head_items=[F.headband, partial(F.beard, color=(48, 40, 34))], front=[F.basket], belt=[F.gourd], height=405),
     ],
     "npc.generic": [
         dict(robe=(170, 164, 150), inner=(220, 214, 200), sash=(90, 80, 70), trim=(90, 80, 70), hair="topknot"),
