@@ -23,6 +23,8 @@ func _run() -> void:
 	await test_sect_first_lesson()
 	await test_personal_heart_demon()
 	await test_daily_encounter()
+	await test_cultivation()
+	await test_combat()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -282,7 +284,9 @@ func test_personal_heart_demon() -> void:
 	main.advance_dialogue()
 	main.damage_actor("demon", 10)
 	expect(main.runner == null, "築基 trial finished")
-	expect(main.state.tier_name() == "築基" and main.heart_demon_pending == "金丹", "the director is asked for the 金丹 heart demon")
+	expect(main.heart_demon_pending == "", "no heart demon request while cultivation is far from full")
+	main.gain_cultivation(300)
+	expect(main.state.tier_name() == "築基" and main.heart_demon_pending == "金丹", "the director is asked for the 金丹 heart demon near the bottleneck")
 	main.prepare_heart_demon()
 	await main.director.pack_failed
 	await process_frame
@@ -313,4 +317,50 @@ func test_daily_encounter() -> void:
 	main.runner = null
 	main.pass_day()
 	expect(not main.pool.has(pack) and main.runner == null, "unplayed encounter expires the next day")
+	main.free()
+
+
+func test_cultivation() -> void:
+	var main: Node = await new_game()
+	expect(main.hp() == 30 and main.cultivation() == 0, "new 煉氣 disciple: 30 hp, no cultivation")
+	expect(not main.try_breakthrough() and main.state.tier_index == 0, "cannot break through without cultivation")
+	main.meditate()
+	expect(main.cultivation() == 8 and main.state.time_of_day == "午", "meditating in the wild: +8 and one 時辰")
+	main.travel_to("region.qingyun_sect")
+	main.runner.abort("abandon")  # 進宗門會開「青玄峰問心」，先結束它才能打坐
+	main.advance_dialogue()
+	main.meditate()
+	expect(main.cultivation() == 8 + 15, "meditating in the sect: +15")
+	main.gain_cultivation(100)
+	expect(main.try_breakthrough() and main.state.tier_name() == "築基", "full cultivation breaks through")
+	expect(main.cultivation() == 23 and main.hp() == 50, "breakthrough spends the threshold and heals to the new max")
+	main.free()
+
+
+func test_combat() -> void:
+	var main: Node = await new_game()
+	main.spare_fox()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	for i in 3:
+		main.advance_dialogue()
+	main.choose_visible(0)
+	main.advance_dialogue()
+	expect(main.actor_hp["hunter"] == 4, "hunter hp from power 1.2 at 煉氣")
+	var hunter: Node2D = main.actor_views["hunter"]
+	hunter.position.x = main.player.position.x + 30
+	main.attack()
+	main.attack()
+	expect(main.actor_hp["hunter"] == 3, "attack has a cooldown")
+	main._process(1.0)
+	expect(main.hp() == 30 - 5, "hunter in reach hits for 5")
+	for i in 6:
+		main._process(1.0)
+		if main.runner == null:
+			break
+	expect(main.runner == null and main.state.flags.get("baiheng_captured") == true, "falling in battle settles the event as fail")
+	expect(main.hp() == 15, "wake up with half hp")
+	expect(main.points.has("pt.home_start"), "carried back to the home map")
 	main.free()
