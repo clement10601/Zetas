@@ -2,6 +2,8 @@
 ## 執行：python tools/sync_engine.py && godot --headless --path . -s res://tests/run_tests.gd
 extends SceneTree
 
+const AssetLibrary = preload("res://addons/zeworld/asset_library.gd")
+
 var failures := 0
 var checks := 0
 
@@ -25,6 +27,7 @@ func _run() -> void:
 	await test_daily_encounter()
 	await test_cultivation()
 	await test_combat()
+	await test_art_and_placeholders()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -37,8 +40,10 @@ func expect(ok: bool, what: String) -> void:
 
 
 ## 測試預設不讀寫存檔、不連導演，避免互相影響。
-func new_game(director := false, save := "") -> Node:
+func new_game(director := false, save := "", assets := "") -> Node:
 	var main: Node = load("res://scenes/main.tscn").instantiate()
+	if assets != "":
+		main.assets_path = assets
 	main.save_path = save
 	main.generated_dir = ""
 	main.use_director = director
@@ -364,3 +369,37 @@ func test_combat() -> void:
 	expect(main.hp() == 15, "wake up with half hp")
 	expect(main.points.has("pt.home_start"), "carried back to the home map")
 	main.free()
+
+
+func test_art_and_placeholders() -> void:
+	var dir := "user://zetas_test_art"
+	DirAccess.make_dir_recursive_absolute(dir)
+	Image.create(40, 240, false, Image.FORMAT_RGBA8).save_png(dir.path_join("fox.png"))
+	Image.create(96, 60, false, Image.FORMAT_RGBA8).save_png(dir.path_join("road.png"))
+	var f := FileAccess.open(dir.path_join("assets.json"), FileAccess.WRITE)
+	f.store_string(JSON.stringify({"assets": {
+		"npc.fox_girl": {"type": "sprite", "files": ["fox.png"], "height": 120},
+		"chunk.qingyun_road": {"type": "chunk", "files": ["road.png"]},
+	}}))
+	f.close()
+	var main: Node = await new_game(false, "", dir.path_join("assets.json"))
+	expect(main.level.get_children().any(func(n): return n is TextureRect), "chunk with art gets its background picture")
+	expect(main.level.get_children().any(func(n): return n is ColorRect and n.color == Color(main.chunks["chunk.qingyun_woods"]["color"])), "chunk without art stays a color block")
+	main.spare_fox()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	var fox: Node2D = main.actor_views["fox"]
+	var sprite = fox.get_children().filter(func(n): return n is Sprite2D)
+	expect(sprite.size() == 1 and is_equal_approx(sprite[0].scale.y, 0.5), "fox sprite scaled to 120 high")
+	for i in 3:
+		main.advance_dialogue()
+	expect(main.actor_views["hunter"].get_children().any(func(n): return n is ColorRect), "hunter without art is a color block")
+	var lib = AssetLibrary.from_file("res://content/assets.json")
+	for t in main.chunks:
+		if not t.begins_with("_"):
+			expect(lib.info(t).get("type") == "chunk", "%s listed in assets.json" % t)
+	main.free()
+	for n in ["fox.png", "road.png", "assets.json"]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(dir.path_join(n)))

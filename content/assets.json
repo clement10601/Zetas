@@ -1,0 +1,200 @@
+{
+  "_comment": "素材清單（ZeWorld AssetLibrary 格式）。files 多張就是變體，同一個 NPC 固定拿同一張。缺圖時角色退回 npc.generic／mob.generic，再缺就畫色塊。美術規格見 art/STYLE.md，待辦清單用 python tools/art_todo.py 產生。",
+  "root": "res://art",
+  "assets": {
+    "npc.fox_girl": {
+      "type": "sprite",
+      "files": [
+        "sprites/npc.fox_girl.png"
+      ],
+      "height": 120
+    },
+    "npc.memory_echo": {
+      "type": "sprite",
+      "files": [
+        "sprites/npc.memory_echo.png"
+      ],
+      "height": 120
+    },
+    "npc.villager": {
+      "type": "sprite",
+      "files": [
+        "sprites/npc.villager.png"
+      ],
+      "height": 120
+    },
+    "npc.cultivator": {
+      "type": "sprite",
+      "files": [
+        "sprites/npc.cultivator.png"
+      ],
+      "height": 120
+    },
+    "npc.merchant": {
+      "type": "sprite",
+      "files": [
+        "sprites/npc.merchant.png"
+      ],
+      "height": 120
+    },
+    "mob.demon_hunter": {
+      "type": "sprite",
+      "files": [
+        "sprites/mob.demon_hunter.png"
+      ],
+      "height": 120
+    },
+    "mob.bandit": {
+      "type": "sprite",
+      "files": [
+        "sprites/mob.bandit.png"
+      ],
+      "height": 120
+    },
+    "mob.wolf_demon": {
+      "type": "sprite",
+      "files": [
+        "sprites/mob.wolf_demon.png"
+      ],
+      "height": 120
+    },
+    "boss.heart_demon_mirror": {
+      "type": "sprite",
+      "files": [
+        "sprites/boss.heart_demon_mirror.png"
+      ],
+      "height": 150
+    },
+    "boss.demon_lord": {
+      "type": "sprite",
+      "files": [
+        "sprites/boss.demon_lord.png"
+      ],
+      "height": 150
+    },
+    "npc.sect_master": {
+      "type": "sprite",
+      "files": [
+        "sprites/npc.sect_master.png"
+      ],
+      "height": 120
+    },
+    "npc.fellow_disciple": {
+      "type": "sprite",
+      "files": [
+        "sprites/npc.fellow_disciple.png"
+      ],
+      "height": 120
+    },
+    "npc.generic": {
+      "type": "sprite",
+      "files": [
+        "sprites/npc.generic.png"
+      ],
+      "height": 120
+    },
+    "mob.generic": {
+      "type": "sprite",
+      "files": [
+        "sprites/mob.generic.png"
+      ],
+      "height": 120
+    },
+    "chunk.qingyun_road": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.qingyun_road.png"
+      ]
+    },
+    "chunk.qingyun_woods": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.qingyun_woods.png"
+      ]
+    },
+    "chunk.forest_clearing_a": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.forest_clearing_a.png"
+      ]
+    },
+    "chunk.illusion_entry": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.illusion_entry.png"
+      ]
+    },
+    "chunk.illusion_qingyun_town": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.illusion_qingyun_town.png"
+      ]
+    },
+    "chunk.illusion_arena": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.illusion_arena.png"
+      ]
+    },
+    "chunk.mountain_cave": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.mountain_cave.png"
+      ]
+    },
+    "chunk.ruined_shrine": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.ruined_shrine.png"
+      ]
+    },
+    "chunk.mountain_village": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.mountain_village.png"
+      ]
+    },
+    "chunk.sect_gate": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.sect_gate.png"
+      ]
+    },
+    "chunk.sect_plaza": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.sect_plaza.png"
+      ]
+    },
+    "chunk.sect_hall": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.sect_hall.png"
+      ]
+    },
+    "chunk.master_cave": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.master_cave.png"
+      ]
+    },
+    "chunk.heifeng_pass": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.heifeng_pass.png"
+      ]
+    },
+    "chunk.heifeng_ravine": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.heifeng_ravine.png"
+      ]
+    },
+    "chunk.demon_den": {
+      "type": "chunk",
+      "files": [
+        "chunks/chunk.demon_den.png"
+      ]
+    }
+  }
+}
