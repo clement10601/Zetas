@@ -1,6 +1,7 @@
 ## 玩家：橫向卷軸操作，手感參考 2D 橫軸 MMO。
 ## ←→ 走（有一點加減速）、Alt／C／空白 跳、站在單向平台上 ↓＋跳 往下跳、
-## 靠近繩子或梯子按 ↑↓ 爬，爬的時候 ←→＋跳 可以跳開。美術未到前用色塊。
+## 靠近繩子或梯子按 ↑↓ 爬，爬的時候 ←→＋跳 可以跳開。
+## 學會輕身術（double_jump）後，空中再按一次跳是二段跳。美術未到前用色塊。
 extends CharacterBody2D
 
 const SPEED := 260.0
@@ -8,6 +9,7 @@ const GROUND_ACCEL := 2600.0
 const GROUND_DECEL := 3200.0
 const AIR_ACCEL := 1500.0
 const JUMP_VELOCITY := -660.0   # 約 120 像素高，平台每層間隔 100 左右
+const DOUBLE_JUMP_VELOCITY := -600.0  # 再高約 100，合計約 220
 const GRAVITY := 1800.0
 const MAX_FALL := 900.0
 const CLIMB_SPEED := 170.0
@@ -21,6 +23,7 @@ const GROUND_LAYER := 1
 const PLATFORM_LAYER := 2
 
 var frozen := false
+var double_jump := false        # 輕身術：main 依學會的身法設定
 var facing := 1
 var climbing := false
 var rope := {}                  # 正在爬的繩子
@@ -33,6 +36,7 @@ var _coyote := 0.0
 var _jump_buffer := 0.0
 var _drop := 0.0
 var _jump_was_down := false
+var _air_jumps := 0
 
 
 func _ready() -> void:
@@ -122,6 +126,8 @@ func _physics_process(delta: float) -> void:
 	_drop = maxf(0.0, _drop - delta)
 	collision_mask = GROUND_LAYER | (0 if _drop > 0.0 else PLATFORM_LAYER)
 	_coyote = COYOTE_TIME if is_on_floor() else maxf(0.0, _coyote - delta)
+	if is_on_floor():
+		_air_jumps = 1 if double_jump else 0
 	_jump_buffer = JUMP_BUFFER if jump_pressed else maxf(0.0, _jump_buffer - delta)
 
 	if not is_on_floor():
@@ -135,6 +141,10 @@ func _physics_process(delta: float) -> void:
 		velocity.y = JUMP_VELOCITY
 		_jump_buffer = 0.0
 		_coyote = 0.0
+	elif jump_pressed and _coyote <= 0.0 and _air_jumps > 0 and not input.get("down", false):
+		velocity.y = DOUBLE_JUMP_VELOCITY
+		_air_jumps -= 1
+		_jump_buffer = 0.0
 
 	var target := dir * SPEED
 	var rate := AIR_ACCEL if not is_on_floor() else (GROUND_ACCEL if dir != 0.0 else GROUND_DECEL)
@@ -186,4 +196,5 @@ func _let_go() -> void:
 	climbing = false
 	rope = {}
 	velocity = Vector2.ZERO
+	_air_jumps = 1 if double_jump else 0
 	collision_mask = GROUND_LAYER | PLATFORM_LAYER

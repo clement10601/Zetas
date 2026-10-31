@@ -2,6 +2,7 @@
 ## 地圖有單向平台與繩梯（chunks.json 的 platforms／ropes），操作見 scripts/player.gd。
 ## 地圖兩端有傳送點，站上去按 ↑ 走到相鄰地區（regions.json 的 exits）；也可以按 T 開地圖直接去。
 ## 移動要花時辰。地區裡的常駐 NPC（regions.json 的 residents）靠近按 ↑ 或 E 說話。
+## 身法（輕身術二段跳）隨修為領悟；有些平台要身法才上得去，上面的寶物（chunks.json 的 caches）按 ↑ 拿。
 ## J 攻擊，敵人近身會傷人，血量歸零就重傷倒地（事件以失敗結算）。M 打坐增加修為、回滿血，
 ## 修為圓滿後按 B 突破境界。
 ## 除錯鍵用來快速製造觸發條件：F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、
@@ -74,6 +75,7 @@ var map_width := 0.0
 var chunk_x: Dictionary = {}      # chunk id -> 地圖上的起點 x
 var portals: Array = []           # 落腳地圖兩端的傳送點 {x, to, view}
 var residents: Dictionary = {}    # 常駐 NPC id -> {view, info, said}
+var caches: Dictionary = {}       # 這張地圖上還沒拿的寶物 id -> {view, info}
 var prompt_label: Label           # 「↑ 前往……」「↑ 交談」提示
 var actor_views: Dictionary = {}  # actor id -> Node2D
 var actor_hp: Dictionary = {}
@@ -112,6 +114,7 @@ func _ready() -> void:
 		state.region = START_REGION
 	if not state.game_data.has("hp"):
 		state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
+	update_movement_skills()
 	go_home()
 	add_log("%s。T 地圖、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。" % region_name())
 	playlog.write("session_start", {"version": ProjectSettings.get_setting("application/config/version", ""),
@@ -180,6 +183,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	chunk_x.clear()
 	portals = []
 	residents.clear()
+	caches.clear()
 	var tags: Array = []
 	var ropes: Array = []
 	var x := 0.0
@@ -213,7 +217,10 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		for p in info.get("points", {}):
 			points[p] = x + float(info["points"][p])
 		for plat in info.get("platforms", []):
-			_add_platform(x + float(plat["x"]), FLOOR_Y - float(plat["h"]), float(plat["w"]))
+			_add_platform(x + float(plat["x"]), FLOOR_Y - float(plat["h"]), float(plat["w"]), plat.get("skill", ""))
+		for c in info.get("caches", []):
+			if not found_caches().has(c["id"]):
+				_add_cache(c, x)
 		for r in info.get("ropes", []):
 			var rope := {"x": x + float(r["x"]), "top": FLOOR_Y - float(r["top"]),
 				"bottom": FLOOR_Y - float(r.get("bottom", 0)), "kind": r.get("kind", "rope")}
@@ -250,7 +257,8 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 
 
 ## 單向平台：從下面跳得上去，站在上面按 ↓＋跳 下來。邊緣一條墨線（art-direction.md）。
-func _add_platform(left: float, top: float, width: float) -> void:
+## skill 不是空的：要那個身法才上得去，邊緣用淡青色提示。
+func _add_platform(left: float, top: float, width: float, skill := "") -> void:
 	var body := StaticBody2D.new()
 	body.collision_layer = Player.PLATFORM_LAYER
 	body.collision_mask = 0
@@ -267,11 +275,62 @@ func _add_platform(left: float, top: float, width: float) -> void:
 	slab.size = Vector2(width, 14)
 	body.add_child(slab)
 	var edge := ColorRect.new()
-	edge.color = Color("#0e0d0b")
+	edge.color = Color("#9fc4c9") if skill != "" else Color("#0e0d0b")
 	edge.position = Vector2(left, top)
 	edge.size = Vector2(width, 3)
 	body.add_child(edge)
 	level.add_child(body)
+
+
+## 寶物：一個小匣子，靠近按 ↑ 拿，每份存檔只拿一次。
+func _add_cache(c: Dictionary, chunk_left: float) -> void:
+	var view := Node2D.new()
+	view.position = Vector2(chunk_left + float(c["x"]), FLOOR_Y - float(c.get("h", 0)))
+	var box := ColorRect.new()
+	box.color = Color("#b8862b")
+	box.position = Vector2(-12, -16)
+	box.size = Vector2(24, 16)
+	view.add_child(box)
+	level.add_child(view)
+	caches[c["id"]] = {"view": view, "info": c}
+
+
+func found_caches() -> Array:
+	return state.game_data.get("found", [])
+
+
+func nearby_cache() -> String:
+	for id in caches:
+		var pos: Vector2 = caches[id]["view"].position
+		if absf(pos.x - player.position.x) < INTERACT_RANGE and absf(pos.y - player.feet()) < 8.0:
+			return id
+	return ""
+
+
+func open_cache(id: String) -> void:
+	var info: Dictionary = caches[id]["info"]
+	var items: Array = loot.get(info["loot"], {}).get(info.get("tier", "common"), [])
+	for item in items:
+		state.add_item(item)
+	state.game_data["found"] = found_caches() + [id]
+	caches[id]["view"].queue_free()
+	caches.erase(id)
+	add_log("找到%s：%s" % [info.get("name", "藏寶"), "、".join(items)])
+	playlog.write("cache", {"cache": id, "region": state.region})
+	autosave()
+
+
+## 修為或境界到了就領悟身法，並交給玩家角色。讀檔時也會重算。
+func update_movement_skills() -> void:
+	var known: Array = state.game_data.get("movement", [])
+	for skill in Cultivation.MOVEMENT_SKILLS:
+		if not known.has(skill) and Cultivation.knows_movement(skill, state.tier_index, cultivation()):
+			known = known + [skill]
+			var rule: Dictionary = Cultivation.MOVEMENT_SKILLS[skill]
+			add_log("領悟身法：%s（%s）。" % [rule["name"], rule["note"]])
+			playlog.write("movement_skill", {"skill": skill, "tier": state.tier_name()})
+	state.game_data["movement"] = known
+	player.double_jump = known.has("double_jump")
 
 
 func _add_rope_view(rope: Dictionary) -> void:
@@ -382,6 +441,10 @@ func interact() -> bool:
 			add_log("事情還沒了結，走不開。")
 			return true
 		travel_to(portal["to"], true)
+		return true
+	var cache := nearby_cache()
+	if cache != "":
+		open_cache(cache)
 		return true
 	var id := nearby_resident()
 	if id != "":
@@ -654,6 +717,7 @@ func load_game() -> void:
 	if runner == null and save_path != "" and state.load_file(save_path):
 		if not regions.has(state.region):
 			state.region = START_REGION
+		update_movement_skills()
 		go_home()
 		add_log("讀取存檔：第 %d 天，%s。" % [state.day, region_name()])
 
@@ -800,6 +864,7 @@ func gain_cultivation(amount: int) -> void:
 	add_log("修為 +%d（%d／%d）" % [amount, cultivation(), need])
 	if cultivation() >= need and not was_full and state.tier_index + 1 < state.ruleset["tiers"].size():
 		add_log("修為圓滿，可以嘗試突破（B）。")
+	update_movement_skills()
 	prepare_heart_demon()
 
 
@@ -930,6 +995,8 @@ func _update_prompt() -> void:
 		var portal := nearby_portal()
 		if not portal.is_empty():
 			text = "↑ 前往%s" % region_name(portal["to"])
+		elif nearby_cache() != "":
+			text = "↑ 拿取"
 		elif nearby_resident() != "":
 			text = "↑ 交談"
 	prompt_label.text = text
@@ -965,6 +1032,7 @@ func breakthrough() -> void:
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	playlog.write("breakthrough", {"tier": state.tier_name(), "day": state.day})
 	add_log("突破至" + state.tier_name() + "！")
+	update_movement_skills()
 	check_triggers({"type": "tier_up", "to": state.tier_name()})
 	prepare_heart_demon()
 
