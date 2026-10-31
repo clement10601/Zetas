@@ -11,7 +11,8 @@
     ],
     "home": [
       "chunk.sect_gate",
-      "chunk.sect_plaza"
+      "chunk.sect_plaza",
+      "chunk.sect_hall"
     ],
     "spawn": "pt.sect_gate",
     "travel_hours": 1,
@@ -62,7 +63,10 @@
     ],
     "home": [
       "chunk.qingyun_road",
-      "chunk.qingyun_woods"
+      "chunk.qingyun_woods",
+      "chunk.forest_clearing_a",
+      "chunk.ruined_shrine",
+      "chunk.mountain_village"
     ],
     "spawn": "pt.home_start",
     "travel_hours": 1,
@@ -97,6 +101,7 @@
     ],
     "home": [
       "chunk.heifeng_pass",
+      "chunk.demon_den",
       "chunk.heifeng_ravine"
     ],
     "spawn": "pt.pass_start",

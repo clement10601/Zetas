@@ -821,9 +821,15 @@ func test_platforms_and_ropes() -> void:
 	var main: Node = await new_game()
 	var player: CharacterBody2D = main.player
 	var road: Dictionary = main.chunks["chunk.qingyun_road"]
-	expect(main.level.get_children().filter(func(n): return n.is_in_group("platform")).size() ==
-		road["platforms"].size() + main.chunks["chunk.qingyun_woods"]["platforms"].size(), "home map builds its platforms")
-	expect(player.ropes.size() == road["ropes"].size() + main.chunks["chunk.qingyun_woods"]["ropes"].size(), "player knows the ropes")
+	var home: Array = main.regions["region.qingyun_foothills"]["home"]
+	expect(home.size() >= 4, "the foothills home map strings several chunks together")
+	var plats := 0
+	var rope_count := 0
+	for c in home:
+		plats += main.chunks[c].get("platforms", []).size()
+		rope_count += main.chunks[c].get("ropes", []).size()
+	expect(main.level.get_children().filter(func(n): return n.is_in_group("platform")).size() == plats, "home map builds its platforms")
+	expect(player.ropes.size() == rope_count, "player knows the ropes")
 	expect(player.camera.limit_left == -int(main.EDGE_MARGIN) and player.camera.limit_right == int(main.map_width + main.EDGE_MARGIN), "camera stays near the map, with a little misty margin at the ends")
 	# 跳上第一層平台（x 260~440，高 100）
 	player.position = Vector2(350, main.FLOOR_Y - 40)
@@ -848,6 +854,15 @@ func test_platforms_and_ropes() -> void:
 	expect(not player.climbing and player.velocity.x > 0.0, "side jump lets go of the vine")
 	await step(main, {}, 60)
 	expect(player.is_on_floor(), "falls back down")
+	main.build_map([{"chunk": "chunk.heifeng_pass", "order": 0}, {"chunk": "chunk.demon_den", "order": 1}], "pt.pass_start")
+	main._process(0.016)
+	var outside: Color = main.ambience.color
+	main.player.position.x = main.chunk_x["chunk.demon_den"] + 100.0
+	main._process(0.016)
+	expect(main.ambience.color != outside, "walking into the den switches the ambient particles")
+	main.player.position.x = main.chunk_x["chunk.heifeng_pass"] + 100.0
+	main._process(0.016)
+	expect(main.ambience.color == outside, "and back outside switches them back")
 	main.free()
 
 
