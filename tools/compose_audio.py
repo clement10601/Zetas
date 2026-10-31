@@ -236,12 +236,21 @@ def pentatonic(tonic: int, mode: int, lo: int, hi: int) -> list[int]:
 
 
 def melody(rng: np.random.Generator, scale: list[int], tonic: int, bars: int, beats_per_bar: int,
-           rhythm: list[list[float]], leap: float = 0.25) -> list[tuple[float, float, int]]:
-    """隨機漫步旋律，句尾回到主音或五度。回傳 [(起拍, 拍長, midi)]。"""
+           rhythm: list[list[float]], motif: list[tuple[int, float]], leap: float = 0.25) -> list[tuple[float, float, int]]:
+    """隨機漫步旋律，句尾回到主音或五度；每 8 小節的開頭奏一次地區動機。回傳 [(起拍, 拍長, midi)]。"""
     notes = []
-    idx = min(range(len(scale)), key=lambda i: abs(scale[i] - tonic))
+    home = min(range(len(scale)), key=lambda i: abs(scale[i] - tonic))
+    idx = home
     beat = 0.0
     for bar in range(bars):
+        if bar % 8 == 0:
+            # 地區動機（M4）：從主音起算的音階級數與拍長
+            for step, length in motif:
+                idx = int(np.clip(home + step, 0, len(scale) - 1))
+                notes.append((beat, length, scale[idx]))
+                beat += length
+            beat = (bar + 1) * beats_per_bar
+            continue
         pattern = rhythm[rng.integers(len(rhythm))]
         phrase_end = bar % 4 == 3
         for k, length in enumerate(pattern):
@@ -259,6 +268,17 @@ def melody(rng: np.random.Generator, scale: list[int], tonic: int, bars: int, be
             beat += length
         beat = (bar + 1) * beats_per_bar
     return notes
+
+
+def motif_notes(spec: dict, motif: list[tuple[int, float]]) -> list[tuple[float, float, int]]:
+    """把動機換成 [(起拍, 拍長, midi)]，用在短樂句。"""
+    scale = pentatonic(spec["tonic"], spec["mode"], spec["tonic"] - 12, spec["tonic"] + 24)
+    home = scale.index(spec["tonic"])
+    out, beat = [], 0.0
+    for step, length in motif:
+        out.append((beat, length, scale[int(np.clip(home + step, 0, len(scale) - 1))]))
+        beat += length
+    return out
 
 
 def render(events, total: int) -> np.ndarray:
@@ -282,85 +302,229 @@ def loop_fade(x: np.ndarray, seconds: float = 2.5) -> np.ndarray:
     return x
 
 
-def track(name: str, seed: int, seconds: float, bpm: float, tonic: int, mode: int, lead: str,
-          rhythm: list[list[float]], drone_note: int | None, accompany: str, drums: bool = False,
-          bells: bool = False, reverb_s: float = 3.5, wet: float = 0.35) -> np.ndarray:
-    rng = np.random.default_rng(seed)
-    beat_s = 60 / bpm
-    bars = int(seconds / (beat_s * 4))
+def crossfade_loop(x: np.ndarray, seconds: float = 3.0) -> np.ndarray:
+    """環境音無縫循環：尾巴疊回開頭再截掉。"""
+    n = int(seconds * SR)
+    body, tail = x[:-n].copy(), x[-n:]
+    ramp = np.linspace(0, 1, n)
+    body[:n] = body[:n] * ramp + tail * (1 - ramp)
+    return body
+
+
+def ambience(kind: str, seconds: float, rng: np.random.Generator) -> np.ndarray:
+    """底層環境：風、溪水、鳥、蟲。"""
+    n = int((seconds + 3) * SR)
+    t = np.arange(n) / SR
+    gust = 0.55 + 0.45 * np.sin(2 * np.pi * t / 11 + 1) * np.sin(2 * np.pi * t / 4.3)
+    wind = lowpass(rng.standard_normal(n), 380 if kind != "heifeng" else 260) * gust
+    x = wind * (1.6 if kind == "heifeng" else 0.8)
+    if kind in ("foothills", "sect"):
+        # 遠處的鳥：短促上揚的口哨音
+        for _ in range(int(seconds / 5)):
+            s = rng.uniform(0, seconds)
+            d = rng.uniform(0.08, 0.18)
+            m = int(d * SR)
+            tt = np.arange(m) / SR
+            f = rng.uniform(2600, 3800) * (1 + 0.25 * tt / d)
+            chirp = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * tt / d) * 0.05
+            for rep in range(rng.integers(1, 4)):
+                k = int((s + rep * d * 1.6) * SR)
+                if k + m < n:
+                    x[k:k + m] += chirp
+    if kind == "foothills":
+        x += bandpass(rng.standard_normal(n), 900, 5000) * 0.18 * (0.8 + 0.2 * np.sin(2 * np.pi * t / 3.1))
+    if kind == "illusion":
+        # 不穩的低鳴
+        x += np.sin(2 * np.pi * 55 * t * (1 + 0.004 * np.sin(2 * np.pi * 0.13 * t))) * 0.15
+    if kind == "heifeng":
+        x += bandpass(rng.standard_normal(n), 1800, 4000) * 0.05 * (np.sin(2 * np.pi * t / 7) > 0.6)
+    return crossfade_loop(x)
+
+
+## 各區設定：主音、調式、速度、動機（音階級數, 拍長）。各區主音都在 D 宮系的五聲音裡，短樂句不打架。
+REGIONS = {
+    "qingyun_sect": dict(name="青雲宗", seed=11, bpm=62, tonic=62, mode=0, lead="pluck", rhythm="SLOW",
+                         drone=38, accompany="sparse", bells=True, drums=False, reverb_s=4.5, wet=0.42,
+                         ambience="sect", motif=[(0, 1), (2, 1), (3, 2), (2, 2)]),
+    "qingyun_foothills": dict(name="青雲山腳", seed=23, bpm=84, tonic=67, mode=3, lead="flute", rhythm="FLOWING",
+                              drone=None, accompany="arpeggio", bells=False, drums=False, reverb_s=3.0, wet=0.3,
+                              ambience="foothills", motif=[(0, 0.5), (1, 0.5), (2, 1), (4, 1), (3, 1)]),
+    "heifeng_ridge": dict(name="黑風嶺", seed=37, bpm=72, tonic=57, mode=4, lead="pluck", rhythm="TENSE",
+                          drone=33, accompany="pulse", bells=False, drums=True, reverb_s=3.0, wet=0.3,
+                          ambience="heifeng", motif=[(0, 1.5), (-1, 0.5), (-3, 1), (-2, 1)]),
+}
+ILLUSION = dict(name="心魔幻境", seed=53, bpm=54, tonic=64, mode=4, lead="flute", rhythm="SLOW", drone=40,
+                accompany="sparse", bells=True, drums=True, reverb_s=6.0, wet=0.55, ambience="illusion")
+RHYTHMS = {
+    "SLOW": [[2, 2], [1, 1, 2], [3, 1], [1.5, 0.5, 2], [4]],
+    "FLOWING": [[1, 1, 1, 1], [0.5, 0.5, 1, 2], [1, 0.5, 0.5, 2], [2, 1, 1], [1.5, 0.5, 1, 1]],
+    "TENSE": [[1, 1, 2], [0.5, 0.5, 0.5, 0.5, 2], [3, 1], [2, 0.5, 0.5, 1]],
+}
+GAP_SECONDS = 12.0   # 每圈結尾只剩環境的留白（M2）
+
+
+def inverted(motif):
+    """心魔幻境：所在地區動機的倒影（音程上下翻轉）。"""
+    return [(-step, length) for step, length in motif]
+
+
+def layered_track(spec: dict, seconds: float, motif) -> dict:
+    """回傳三層 stem：melody（旋律＋伴奏）、rhythm（鼓、鑼、磬），長度一樣、同步播放；base 另外算。"""
+    rng = np.random.default_rng(spec["seed"])
+    beat_s = 60 / spec["bpm"]
+    tonic, mode = spec["tonic"], spec["mode"]
+    music_s = seconds - GAP_SECONDS
+    bars = int(music_s / (beat_s * 4))
     total = int(seconds * SR)
-    hi_scale = pentatonic(tonic, mode, tonic - 3, tonic + 17)
+    hi_scale = pentatonic(tonic, mode, tonic - 5, tonic + 17)
     lo_scale = pentatonic(tonic - 12, mode, tonic - 17, tonic + 2)
     ev_lead, ev_acc, ev_perc = [], [], []
 
-    # 主旋律：前 2 小節留給伴奏開場
-    for b, length, m in melody(rng, hi_scale, tonic, bars - 3, 4, rhythm):
-        t = (b + 8) * beat_s
+    for b, length, m in melody(rng, hi_scale, tonic, bars - 1, 4, RHYTHMS[spec["rhythm"]], motif):
+        t = b * beat_s
         d = length * beat_s
-        if lead == "flute":
+        if spec["lead"] == "flute":
             ev_lead.append((t, flute(midi(m), d * 0.95 + 0.15, rng) * 0.5))
         else:
             slide = 2.0 if (rng.random() < 0.2 and d > beat_s * 1.4) else 0.0
             ev_lead.append((t, pluck(midi(m), max(d, 1.2) + 1.5, rng, bright=0.45, decay=0.998, slide=slide) * 0.7))
 
-    # 伴奏
     chord_roots = [0, 0, -5, -3] if mode in (0, 3) else [0, -2, -5, 0]
     for bar in range(bars):
-        root = tonic - 12 + chord_roots[bar % 4]
-        root = min(lo_scale, key=lambda m: abs(m - root))
+        root = min(lo_scale, key=lambda m: abs(m - (tonic - 12 + chord_roots[bar % 4])))
         bar_t = bar * 4 * beat_s
-        if accompany == "arpeggio":
-            pats = [root, root + 7, root + 12, root + 7 + 12 if root + 19 <= tonic + 7 else root + 14, root + 12, root + 7]
-            for k, m in enumerate(pats):
+        acc = spec["accompany"]
+        if acc == "arpeggio":
+            for k, m in enumerate([root, root + 7, root + 12, root + 14, root + 12, root + 7]):
                 m = min(lo_scale + hi_scale, key=lambda x: abs(x - m))
                 ev_acc.append((bar_t + k * beat_s * 2 / 3, pluck(midi(m), 2.2, rng, bright=0.3, decay=0.997) * 0.28))
-        elif accompany == "sparse":
+        elif acc == "sparse":
             ev_acc.append((bar_t, pluck(midi(root), 4.0, rng, bright=0.25, decay=0.999) * 0.4))
             if rng.random() < 0.6:
                 ev_acc.append((bar_t + 2 * beat_s, pluck(midi(root + 7), 3.0, rng, bright=0.25, decay=0.999) * 0.25))
-        elif accompany == "pulse":
+        elif acc == "pulse":
             for k in range(4):
                 if k == 0 or rng.random() < 0.4:
                     ev_acc.append((bar_t + k * beat_s, pluck(midi(root), 1.8, rng, bright=0.2, decay=0.995) * 0.35))
-        if drums:
+        if spec["drums"]:
             ev_perc.append((bar_t, frame_drum(1.2, rng, 62) * 0.8))
             ev_perc.append((bar_t + 2.5 * beat_s, frame_drum(1.0, rng, 70) * 0.45))
             if bar % 2 == 1:
                 ev_perc.append((bar_t + 3.5 * beat_s, frame_drum(0.8, rng, 78) * 0.35))
             if bar % 8 == 0:
                 ev_perc.append((bar_t, gong(110, 6.0, rng) * 0.25))
-        if bells and bar % 4 == 0:
+        else:
+            # 沒有鼓的地區：節奏層用木魚與輕手鼓，危險時才進來
+            ev_perc.append((bar_t, frame_drum(0.9, rng, 75) * 0.35))
+            ev_perc.append((bar_t + 2 * beat_s, woodblock(700) * 0.25))
+            if bar % 2 == 1:
+                ev_perc.append((bar_t + 3 * beat_s, woodblock(820) * 0.18))
+        if spec["bells"] and bar % 4 == 0:
             ev_perc.append((bar_t + beat_s * rng.integers(0, 3), bell(midi(tonic + 12), 4.0) * 0.18))
 
-    mix = render(ev_lead, total) + render(ev_acc, total) + render(ev_perc, total)
-    if drone_note is not None:
-        d = drone(midi(drone_note), seconds) * 0.12
-        mix += d[:total]
-    stereo = reverb(mix, reverb_s, wet, rng)
-    stereo = loop_fade(stereo)
-    print(f"  {name}: {bars} 小節、{len(ev_lead)} 個旋律音")
-    return normalize_rms(stereo, -20.0)
+    stems = {
+        "melody": render(ev_lead, total) + render(ev_acc, total),
+        "rhythm": render(ev_perc, total),
+    }
+    out = {}
+    for name, x in stems.items():
+        st = reverb(x, spec["reverb_s"], spec["wet"], np.random.default_rng(spec["seed"] + 1))
+        out[name] = loop_fade(st)
+    return out
 
 
-SLOW = [[2, 2], [1, 1, 2], [3, 1], [1.5, 0.5, 2], [4]]
-FLOWING = [[1, 1, 1, 1], [0.5, 0.5, 1, 2], [1, 0.5, 0.5, 2], [2, 1, 1], [1.5, 0.5, 1, 1]]
-TENSE = [[1, 1, 2], [0.5, 0.5, 0.5, 0.5, 2], [3, 1], [2, 0.5, 0.5, 1]]
+def base_layer(spec: dict, seconds: float) -> np.ndarray:
+    rng = np.random.default_rng(spec["seed"] + 7)
+    x = ambience(spec["ambience"], seconds, rng)
+    if spec["drone"] is not None:
+        t = np.arange(len(x)) / SR
+        d = sum(a * np.sin(2 * np.pi * midi(spec["drone"]) * m * t + m) for m, a in [(1, 1.0), (1.5, 0.35), (2, 0.25)])
+        x = x + d * (0.85 + 0.15 * np.sin(2 * np.pi * t / seconds * 3)) * 0.35
+    return reverb(x, 2.0, 0.2, rng)
+
+
+def mix_level(stems: dict) -> float:
+    """三層合起來調到 -20 dB RMS 要乘的倍數，三層一起乘，比例不變。"""
+    n = min(len(s) for s in stems.values())
+    full = sum(s[:n] for s in stems.values())
+    return 10 ** (-20 / 20) / (np.sqrt(np.mean(full ** 2)) + 1e-9)
+
+
+def limit(x: np.ndarray) -> np.ndarray:
+    return np.tanh(x * 1.1) / np.tanh(1.1) * 0.92
 
 
 def make_music(seconds: float) -> None:
-    print("配樂：")
-    # 青雲宗：清修之地，D 宮調古琴，慢，加磬
-    write_ogg(OUT / "music" / "qingyun_sect.ogg",
-              track("青雲宗", 11, seconds, 62, 62, 0, "pluck", SLOW, 38, "sparse", bells=True, reverb_s=4.5, wet=0.42))
-    # 青雲山腳：村落山道，G 徵調笛子領奏、古箏分解和弦
-    write_ogg(OUT / "music" / "qingyun_foothills.ogg",
-              track("青雲山腳", 23, seconds, 84, 67, 3, "flute", FLOWING, None, "arpeggio", reverb_s=3.0, wet=0.3))
-    # 黑風嶺：A 羽調，低音持續、手鼓與鑼，壓迫
-    write_ogg(OUT / "music" / "heifeng_ridge.ogg",
-              track("黑風嶺", 37, seconds, 72, 57, 4, "pluck", TENSE, 33, "pulse", drums=True, reverb_s=3.0, wet=0.3))
-    # 心魔幻境：E 羽調，笛聲飄忽、低持續音、長殘響
-    write_ogg(OUT / "music" / "illusion.ogg",
-              track("心魔幻境", 53, seconds * 0.75, 54, 64, 4, "flute", SLOW, 40, "sparse", bells=True, reverb_s=6.0, wet=0.55))
+    print("配樂（三層：base 環境＋持續音、melody 琴笛、rhythm 鼓鑼）：")
+    out = OUT / "music"
+    for key, spec in REGIONS.items():
+        stems = layered_track(spec, seconds, spec["motif"])
+        base = base_layer(spec, seconds / 2)
+        g = mix_level({"base": base, **stems})
+        write_ogg(out / f"{key}_base.ogg", limit(base * g), quality=3)
+        for name, x in stems.items():
+            # 節奏層單聲道就夠，檔案小一半
+            write_ogg(out / f"{key}_{name}.ogg", limit((x.mean(axis=1) if name == "rhythm" else x) * g), quality=3)
+        print(f"  {spec['name']}")
+    # 心魔幻境：底層與節奏層共用，旋律用所在地區動機的倒影，各區一版
+    seconds_ill = seconds * 0.75
+    first = None
+    for key, spec in REGIONS.items():
+        stems = layered_track({**ILLUSION, "seed": ILLUSION["seed"] + len(first or {})}, seconds_ill, inverted(spec["motif"]))
+        if first is None:
+            first = stems
+            base = base_layer(ILLUSION, seconds_ill / 2)
+            g = mix_level({"base": base, **stems})
+            write_ogg(out / "illusion_base.ogg", limit(base * g), quality=3)
+            write_ogg(out / "illusion_rhythm.ogg", limit(stems["rhythm"].mean(axis=1) * g), quality=3)
+        write_ogg(out / f"illusion_melody_{key}.ogg", limit(stems["melody"] * g), quality=3)
+    print("  心魔幻境（旋律三版：各區動機倒影）")
+
+
+def make_stingers() -> None:
+    """短樂句（M3）與動機音（M4）：每區用自己的調與動機。遊戲裡對齊配樂拍點再播。"""
+    print("短樂句：")
+    out = OUT / "stingers"
+    specs = {**REGIONS, "illusion": {**ILLUSION, "motif": inverted(REGIONS["qingyun_sect"]["motif"])}}
+    for key, spec in specs.items():
+        rng = np.random.default_rng(spec["seed"] + 100)
+        beat = 60 / spec["bpm"]
+        motif = motif_notes(spec, spec["motif"])
+        lead = (lambda f, d: flute(f, d, rng) * 0.6) if spec["lead"] == "flute" else (lambda f, d: pluck(f, d + 1.5, rng, bright=0.5, decay=0.998))
+
+        def phrase(notes, speed=1.0, octave=0):
+            return [(b * beat * speed, lead(midi(m + octave), max(0.25, l * beat * speed))) for b, l, m in notes]
+
+        def finish(events, seconds, wet=0.4):
+            x = render(events, int(seconds * SR))
+            return normalize(loop_fade(reverb(x, spec["reverb_s"], wet, rng), 0.8), -2.0)
+
+        root = midi(spec["tonic"] - 12)
+        # 事件開始：刮奏上行接動機
+        gl = [(k * 0.04, pluck(midi(m), 1.4, rng, bright=0.6) * 0.4)
+              for k, m in enumerate(pentatonic(spec["tonic"], spec["mode"], spec["tonic"] - 12, spec["tonic"] + 7))]
+        write_ogg(out / f"{key}_event_start.ogg", finish(gl + [(0.45 + s, x) for s, x in phrase(motif, 0.6)], 3.5))
+        # 事件完成：動機慢一點＋主音磬
+        end_t = sum(l for _, l, _ in motif) * beat * 0.8
+        write_ogg(out / f"{key}_event_end.ogg", finish(phrase(motif, 0.8) + [(end_t, bell(midi(spec["tonic"] + 12), 2.5) * 0.6),
+                                                                          (end_t, pluck(root, 3.0, rng, decay=0.999) * 0.6)], end_t + 3.0))
+        # 突破：鑼＋動機高八度＋上行鐘
+        ev = [(0, gong(root, 4.0, rng) * 0.5)] + [(0.3 + s, x) for s, x in phrase(motif, 0.5, 12)]
+        ev += [(1.4 + k * 0.1, bell(midi(m), 2.0, tau=0.9) * 0.35)
+               for k, m in enumerate(pentatonic(spec["tonic"] + 12, spec["mode"], spec["tonic"] + 12, spec["tonic"] + 26))]
+        write_ogg(out / f"{key}_breakthrough.ogg", finish(ev, 4.0))
+        # 傳送／NPC 開口：只奏動機（M4）
+        write_ogg(out / f"{key}_motif.ogg", finish(phrase(motif, 0.5), sum(l for _, l, _ in motif) * beat * 0.5 + 1.8, 0.3))
+    # 心魔現身：低鑼＋倒影動機＋不協和磬
+    spec = specs["illusion"]
+    rng = np.random.default_rng(999)
+    beat = 60 / spec["bpm"]
+    ev = [(0, gong(midi(spec["tonic"] - 24), 4.5, rng) * 0.7), (0, frame_drum(1.5, rng, 50))]
+    ev += [(0.6 + b * beat * 0.6, flute(midi(m - 12), l * beat * 0.6 + 0.2, rng) * 0.5) for b, l, m in motif_notes(spec, spec["motif"])]
+    ev += [(1.8, bell(midi(spec["tonic"] + 1), 2.5) * 0.3)]
+    x = render(ev, int(4.5 * SR))
+    write_ogg(out / "heart_demon.ogg", normalize(loop_fade(reverb(x, 5.0, 0.5, rng), 0.8), -2.0))
+    print("  各區 event_start、event_end、breakthrough、motif；heart_demon")
 
 
 # ---------- 音效 ----------
@@ -466,13 +630,15 @@ def make_sfx() -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", choices=["music", "sfx"])
+    ap.add_argument("--only", choices=["music", "sfx", "stingers"])
     ap.add_argument("--seconds", type=float, default=96)
     args = ap.parse_args()
-    if args.only != "sfx":
+    if args.only in (None, "music"):
         make_music(args.seconds)
-    if args.only != "music":
+    if args.only in (None, "sfx"):
         make_sfx()
+    if args.only is None or args.only == "stingers":
+        make_stingers()
 
 
 if __name__ == "__main__":
