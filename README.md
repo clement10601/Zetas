@@ -41,12 +41,13 @@ export ZEWORLD_ANTHROPIC_API_KEY=...   # Claude API 金鑰，只放環境變數�
 python -m director serve --game ../zeworld.json
 ```
 
-預設導演用 claude-opus-5-5、即時台詞用 claude-haiku-5-5。也可以改接 OpenAI 相容端點，見 [ZeWorld README](engine/README.md)。
+預設導演用 claude-opus-5-5、即時台詞用 claude-sonnet-5-5（實測 Haiku 會混簡體字）。也可以改接 OpenAI 相容端點，見 [ZeWorld README](engine/README.md)。
 
 沒有模型也能試流程：`python -m director serve --game ../zeworld.json --fake-pack ../tests/fixtures/director_zhenyao_grudge.json --fake-line "恩公，又見面了。"`
 
 - 事件結局的 `request_followup` 會送給導演；導演產出的內容包通過驗證後存到 `user://generated`，等滿 `after_days` 天、條件成立就觸發。
 - 標了 `live_rewrite` 的台詞先顯示預寫版，導演改寫好就替換；玩家已翻頁就不換。
+- 用真模型實測導演（會花 API 額度）：`cd engine && python -m director.bench --game ../zeworld.json --scenarios ../tests/director/scenarios.json --out /tmp/bench`。情境是白狐報恩三種結局之後的後續，加一個沒有後續請求的新事件。
 - 導演只能用 `zeworld.json` 列出的資料：`content/chunks.json`、`content/actors.json`、`content/loot.json`、`content/ruleset.json`，風格依 `content/style.md`。
 
 ## 目錄
