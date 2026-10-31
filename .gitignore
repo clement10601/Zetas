@@ -2,3 +2,4 @@
 addons/zeworld/
 __pycache__/
 *.import
+build/

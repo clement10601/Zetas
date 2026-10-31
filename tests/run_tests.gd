@@ -28,6 +28,7 @@ func _run() -> void:
 	await test_cultivation()
 	await test_combat()
 	await test_art_and_placeholders()
+	await test_playlog()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -40,8 +41,9 @@ func expect(ok: bool, what: String) -> void:
 
 
 ## 測試預設不讀寫存檔、不連導演，避免互相影響。
-func new_game(director := false, save := "", assets := "") -> Node:
+func new_game(director := false, save := "", assets := "", playlog := "") -> Node:
 	var main: Node = load("res://scenes/main.tscn").instantiate()
+	main.playlog_path = playlog
 	if assets != "":
 		main.assets_path = assets
 	main.save_path = save
@@ -403,3 +405,30 @@ func test_art_and_placeholders() -> void:
 	main.free()
 	for n in ["fox.png", "road.png", "assets.json"]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(dir.path_join(n)))
+
+
+func test_playlog() -> void:
+	var path := "user://zetas_test_playlog.jsonl"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	var main: Node = await new_game(false, "", "", path)
+	main.spare_fox()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	for i in 3:
+		main.advance_dialogue()  # 立刻翻頁：三句都算跳過
+	main.choose_visible(1)
+	main.advance_dialogue()
+	main._notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	main.free()
+	var rows: Array = []
+	for line in FileAccess.get_file_as_string(path).split("\n", false):
+		rows.append(JSON.parse_string(line))
+	var events := rows.map(func(r): return r["event"])
+	expect(events == ["session_start", "pack_start", "pack_end", "session_end"], "playlog events in order: %s" % [events])
+	var end: Dictionary = rows[2]
+	expect(end["pack"] == "pack.fox_repays_kindness.s001" and end["result"] == "abandon", "pack end records the result")
+	expect(end["lines"] >= 4 and end["skipped"] == 3, "lines shown and quick page turns counted")
+	expect(rows.all(func(r): return r["session"] == rows[0]["session"]), "one session id per run")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
