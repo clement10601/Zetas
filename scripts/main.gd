@@ -7,7 +7,8 @@
 ## J 攻擊，敵人近身會傷人，血量歸零就重傷倒地（事件以失敗結算）。M 打坐增加修為、回滿血，
 ## 修為圓滿後按 B 突破境界。
 ## 除錯鍵用來快速製造觸發條件：F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、
-## F6 請導演生成一個新事件、F5 存檔、F9 讀檔。
+## F6 請導演生成一個新事件、F5 存檔、F9 讀檔。N 開關配樂。
+## 配樂與音效見 scripts/audio.gd、content/audio.json。
 ## 導演服務沒開時一切照常，只是不會有新事件與即時台詞。
 extends Node2D
 
@@ -20,6 +21,7 @@ const AssetLibrary = preload("res://addons/zeworld/asset_library.gd")
 const Player = preload("res://scripts/player.gd")
 const Cultivation = preload("res://scripts/cultivation.gd")
 const Playlog = preload("res://scripts/playlog.gd")
+const GameAudio = preload("res://scripts/audio.gd")
 
 const FLOOR_Y := 560.0
 const START_REGION := "region.qingyun_foothills"
@@ -63,6 +65,9 @@ var encounter_chance := 0.5
 var heart_demon_pending := ""     # 已請導演準備心魔、還沒回來的境界
 var encounter_pending := false
 var director
+## 配樂與音效；測試時 audio_settings_path 設空字串，不寫設定檔
+var audio
+var audio_settings_path := "user://audio.cfg"
 
 var state
 var pool: Array = []
@@ -112,9 +117,13 @@ func _ready() -> void:
 		if runner != null:
 			runner.apply_rewrite(node_id, text))
 	_build_hud()
+	audio = GameAudio.new()
+	audio.settings_path = audio_settings_path
+	add_child(audio)
 	player = Player.new()
 	add_child(player)
 	player.set_look(art.texture("player.disciple"), float(art.info("player.disciple").get("height", 88)))
+	player.sound.connect(func(n): audio.play(n))
 	if save_path != "" and state.load_file(save_path):
 		add_log("讀取存檔：第 %d 天。" % state.day)
 	if not regions.has(state.region):
@@ -329,6 +338,8 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	level.add_child(ground)
 	map_width = x
 	state.map_tags = tags
+	if audio != null:
+		audio.play_music(audio.music_key(state.region, tags))
 	player.ropes = ropes
 	player.floor_y = FLOOR_Y
 	player.set_camera_limits(0.0, x, FLOOR_Y - 640.0, FLOOR_Y + 160.0)
@@ -416,6 +427,7 @@ func open_cache(id: String) -> void:
 	caches[id]["view"].queue_free()
 	caches.erase(id)
 	add_log("找到%s：%s" % [info.get("name", "藏寶"), "、".join(items)])
+	audio.play("reward")
 	playlog.write("cache", {"cache": id, "region": state.region})
 	autosave()
 
@@ -607,6 +619,7 @@ func travel_to(id: String, by_portal := false) -> bool:
 	var new_day := advance_time(int(regions[id].get("travel_hours", 1)))
 	var from: String = state.region
 	state.region = id
+	audio.play("travel")
 	go_home()
 	if by_portal:
 		for p in portals:
@@ -681,6 +694,7 @@ func check_triggers(event: Dictionary) -> void:
 
 func start_pack(pack: Dictionary) -> void:
 	add_log("【%s】%s" % [pack["meta"]["title"], pack["meta"]["summary"]])
+	audio.play("event_start")
 	pack_stats = {"started": Time.get_ticks_msec(), "lines": 0, "skipped": 0, "rewritten": 0}
 	playlog.write("pack_start", {"pack": pack["id"], "title": pack["meta"]["title"], "author": pack["meta"].get("author", ""),
 		"request_tag": pack["meta"].get("request_tag", ""), "region": state.region, "day": state.day, "tier": state.tier_name()})
@@ -713,6 +727,7 @@ func _on_pack_finished(result: String) -> void:
 	var title: String = runner.pack["meta"]["title"]
 	var had_map: bool = runner.pack.has("map")
 	add_log("【%s】結束：%s" % [title, {"complete": "完成", "fail": "失敗", "abandon": "放棄"}[result]])
+	audio.play("event_end")
 	for f in state.followups:
 		if f["from_pack"] == runner.pack["id"]:
 			add_log("（交給導演的後續：%s）" % f["hint"])
@@ -921,6 +936,7 @@ func _on_reward(effect: Dictionary) -> void:
 		for item in items:
 			state.add_item(item)
 		add_log("獲得：" + "、".join(items))
+		audio.play("reward")
 	elif effect["type"] == "grant_exp":
 		gain_cultivation(int(Cultivation.EXP_REWARD.get(effect["amount"], 0)))
 
@@ -975,6 +991,7 @@ func advance_dialogue() -> void:
 		_hide_dialogue()
 	elif runner != null and runner.current_node != "":
 		_note_skip()
+		audio.play("ui_tick")
 		runner.advance()
 
 
@@ -988,6 +1005,7 @@ func _note_skip() -> void:
 
 func choose_visible(i: int) -> void:
 	if runner != null and i < current_choices.size():
+		audio.play("ui_tick")
 		runner.choose(current_choices[i]["index"])
 
 
@@ -1019,6 +1037,7 @@ func meditate() -> void:
 	var gain: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
 	var new_day := advance_time(1)
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
+	audio.play("meditate")
 	add_log("打坐一個時辰。（第 %d 天・%s）" % [state.day, state.time_of_day])
 	gain_cultivation(gain)
 	if new_day:
@@ -1053,6 +1072,7 @@ func attack() -> void:
 	if attack_cooldown > 0.0:
 		return
 	attack_cooldown = ATTACK_COOLDOWN
+	audio.play("attack")
 	for id in actor_views.keys():
 		var view: Node2D = actor_views[id]
 		if view.get_meta("hostile") and absf(view.position.x - player.position.x) <= ATTACK_RANGE and player_near_ground():
@@ -1067,8 +1087,10 @@ func damage_actor(id: String, amount: int) -> void:
 	if not actor_views.has(id):
 		return
 	actor_hp[id] -= amount
+	audio.play("hit")
 	add_log("擊中 %s（剩 %d）" % [actor_label(id), maxi(0, actor_hp[id])])
 	if actor_hp[id] <= 0:
+		audio.play("defeat")
 		_remove_actor_view(id)
 		gain_cultivation(Cultivation.kill_exp(float(actor_power.get(id, 1.0))))
 		if runner != null:
@@ -1085,6 +1107,7 @@ func actor_label(id: String) -> String:
 
 func damage_player(amount: int) -> void:
 	state.game_data["hp"] = maxi(0, hp() - amount)
+	audio.play("hurt")
 	if hp() == 0:
 		player_down()
 
@@ -1175,6 +1198,7 @@ func breakthrough() -> void:
 	state.tier_index += 1
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	playlog.write("breakthrough", {"tier": state.tier_name(), "day": state.day})
+	audio.play("breakthrough")
 	add_log("突破至" + state.tier_name() + "！")
 	update_movement_skills()
 	check_triggers({"type": "tier_up", "to": state.tier_name()})
@@ -1224,6 +1248,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			request_fresh_event()
 		KEY_F9:
 			load_game()
+		KEY_N:
+			add_log("配樂：" + ("開" if audio.toggle_music() else "關"))
 	_refresh_status()
 
 
