@@ -4,6 +4,7 @@ import math
 import numpy as np
 from PIL import Image
 
+from . import paintings as P
 from . import scenery as S
 from .ink import INK, Canvas, chaikin, mix, seed_of
 
@@ -11,16 +12,21 @@ RED = (178, 30, 36)
 BLOOD = (150, 16, 24)
 
 
-def base(cid, w, theme, far_peaks=None, mid_peaks=None, far_amp=90, mid_amp=70, mist_y=470):
+def base(cid, w, theme):
+    """古畫底圖（paintings.py）調色後鋪滿畫布；沒有對應古畫的區塊才用程式畫的天與山。"""
     cv = Canvas(w, 600, seed_of(cid))
+    img = P.crop(cid, w)
+    if img is not None:
+        arr = np.asarray(P.grade(img, theme).resize((cv.W, cv.H), Image.BICUBIC), np.float32) / 255
+        cv.prgb[:] = arr
+        cv.a[:] = 1
+        return cv
     S.sky(cv, theme, S.ILLUSION_EDGE if theme == "illusion" else S.EDGE_SKY)
     t = S.THEMES[theme]
-    far = S.ridge(cv, S.EDGE_FAR, far_amp, 160, S.EDGE_FAR, far_peaks)
-    S.mountains(cv, far, t["far"], 0.45, mist=160)
+    S.mountains(cv, S.ridge(cv, S.EDGE_FAR, 90, 160, S.EDGE_FAR), t["far"], 0.45, mist=160)
     S.mist(cv, 400, 50, (230, 228, 216) if theme != "illusion" else (120, 30, 34), 0.45)
-    mid = S.ridge(cv, S.EDGE_MID, mid_amp, 120, S.EDGE_MID, mid_peaks)
-    S.mountains(cv, mid, t["mid"], 0.55, mist=120, ink_edge=2.2, cuns=int(w / 40))
-    S.mist(cv, mist_y, 40, (236, 232, 220) if theme != "illusion" else (110, 24, 28), 0.5)
+    S.mountains(cv, S.ridge(cv, S.EDGE_MID, 70, 120, S.EDGE_MID), t["mid"], 0.55, mist=120, ink_edge=2.2, cuns=int(w / 40))
+    S.mist(cv, 470, 40, (236, 232, 220) if theme != "illusion" else (110, 24, 28), 0.5)
     return cv
 
 
@@ -43,9 +49,12 @@ def edge_profile(family):
             colors = [S.THEMES["illusion"]["far"], S.THEMES["illusion"]["mid"]]
             mist_c = (110, 24, 28)
         else:
-            S.sky(cv, "forest", S.EDGE_SKY)
-            colors = [tuple(np.mean([S.THEMES[t][k] for t in ("forest", "sect", "mountain")], 0)) for k in ("far", "mid")]
-            mist_c = (236, 232, 220)
+            # 古畫都畫在紙絹上：兩端收斂到紙色，接縫看起來像卷軸接紙
+            cv.prgb[:] = np.array(S.EDGE_SKY, np.float32) / 255
+            cv.a[:] = 1
+            S.ground_strip(cv, "forest", with_grass=False)
+            _PROFILES[family] = np.asarray(cv.image(), np.float32)[:, 16:48].mean(1)
+            return _PROFILES[family]
         S.mountains(cv, np.full(64, float(S.EDGE_FAR)), colors[0], 0.45, mist=160)
         S.mist(cv, 400, 50, mist_c, 0.45)
         S.mountains(cv, np.full(64, float(S.EDGE_MID)), colors[1], 0.55, mist=120)
@@ -69,39 +78,19 @@ def blend_edges(img, family, fade=56):
 # ---------- 青雲山腳（forest） ----------
 
 def qingyun_road(cid, w, name):
-    cv = base(cid, w, "forest", far_peaks=[(w * 0.7, 120, 90)])
-    S.pagoda(cv, w * 0.72, 300, 110, (90, 100, 104), 0.45)
-    for x, h in [(120, 260), (260, 200), (820, 280)]:
-        S.pine(cv, x, 600, h, lean=cv.rng.uniform(-0.5, 0.5))
-    S.leafy_tree(cv, 470, 600, 170, INK, (60, 84, 64))
-    S.rock(cv, 380, 600, 90, 50, (120, 130, 120))
-    S.rock(cv, 700, 600, 60, 34, (120, 130, 120))
+    cv = base(cid, w, "forest")
     return finish(cv, name, "forest")
 
 
 def qingyun_woods(cid, w, name):
-    cv = base(cid, w, "forest", mid_amp=40, mist_y=440)
-    t = S.THEMES["forest"]
-    for x in np.linspace(80, w - 80, 9):
-        S.pine(cv, x + cv.rng.uniform(-30, 30), 560, cv.rng.uniform(220, 300), color=mix(t["mid"], (230, 228, 216), 0.35), alpha=0.5)
-    S.mist(cv, 520, 40, (236, 232, 220), 0.6)
-    for x in [90, 330, 560, 880]:
-        S.pine(cv, x, 600, cv.rng.uniform(300, 380), lean=cv.rng.uniform(-0.4, 0.4))
-    S.bamboo(cv, 450, 600, 330, (50, 70, 52), 0.8, lean=0.02)
-    S.bamboo(cv, 475, 600, 300, (50, 70, 52), 0.7, lean=-0.03)
-    S.bamboo(cv, 760, 600, 320, (50, 70, 52), 0.75, lean=0.01)
+    cv = base(cid, w, "forest")
+    S.mist(cv, 540, 40, (236, 232, 220), 0.45)
     return finish(cv, name, "forest")
 
 
 def forest_clearing_a(cid, w, name):
-    cv = base(cid, w, "forest", far_peaks=[(w * 0.35, 90, 120)], mid_amp=40)
-    S.moon(cv, w * 0.55, 120, 34, (246, 240, 222), 0.8, halo=(255, 250, 230))
-    for x in [100, 220, 900, 1000]:
-        S.leafy_tree(cv, x, 600, cv.rng.uniform(180, 240), INK, (58, 86, 66))
-    S.rock(cv, 560, 600, 140, 60, (130, 136, 124))
-    S.grass(cv, 420, 700, 600, 0.5, INK, 0.6, 30)
-    # 林中一道光
-    cv.paint(cv.vgrad(cv.poly([(480, 0), (620, 0), (700, 600), (420, 600)], blur=30), 0, 600, 0.35, 0.0), (255, 248, 220), 0.6, "screen")
+    cv = base(cid, w, "forest")
+    S.moon(cv, w * 0.5, 70, 26, (246, 240, 222), 0.75, halo=(255, 250, 230))
     return finish(cv, name, "forest")
 
 
@@ -121,82 +110,65 @@ def mountain_cave(cid, w, name):
 
 
 def ruined_shrine(cid, w, name):
-    cv = base(cid, w, "forest", mid_amp=50)
-    S.moon(cv, w * 0.3, 110, 28, (240, 232, 210), 0.7)
-    S.dead_tree(cv, 140, 600, 280)
-    # 傾頹的廟
-    S.hall(cv, 560, 600, 300, 260, wall=(170, 160, 140), pillar=(110, 70, 50), roof_c=(60, 58, 52), text="山神")
-    cv.paint(cv.textured(cv.poly([(620, 370), (700, 350), (715, 395), (640, 410)], blur=2), 0.6), (200, 196, 180), 0.8)
-    cv.stroke([(620, 370), (660, 400), (700, 352)], 2, INK, 0.7, dry=0.6)
-    S.rock(cv, 360, 600, 70, 30, (120, 120, 110))
-    S.leafy_tree(cv, 860, 600, 200, INK, (70, 80, 64))
-    for x in range(420, 720, 30):
+    cv = base(cid, w, "forest")
+    S.mist(cv, 560, 50, (236, 232, 220), 0.55)
+    S.dead_tree(cv, 140, 600, 260)
+    S.hall(cv, 560, 600, 280, 240, wall=(170, 160, 140), pillar=(110, 70, 50), roof_c=(60, 58, 52), text="山神")
+    cv.paint(cv.textured(cv.poly([(620, 380), (690, 362), (705, 400), (640, 414)], blur=2), 0.6), (200, 196, 180), 0.8)
+    cv.stroke([(620, 380), (660, 404), (692, 364)], 2, INK, 0.7, dry=0.6)
+    for x in range(430, 700, 30):
         S.grass(cv, x, x + 20, 600, 0.6, INK, 0.7, 34)
     return finish(cv, name, "forest")
 
 
 def mountain_village(cid, w, name):
-    cv = base(cid, w, "forest", far_peaks=[(w * 0.8, 100, 140)], mid_amp=50)
-    for cx, hw in [(240, 190), (520, 160), (850, 200)]:
+    cv = base(cid, w, "forest")
+    S.mist(cv, 560, 50, (236, 232, 220), 0.55)
+    for cx, hw in [(240, 170), (520, 140), (850, 180)]:
         S.house(cv, cx, 600, hw, hw * 0.9, lantern=cx == 520)
-    S.leafy_tree(cv, 380, 600, 220, INK, (66, 90, 60))
-    S.leafy_tree(cv, 1000, 600, 180, INK, (66, 90, 60))
-    # 籬笆
     for x in range(640, 740, 14):
         cv.stroke([(x, 600), (x + 1, 570)], 3, (90, 70, 50), 0.9, smooth=0)
     cv.stroke([(636, 582), (744, 580)], 2.5, (90, 70, 50), 0.9)
-    # 炊煙
-    pts = [(560 + math.sin(i * 0.6) * 12 + i * 4, 440 - i * 16) for i in range(12)]
+    pts = [(560 + math.sin(i * 0.6) * 12 + i * 4, 450 - i * 16) for i in range(12)]
     cv.stroke(pts, 9, (200, 200, 196), 0.35, taper=(0.1, 0.9), dry=0.5)
     return finish(cv, name, "forest")
 
 
-# ---------- 青雲宗（sect） ----------
-
 def sect_gate(cid, w, name):
-    cv = base(cid, w, "sect", far_peaks=[(w * 0.6, 160, 110), (w * 0.25, 100, 80)], mid_amp=60)
-    S.cloud_scroll(cv, w * 0.3, 150, 1.6, (250, 250, 246), 0.6)
-    S.cloud_scroll(cv, w * 0.75, 110, 1.2, (250, 250, 246), 0.5)
-    S.hall(cv, w * 0.8, 400, 150, 130, roof_c=(70, 84, 96), alpha=0.55, tiers=2)
-    # 石階往上
+    cv = base(cid, w, "sect")
+    S.mist(cv, 580, 60, (234, 230, 214), 0.6)
     for k in range(10):
         y = 600 - k * 14
-        cv.paint(cv.rect(560 - 90 + k * 6, y - 14, 560 + 90 - k * 6, y, blur=0.5), (170, 168, 160), 0.85)
+        cv.paint(cv.rect(560 - 90 + k * 6, y - 14, 560 + 90 - k * 6, y, blur=0.5), (170, 168, 160), 0.9)
         cv.stroke([(560 - 90 + k * 6, y - 14), (560 + 90 - k * 6, y - 14)], 1.5, INK, 0.5, smooth=0)
     S.paifang(cv, 560, 600, 300, 340, "青雲")
-    S.pine(cv, 330, 600, 280, lean=-0.4)
-    S.pine(cv, 800, 600, 250, lean=0.4)
     return finish(cv, name, "sect")
 
 
 def sect_plaza(cid, w, name):
-    cv = base(cid, w, "sect", far_peaks=[(w * 0.5, 120, 160)], mid_amp=40)
-    S.cloud_scroll(cv, w * 0.2, 130, 1.3, (250, 250, 246), 0.55)
-    cv.paint(cv.textured(cv.rect(w * 0.5 - 230, 468, w * 0.5 + 230, 502, blur=0.6), 0.4, "cloud"), (160, 158, 150), 0.95)
-    cv.stroke([(w * 0.5 - 230, 468), (w * 0.5 + 230, 468)], 2, INK, 0.6, smooth=0)
-    S.hall(cv, w * 0.5, 470, 360, 230, roof_c=(60, 74, 88), text="演武", tiers=2)
-    # 石板地的透視線
-    for k in range(-8, 9):
-        cv.stroke([(w * 0.5 + k * 30, 500), (w * 0.5 + k * 90, 600)], 1, INK, 0.18, smooth=0, taper=(0.02, 0.02))
-    for y in (520, 548, 580):
-        cv.stroke([(60, y), (w - 60, y)], 1, INK, 0.15, smooth=0)
+    cv = base(cid, w, "sect")
+    # 石板地：從畫的下緣鋪出一片演武場
+    m = cv.vgrad(cv.rect(-5, 480, w + 5, 605, blur=8), 480, 520, 0.0, 1.0)
+    cv.paint(cv.textured(m, 0.4, "cloud"), (176, 172, 160), 0.92)
+    for k in range(-9, 10):
+        cv.stroke([(w * 0.5 + k * 34, 505), (w * 0.5 + k * 90, 600)], 1, INK, 0.2, smooth=0, taper=(0.02, 0.02))
+    for y in (528, 556, 586):
+        cv.stroke([(60, y), (w - 60, y)], 1, INK, 0.16, smooth=0)
     S.cauldron(cv, w * 0.5, 590, 34)
-    S.stele(cv, 190, 600, 70, 200, "道", glow=None)
-    # 木人樁
+    S.stele(cv, 190, 600, 70, 200, "道")
     for x in (850, 950):
         cv.stroke([(x, 600), (x, 470)], 12, (110, 80, 54), 0.95, taper=(0.02, 0.05), smooth=0)
         for y in (500, 530):
             cv.stroke([(x - 26, y), (x + 26, y + 4)], 6, (110, 80, 54), 0.95, smooth=0)
         cv.stroke([(x - 6, 600), (x - 6, 470)], 2, INK, 0.6, smooth=0)
-    S.pine(cv, 330, 600, 230, lean=-0.3)
     return finish(cv, name, "sect")
 
 
 def sect_hall(cid, w, name):
-    cv = base(cid, w, "sect", mid_amp=30)
-    S.hall(cv, w * 0.55, 600, 560, 440, roof_c=(56, 68, 80), text="傳功殿")
-    S.pine(cv, 110, 600, 300, lean=-0.3)
-    S.cauldron(cv, w * 0.55, 600, 28)
+    cv = base(cid, w, "sect")
+    S.mist(cv, 590, 60, (234, 230, 214), 0.6)
+    S.hall(cv, w * 0.5, 600, 520, 420, roof_c=(56, 68, 80), text="傳功殿")
+    S.cauldron(cv, w * 0.5, 600, 28)
     return finish(cv, name, "sect")
 
 
@@ -242,41 +214,35 @@ def wind(cv, n, color=(250, 246, 236), alpha=0.35):
 
 
 def heifeng_pass(cid, w, name):
-    cv = base(cid, w, "mountain", far_peaks=[(w * 0.4, 150, 80), (w * 0.75, 110, 70)], mid_amp=110)
-    wind(cv, 8)
-    for x in (180, 620):
-        S.dead_tree(cv, x, 600, cv.rng.uniform(200, 260), INK)
-    S.rock(cv, 400, 600, 180, 110, (90, 84, 76))
-    S.rock(cv, 860, 600, 120, 80, (90, 84, 76))
+    cv = base(cid, w, "mountain")
+    wind(cv, 9)
     S.stele(cv, 760, 600, 40, 110, "險", stone=(120, 116, 106))
     return finish(cv, name, "mountain")
 
 
 def heifeng_ravine(cid, w, name):
-    cv = base(cid, w, "mountain", far_amp=60, mid_amp=40, mist_y=420)
+    cv = base(cid, w, "mountain")
     t = S.THEMES["mountain"]
-    # 兩側斷崖
+    # 兩側斷崖把畫框成一道谷
     for side in (0, 1):
         x0 = 60 if side == 0 else w - 60
         sgn = 1 if side == 0 else -1
         ys = np.linspace(-10, 600, 34)
-        edge = [(x0 + sgn * (240 + 50 * math.sin(y / 40) + cv.rng.uniform(-10, 10)), y) for y in ys]
+        edge = [(x0 + sgn * (190 + 40 * math.sin(y / 40) + cv.rng.uniform(-10, 10)), y) for y in ys]
         outer = [(x0 - sgn * 200, 600), (x0 - sgn * 200, -10)]
-        cv.wash(edge + outer, mix(t["mid"], INK, 0.2), 0.9, blur=2, tex=0.5, mode="over")
+        cv.wash(edge + outer, mix(t["mid"], INK, 0.2), 0.92, blur=2, tex=0.5, mode="over")
         cv.stroke(edge, 4, INK, 0.85, dry=0.5)
         for _ in range(16):
             y = cv.rng.uniform(100, 560)
-            x = x0 + sgn * cv.rng.uniform(40, 220)
+            x = x0 + sgn * cv.rng.uniform(40, 180)
             cv.stroke([(x, y), (x - sgn * 10, y + 20), (x - sgn * 14, y + 40)], 2, INK, 0.45, dry=0.6)
-    # 谷底雲霧與吊橋殘索
-    S.mist(cv, 560, 60, (220, 214, 200), 0.75)
-    xs = np.linspace(300, w - 300, 30)
-    cv.stroke([(x, 250 + 60 * math.sin((x - 300) / (w - 600) * math.pi)) for x in xs[:18]], 2, (80, 60, 40), 0.85)
-    cv.stroke([(w - 300, 250), (w - 340, 300), (w - 350, 360)], 2, (80, 60, 40), 0.8)
-    for x in xs[:18:2]:
-        y = 250 + 60 * math.sin((x - 300) / (w - 600) * math.pi)
+    S.mist(cv, 560, 60, (220, 214, 200), 0.7)
+    xs = np.linspace(250, w - 250, 30)
+    bridge = [(x, 250 + 60 * math.sin((x - 250) / (w - 500) * math.pi)) for x in xs[:18]]
+    cv.stroke(bridge, 2, (80, 60, 40), 0.85)
+    cv.stroke([(w - 250, 250), (w - 290, 300), (w - 300, 360)], 2, (80, 60, 40), 0.8)
+    for x, y in bridge[::2]:
         cv.stroke([(x - 8, y + 4), (x + 8, y + 4)], 4, (100, 76, 50), 0.9, smooth=0)
-    S.dead_tree(cv, 200, 300, 120)
     return finish(cv, name, "mountain")
 
 
@@ -299,24 +265,6 @@ def demon_den(cid, w, name):
 
 # ---------- 心魔幻境（illusion） ----------
 
-def illusion_base(cid, w):
-    cv = Canvas(w, 600, seed_of(cid))
-    S.sky(cv, "illusion", S.ILLUSION_EDGE)
-    t = S.THEMES["illusion"]
-    far = S.ridge(cv, S.EDGE_FAR, 120, 90, S.EDGE_FAR)
-    S.mountains(cv, far, t["far"], 0.7, mist=200, cuns=0)
-    return cv
-
-
-def tilted_ridge(cv, y0, slope, amp, color, alpha):
-    w = cv.w
-    xs = np.arange(w)
-    y = y0 + slope * (xs - w / 2) - amp * cv.rng.random() * 0 - amp * S.fbm1d(w, 70, cv.rng, 5)
-    ew = S.edge_weight(w)
-    y = y * ew + S.EDGE_MID * (1 - ew)
-    S.mountains(cv, y, color, alpha, mist=160, ink_edge=3)
-
-
 def shards(cv, n):
     """幻境裡飄浮的碎片：尖角三角形，一邊描紅。"""
     for _ in range(n):
@@ -329,19 +277,16 @@ def shards(cv, n):
 
 
 def illusion_entry(cid, w, name):
-    cv = illusion_base(cid, w)
+    cv = base(cid, w, "illusion")
     S.moon(cv, w * 0.5, 170, 60, (210, 40, 40), 0.9, halo=(255, 60, 50))
-    tilted_ridge(cv, 430, 0.12, 80, (20, 6, 8), 0.85)
-    S.glyph_ring(cv, w * 0.5, 400, 150, "心魔劫幻妄執貪嗔", (240, 80, 70), 0.85, size=30)
+    S.glyph_ring(cv, w * 0.5, 420, 150, "心魔劫幻妄執貪嗔", (240, 80, 70), 0.85, size=30)
     shards(cv, 10)
     return finish(cv, name, "illusion")
 
 
 def illusion_qingyun_town(cid, w, name):
-    cv = illusion_base(cid, w)
+    cv = base(cid, w, "illusion")
     S.moon(cv, w * 0.8, 120, 46, (210, 40, 40), 0.9, halo=(255, 60, 50))
-    tilted_ridge(cv, 440, -0.08, 60, (30, 8, 10), 0.8)
-    # 歪斜錯位的鎮子：紙色退成灰紅
     for i, (cx, hw, sk) in enumerate([(160, 170, 0.12), (380, 200, -0.08), (620, 180, 0.15), (850, 190, -0.12)]):
         S.house(cv, cx, 600 - (i % 2) * 6, hw, hw * 0.95, thatch=(60, 30, 30), wall=(120, 70, 70), lantern=True, skew=sk)
     S.lantern_string(cv, 220, 780, 300, 6)
@@ -350,9 +295,8 @@ def illusion_qingyun_town(cid, w, name):
 
 
 def illusion_arena(cid, w, name):
-    cv = illusion_base(cid, w)
+    cv = base(cid, w, "illusion")
     S.moon(cv, w * 0.5, 210, 110, (190, 24, 30), 0.95, halo=(255, 60, 50))
-    # 血月台：圓形石台
     cv.paint(cv.ellipse(w * 0.5, 560, 330, 50, blur=2), (40, 10, 12), 0.95)
     cv.paint(cv.ellipse(w * 0.5, 548, 320, 44, blur=2), (80, 24, 26), 0.95)
     cv.stroke([(w * 0.5 + 320 * math.cos(a), 548 + 44 * math.sin(a)) for a in np.linspace(0, 2 * math.pi, 90)], 3, INK, 0.85, taper=(0.01, 0.01))

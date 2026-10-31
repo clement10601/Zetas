@@ -30,6 +30,8 @@
 - 這是先讓遊戲有統一畫風的底稿，不是定稿。手繪或其他來源的圖直接覆蓋同名檔即可；覆蓋之後不要再跑 `--all`。
 - 新增角色模板：在 `tools/inkpaint/sprites.py` 加一組 spec（服色、髮型、帽子、兵器、姿勢），變體就是多加幾組，`content/assets.json` 的 `files` 依序用 `_a`、`_b`…。新增區塊：在 `tools/inkpaint/chunks.py` 加一個構圖函式。
 - 區塊左右 56px 會自動漸變到同一條「標準邊」，所以任兩塊接起來都不會有硬接縫。
+- 戶外區塊的底圖是古畫：克里夫蘭美術館開放典藏的 CC0 山水手卷（`tools/inkpaint/paintings.py` 管每塊取哪一卷哪一段，裁好的圖在 `tools/inkpaint/paintings/`），程式只在上面加遊戲要的東西（牌坊、殿宇、石碑、木人、橋、心魔陣紋）並調色。洞窟類區塊還是全程式畫。出處列在 `art/CREDITS.md`。
+- 要換古畫：只能用明確標 CC0／公有領域的來源，改 `SOURCES` 後跑 `python tools/inkpaint/paintings.py fetch <區塊>`，再補 CREDITS。
 - 題字用霞鶩文楷 TC 的子集（`tools/inkpaint/fonts/`，OFL 授權）；新名稱有子集沒有的字時照該資料夾的 README 重做子集。
 
 ## 交付
