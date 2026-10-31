@@ -1,5 +1,7 @@
 ## 遊戲主控：橫軸地圖、玩家、角色，並把 ZeWorld 內容包與導演接到畫面上。
 ## T 開地圖在地區之間移動（青雲宗、青雲山腳、黑風嶺），移動要花時辰。
+## J 攻擊，敵人近身會傷人，血量歸零就重傷倒地（事件以失敗結算）。M 打坐增加修為、回滿血，
+## 修為圓滿後按 B 突破境界。
 ## 除錯鍵用來快速製造觸發條件：F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、
 ## F6 請導演生成一個新事件、F5 存檔、F9 讀檔。
 ## 導演服務沒開時一切照常，只是不會有新事件與即時台詞。
@@ -11,6 +13,7 @@ const TriggerJudge = preload("res://addons/zeworld/trigger_judge.gd")
 const PackRunner = preload("res://addons/zeworld/pack_runner.gd")
 const DirectorClient = preload("res://addons/zeworld/director_client.gd")
 const Player = preload("res://scripts/player.gd")
+const Cultivation = preload("res://scripts/cultivation.gd")
 
 const FLOOR_Y := 560.0
 const START_REGION := "region.qingyun_foothills"
@@ -21,6 +24,9 @@ const RESTOCK_TARGET := 3
 const HEART_DEMON_HINT := "突破到%s時的心魔幻境。心魔是玩家的鏡像，拿玩家經歷裡最難面對的事（history 裡的選擇、NPC 的記憶、karma 傾向）來質問玩家，每個玩家的心魔都該不同。地圖只用心魔幻境區塊（地圖標籤 illusion），心魔用模板 boss.heart_demon_mirror。tier_range 從%s到%s，不要設定 meta.region。通過時設旗標 %s_heart_demon_cleared。"
 const ENCOUNTER_HINT := "今日奇遇：發生在玩家目前所在地區的小小偶遇，幾分鐘就能玩完，可以呼應玩家最近的經歷。今天就要能觸發：觸發條件只用這個地區區塊有的地圖標籤，可加時辰，不要用天數或其他事件才會立的旗標。獎勵要小。"
 const ATTACK_RANGE := 90.0
+const ATTACK_COOLDOWN := 0.35
+const ENEMY_REACH := 44.0
+const ENEMY_HIT_INTERVAL := 1.0
 const HOSTILE_SPEED := 70.0
 const SAVE_ID := "save.001"
 
@@ -46,6 +52,9 @@ var player: CharacterBody2D
 var points: Dictionary = {}       # point id -> x
 var actor_views: Dictionary = {}  # actor id -> Node2D
 var actor_hp: Dictionary = {}
+var actor_power: Dictionary = {}  # actor id -> power，傷害與擊殺修為用
+var enemy_cooldown: Dictionary = {}  # actor id -> 距離下一擊的秒數
+var attack_cooldown := 0.0
 var log_lines: Array = []
 
 var hud_status: Label
@@ -74,6 +83,8 @@ func _ready() -> void:
 		add_log("讀取存檔：第 %d 天。" % state.day)
 	if not regions.has(state.region):
 		state.region = START_REGION
+	if not state.game_data.has("hp"):
+		state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	go_home()
 	add_log("%s。T 地圖、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。" % region_name())
 	request_followups()
@@ -179,12 +190,11 @@ func travel_to(id: String) -> bool:
 	if state.tier_index < int(REGION_MIN_TIER.get(id, 0)):
 		add_log("師門規矩：%s需%s以上方可前往。" % [region_name(id), state.ruleset["tiers"][REGION_MIN_TIER[id]]])
 		return false
-	var day_before: int = state.day
-	advance_time(int(regions[id].get("travel_hours", 1)))
+	var new_day := advance_time(int(regions[id].get("travel_hours", 1)))
 	state.region = id
 	go_home()
 	add_log("你來到%s。（第 %d 天・%s）" % [region_name(), state.day, state.time_of_day])
-	if state.day != day_before:
+	if new_day:
 		day_started()
 	restock()
 	autosave()
@@ -192,14 +202,16 @@ func travel_to(id: String) -> bool:
 	return true
 
 
-## 時辰往前走 steps 格，過了夜就是隔天。
-func advance_time(steps: int) -> void:
+## 時辰往前走 steps 格，過了夜就是隔天。回傳是否換了一天。
+func advance_time(steps: int) -> bool:
+	var day_before: int = state.day
 	var times: Array = state.ruleset["times_of_day"]
 	for i in steps:
 		var next: int = (times.find(state.time_of_day) + 1) % times.size()
 		if next == 0:
 			state.day += 1
 		state.time_of_day = times[next]
+	return state.day != day_before
 
 
 func open_travel_menu() -> void:
@@ -311,10 +323,13 @@ func day_started() -> void:
 		director.request_pack(state, {}, ENCOUNTER_HINT, state.region, {"tag": "encounter", "expires_after_days": 1})
 
 
-## 請導演依玩家經歷準備下一個境界的心魔。池子裡已有該境界的突破事件（例如手寫的築基心魔）就不請。
+## 請導演依玩家經歷準備下一個境界的心魔：修為快圓滿時才請，省得白花生成。
+## 池子裡已有該境界的突破事件（例如手寫的築基心魔）就不請。
 func prepare_heart_demon() -> void:
 	var tiers: Array = state.ruleset["tiers"]
 	if not use_director or state.tier_index + 1 >= tiers.size():
+		return
+	if cultivation() < Cultivation.HEART_DEMON_PREP * Cultivation.need(state.tier_index):
 		return
 	var next: String = tiers[state.tier_index + 1]
 	if heart_demon_pending == next or has_breakthrough_pack(next):
@@ -405,8 +420,11 @@ func _on_actor_spawned(actor: Dictionary) -> void:
 	view.position = Vector2(points.get(actor.get("spawn_at", ""), player.position.x + 200), FLOOR_Y)
 	view.set_meta("hostile", hostile)
 	level.add_child(view)
+	var power := float(actor.get("power", 1.0))
 	actor_views[actor["id"]] = view
-	actor_hp[actor["id"]] = maxi(1, roundi(3 * float(actor.get("power", 1.0))))
+	actor_power[actor["id"]] = power
+	actor_hp[actor["id"]] = Cultivation.enemy_hp(power, pack_tier())
+	enemy_cooldown[actor["id"]] = ENEMY_HIT_INTERVAL
 
 
 func _remove_actor_view(id: String) -> void:
@@ -422,7 +440,7 @@ func _on_reward(effect: Dictionary) -> void:
 			state.add_item(item)
 		add_log("獲得：" + "、".join(items))
 	elif effect["type"] == "grant_exp":
-		add_log("修為大增（%s）" % effect["amount"])
+		gain_cultivation(int(Cultivation.EXP_REWARD.get(effect["amount"], 0)))
 
 
 func _on_presentation(effect: Dictionary) -> void:
@@ -479,27 +497,115 @@ func choose_visible(i: int) -> void:
 		runner.choose(current_choices[i]["index"])
 
 
-# ---------- 戰鬥（M0：近身按 J 打三下） ----------
+# ---------- 修為 ----------
+
+func cultivation() -> int:
+	return int(state.game_data.get("exp", 0))
+
+
+func hp() -> int:
+	return int(state.game_data.get("hp", Cultivation.max_hp(state.tier_index)))
+
+
+func gain_cultivation(amount: int) -> void:
+	var need := Cultivation.need(state.tier_index)
+	var was_full := cultivation() >= need
+	state.game_data["exp"] = cultivation() + amount
+	add_log("修為 +%d（%d／%d）" % [amount, cultivation(), need])
+	if cultivation() >= need and not was_full and state.tier_index + 1 < state.ruleset["tiers"].size():
+		add_log("修為圓滿，可以嘗試突破（B）。")
+	prepare_heart_demon()
+
+
+## 打坐一個時辰：增加修為、回滿血。宗門靈氣足，進境較快。
+func meditate() -> void:
+	if runner != null:
+		return
+	var gain: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
+	var new_day := advance_time(1)
+	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
+	add_log("打坐一個時辰。（第 %d 天・%s）" % [state.day, state.time_of_day])
+	gain_cultivation(gain)
+	if new_day:
+		day_started()
+		restock()
+	check_triggers({"type": "time_changed"})
+
+
+## 修為圓滿才能突破；突破吃掉門檻的修為，血量回滿。
+func try_breakthrough() -> bool:
+	var need := Cultivation.need(state.tier_index)
+	if runner != null or state.tier_index + 1 >= state.ruleset["tiers"].size():
+		return false
+	if cultivation() < need:
+		add_log("修為未到（%d／%d），強行突破只會走火入魔。" % [cultivation(), need])
+		return false
+	state.game_data["exp"] = cultivation() - need
+	breakthrough()
+	return true
+
+
+# ---------- 戰鬥 ----------
+
+## 內容包的最低境界，敵人強度跟著它走
+func pack_tier() -> int:
+	if runner == null:
+		return 0
+	return maxi(0, state.tier_index_of(runner.pack["meta"]["tier_range"]["min"]))
+
 
 func attack() -> void:
+	if attack_cooldown > 0.0:
+		return
+	attack_cooldown = ATTACK_COOLDOWN
 	for id in actor_views.keys():
 		var view: Node2D = actor_views[id]
 		if view.get_meta("hostile") and absf(view.position.x - player.position.x) <= ATTACK_RANGE:
-			damage_actor(id, 1)
+			damage_actor(id, Cultivation.player_damage(state.tier_index))
 
 
 func damage_actor(id: String, amount: int) -> void:
 	if not actor_views.has(id):
 		return
 	actor_hp[id] -= amount
-	add_log("擊中 %s（剩 %d）" % [id, actor_hp[id]])
+	add_log("擊中 %s（剩 %d）" % [actor_label(id), maxi(0, actor_hp[id])])
 	if actor_hp[id] <= 0:
 		_remove_actor_view(id)
+		gain_cultivation(Cultivation.kill_exp(float(actor_power.get(id, 1.0))))
 		if runner != null:
 			runner.notify({"type": "actor_defeated", "actor": id})
 
 
+func actor_label(id: String) -> String:
+	if runner != null:
+		for a in runner.pack.get("actors", []):
+			if a["id"] == id:
+				return a["name"]
+	return id
+
+
+func damage_player(amount: int) -> void:
+	state.game_data["hp"] = maxi(0, hp() - amount)
+	if hp() == 0:
+		player_down()
+
+
+## 重傷倒地：事件以失敗結算，醒來時血回一半、過了一個時辰。
+func player_down() -> void:
+	add_log("你重傷倒地，人事不知……")
+	for id in enemy_cooldown:
+		enemy_cooldown[id] = ENEMY_HIT_INTERVAL
+	if runner != null:
+		runner.abort("fail")
+	state.game_data["hp"] = Cultivation.max_hp(state.tier_index) / 2
+	if advance_time(1):
+		day_started()
+	add_log("醒來時已是%s。" % state.time_of_day)
+	_refresh_status()
+
+
 func _process(delta: float) -> void:
+	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	if runner == null:
 		return
 	for p in points:
@@ -509,12 +615,20 @@ func _process(delta: float) -> void:
 				return
 	if dialogue_panel.visible:
 		return
-	for id in actor_views:
+	for id in actor_views.keys():
 		var view: Node2D = actor_views[id]
-		if view.get_meta("hostile"):
-			var dx := player.position.x - view.position.x
-			if absf(dx) > 40.0:
-				view.position.x += signf(dx) * HOSTILE_SPEED * delta
+		if not view.get_meta("hostile"):
+			continue
+		var dx := player.position.x - view.position.x
+		if absf(dx) > 40.0:
+			view.position.x += signf(dx) * HOSTILE_SPEED * delta
+		if absf(dx) <= ENEMY_REACH:
+			enemy_cooldown[id] = float(enemy_cooldown.get(id, ENEMY_HIT_INTERVAL)) - delta
+			if enemy_cooldown[id] <= 0.0:
+				enemy_cooldown[id] = ENEMY_HIT_INTERVAL
+				damage_player(Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), pack_tier()))
+				if runner == null:
+					return
 
 
 # ---------- 除錯：製造觸發條件 ----------
@@ -543,6 +657,7 @@ func breakthrough() -> void:
 	if state.tier_index + 1 >= state.ruleset["tiers"].size():
 		return
 	state.tier_index += 1
+	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	add_log("突破至" + state.tier_name() + "！")
 	check_triggers({"type": "tier_up", "to": state.tier_name()})
 	prepare_heart_demon()
@@ -568,6 +683,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_J:
 			if not dialogue_panel.visible:
 				attack()
+		KEY_M:
+			if not dialogue_panel.visible:
+				meditate()
+		KEY_B:
+			if not dialogue_panel.visible:
+				try_breakthrough()
 		KEY_F1:
 			spare_fox()
 		KEY_F2:
@@ -610,7 +731,7 @@ func _build_hud() -> void:
 	dialogue_panel.add_child(dialogue_label)
 	hud.add_child(dialogue_panel)
 	var help := Label.new()
-	help.text = "←→ 移動　↑ 跳　J 攻擊　空白 對話　1-4 選擇　T 地圖"
+	help.text = "←→ 移動　↑ 跳　J 攻擊　空白 對話　1-4 選擇　T 地圖　M 打坐　B 突破"
 	help.position = Vector2(16, 690)
 	help.modulate = Color(1, 1, 1, 0.5)
 	hud.add_child(help)
@@ -623,7 +744,9 @@ func _refresh_status() -> void:
 	var karma := []
 	for axis in state.karma:
 		karma.append("%s %d" % [axis, state.karma[axis]])
-	hud_status.text = "%s　第 %d 天・%s　境界：%s　%s" % [region_name(), state.day, state.time_of_day, state.tier_name(), "　".join(karma)]
+	hud_status.text = "%s　第 %d 天・%s　境界：%s　修為 %d／%d　氣血 %d／%d　%s" % [
+		region_name(), state.day, state.time_of_day, state.tier_name(),
+		cultivation(), Cultivation.need(state.tier_index), hp(), Cultivation.max_hp(state.tier_index), "　".join(karma)]
 
 
 func add_log(text: String) -> void:
