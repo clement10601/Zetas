@@ -55,12 +55,14 @@ cloudflared tunnel --url http://127.0.0.1:8765
 
 ## 5. 給測試者
 
-在 Windows 測試版（GitHub Actions 的 `build` workflow 產出）的 `Zetas.exe` 旁邊放兩個文字檔：
+到 GitHub Actions 手動執行 `build` workflow：`director_url` 預設是 https://zetas-director.fezone.tw，會寫進 `director_url.txt`；`release_tag` 填了（例如 `playtest-0.2.0`）就會把 `Zetas-windows.zip` 發佈成 GitHub Release，不填就只產出 artifact。
 
-- `director_url.txt`：第 4 步的網址。所有人共用。
+`Zetas.exe` 旁邊要有兩個文字檔：
+
+- `director_url.txt`：第 4 步的網址。所有人共用，workflow 會預填。
 - `director_code.txt`：這位測試者自己的存取碼。
 
-壓縮後分別寄給每個人。
+把 Release 連結給大家，存取碼則私下分別給每個人，請他們自己建 `director_code.txt`。
 
 ## 6. 測試期間
 

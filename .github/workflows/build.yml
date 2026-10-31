@@ -10,6 +10,14 @@ on:
         description: "匯出 Windows 測試版"
         type: boolean
         default: true
+      director_url:
+        description: "預填進 director_url.txt 的導演網址（留空就不放）"
+        type: string
+        default: "https://zetas-director.fezone.tw"
+      release_tag:
+        description: "填了就把 zip 發佈成 GitHub Release（例如 playtest-0.2.0）"
+        type: string
+        default: ""
 
 env:
   GODOT_VERSION: 4.4.1
@@ -40,6 +48,8 @@ jobs:
     needs: test
     if: github.event_name == 'workflow_dispatch' && inputs.windows
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,6 +67,22 @@ jobs:
           godot --headless --path . --export-release "Windows Desktop" build/windows/Zetas.exe
           cp playtest/README.md build/windows/README.md
           test -s build/windows/Zetas.exe
+      - name: Prefill director URL
+        if: inputs.director_url != ''
+        env:
+          DIRECTOR_URL: ${{ inputs.director_url }}
+        run: printf '%s\n' "$DIRECTOR_URL" > build/windows/director_url.txt
+      - name: Zip
+        run: cd build && mv windows Zetas && zip -qr Zetas-windows.zip Zetas && mv Zetas windows && unzip -l Zetas-windows.zip
+      - name: Publish release
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release create "$TAG" build/Zetas-windows.zip \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "Zetas 封閉測試版 $TAG" --notes-file playtest/RELEASE_NOTES.md
       - uses: actions/upload-artifact@v4
         with:
           name: Zetas-windows-${{ github.sha }}
