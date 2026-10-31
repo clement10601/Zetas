@@ -1,0 +1,567 @@
+{
+ "_comment": "心魔與每日奇遇的導演實測情境。hint 照抄 scripts/main.gd 的 HEART_DEMON_HINT、ENCOUNTER_HINT（tests/run_tests.gd 會核對），request 是遊戲請求時帶的選項，expect 是驗證以外該滿足的條件。執行：cd engine && python -m director.bench --game ../zeworld.json --scenarios ../tests/director/m2_scenarios.json --runs 2",
+ "scenarios": [
+  {
+   "name": "hd_protector",
+   "note": "護過白蘅、如實稟報師父、直面築基心魔，要突破金丹",
+   "state": {
+    "time_of_day": "暮",
+    "tier_index": 1,
+    "kills": {
+     "wolf": 6,
+     "demon_hunter": 1
+    },
+    "items": {},
+    "seen_packs": {
+     "pack.fox_repays_kindness.s001": 6,
+     "pack.sect_first_lesson.s001": 10,
+     "pack.heart_demon_trial.zhuji.s001": 13
+    },
+    "day": 14,
+    "flags": {
+     "spared_white_fox": true,
+     "baiheng_ally": true,
+     "followup:pack.fox_repays_kindness.s001": true,
+     "zhuji_heart_demon_cleared": true
+    },
+    "karma": {
+     "正邪": 4,
+     "仁殺": 17
+    },
+    "relations": {
+     "npc.baiheng": 25
+    },
+    "memories": {
+     "npc.baiheng": [
+      "恩公為我與鎮妖司動手。"
+     ]
+    },
+    "region": "region.qingyun_foothills",
+    "history": [
+     {
+      "day": 6,
+      "pack": "pack.fox_repays_kindness.s001",
+      "title": "白狐報恩",
+      "result": "complete",
+      "choices": [
+       "護住白蘅"
+      ],
+      "tags": [
+       "報恩",
+       "妖",
+       "抉擇"
+      ]
+     },
+     {
+      "day": 10,
+      "pack": "pack.sect_first_lesson.s001",
+      "title": "青玄峰問心",
+      "result": "complete",
+      "choices": [
+       "如實稟報山下的事"
+      ],
+      "tags": [
+       "宗門",
+       "師徒"
+      ]
+     },
+     {
+      "day": 13,
+      "pack": "pack.heart_demon_trial.zhuji.s001",
+      "title": "築基心魔",
+      "result": "complete",
+      "choices": [
+       "承認過錯，直面它"
+      ],
+      "tags": [
+       "心魔",
+       "突破",
+       "幻境"
+      ]
+     }
+    ]
+   },
+   "hint": "突破到金丹時的心魔幻境。心魔是玩家的鏡像，拿玩家經歷裡最難面對的事（history 裡的選擇、NPC 的記憶、karma 傾向）來質問玩家，每個玩家的心魔都該不同。地圖只用心魔幻境區塊（地圖標籤 illusion），心魔用模板 boss.heart_demon_mirror。tier_range 從築基到金丹，不要設定 meta.region。突破那一刻就要觸發：遊戲會自己加 tier_up 條件，trigger.all 不要再加任何條件（例如上一關的旗標），否則條件不成立心魔就永遠錯過。通過時設旗標 金丹_heart_demon_cleared。",
+   "request": {
+    "tag": "heart_demon",
+    "gate": [
+     {
+      "type": "tier_up",
+      "to": "金丹"
+     }
+    ]
+   },
+   "expect": {
+    "chunk_tag": "illusion",
+    "templates": [
+     "boss.heart_demon_mirror"
+    ],
+    "sets_flag": "金丹_heart_demon_cleared",
+    "no_meta_region": true,
+    "mentions_any": [
+     "白蘅",
+     "白狐",
+     "狐",
+     "鎮妖司"
+    ],
+    "mentions_none": [],
+    "no_extra_conditions": true
+   }
+  },
+  {
+   "name": "hd_betrayer",
+   "note": "親手把白蘅交給鎮妖司、瞞著師父、斬了築基心魔，要突破金丹",
+   "state": {
+    "time_of_day": "暮",
+    "tier_index": 1,
+    "kills": {
+     "wolf": 9
+    },
+    "items": {},
+    "seen_packs": {
+     "pack.fox_repays_kindness.s001": 6,
+     "pack.sect_first_lesson.s001": 8,
+     "pack.heart_demon_trial.zhuji.s001": 11
+    },
+    "day": 12,
+    "flags": {
+     "spared_white_fox": true,
+     "baiheng_captured": true,
+     "followup:pack.fox_repays_kindness.s001": true,
+     "zhuji_heart_demon_cleared": true
+    },
+    "karma": {
+     "正邪": 42,
+     "仁殺": -12
+    },
+    "relations": {
+     "npc.baiheng": 0
+    },
+    "memories": {},
+    "region": "region.qingyun_foothills",
+    "history": [
+     {
+      "day": 6,
+      "pack": "pack.fox_repays_kindness.s001",
+      "title": "白狐報恩",
+      "result": "complete",
+      "choices": [
+       "親手擒下狐妖交給鎮妖司"
+      ],
+      "tags": [
+       "報恩",
+       "妖",
+       "抉擇"
+      ]
+     },
+     {
+      "day": 8,
+      "pack": "pack.sect_first_lesson.s001",
+      "title": "青玄峰問心",
+      "result": "complete",
+      "choices": [
+       "只說一切平安"
+      ],
+      "tags": [
+       "宗門",
+       "師徒"
+      ]
+     },
+     {
+      "day": 11,
+      "pack": "pack.heart_demon_trial.zhuji.s001",
+      "title": "築基心魔",
+      "result": "complete",
+      "choices": [
+       "拔劍，斬了它"
+      ],
+      "tags": [
+       "心魔",
+       "突破",
+       "幻境"
+      ]
+     }
+    ]
+   },
+   "hint": "突破到金丹時的心魔幻境。心魔是玩家的鏡像，拿玩家經歷裡最難面對的事（history 裡的選擇、NPC 的記憶、karma 傾向）來質問玩家，每個玩家的心魔都該不同。地圖只用心魔幻境區塊（地圖標籤 illusion），心魔用模板 boss.heart_demon_mirror。tier_range 從築基到金丹，不要設定 meta.region。突破那一刻就要觸發：遊戲會自己加 tier_up 條件，trigger.all 不要再加任何條件（例如上一關的旗標），否則條件不成立心魔就永遠錯過。通過時設旗標 金丹_heart_demon_cleared。",
+   "request": {
+    "tag": "heart_demon",
+    "gate": [
+     {
+      "type": "tier_up",
+      "to": "金丹"
+     }
+    ]
+   },
+   "expect": {
+    "chunk_tag": "illusion",
+    "templates": [
+     "boss.heart_demon_mirror"
+    ],
+    "sets_flag": "金丹_heart_demon_cleared",
+    "no_meta_region": true,
+    "mentions_any": [
+     "白蘅",
+     "白狐",
+     "狐",
+     "鎮妖司"
+    ],
+    "mentions_none": [],
+    "no_extra_conditions": true
+   }
+  },
+  {
+   "name": "hd_killer",
+   "note": "沒遇過白狐、殺了四十頭狼十一個山賊、斬了築基心魔，要突破金丹",
+   "state": {
+    "time_of_day": "暮",
+    "tier_index": 1,
+    "kills": {
+     "wolf": 41,
+     "bandit": 11
+    },
+    "items": {},
+    "seen_packs": {
+     "pack.sect_first_lesson.s001": 13,
+     "pack.heart_demon_trial.zhuji.s001": 17
+    },
+    "day": 18,
+    "flags": {
+     "zhuji_heart_demon_cleared": true
+    },
+    "karma": {
+     "正邪": -15,
+     "仁殺": -25
+    },
+    "relations": {},
+    "memories": {},
+    "region": "region.heifeng_ridge",
+    "history": [
+     {
+      "day": 13,
+      "pack": "pack.sect_first_lesson.s001",
+      "title": "青玄峰問心",
+      "result": "complete",
+      "choices": [
+       "只說一切平安"
+      ],
+      "tags": [
+       "宗門",
+       "師徒"
+      ]
+     },
+     {
+      "day": 17,
+      "pack": "pack.heart_demon_trial.zhuji.s001",
+      "title": "築基心魔",
+      "result": "complete",
+      "choices": [
+       "拔劍，斬了它"
+      ],
+      "tags": [
+       "心魔",
+       "突破",
+       "幻境"
+      ]
+     }
+    ]
+   },
+   "hint": "突破到金丹時的心魔幻境。心魔是玩家的鏡像，拿玩家經歷裡最難面對的事（history 裡的選擇、NPC 的記憶、karma 傾向）來質問玩家，每個玩家的心魔都該不同。地圖只用心魔幻境區塊（地圖標籤 illusion），心魔用模板 boss.heart_demon_mirror。tier_range 從築基到金丹，不要設定 meta.region。突破那一刻就要觸發：遊戲會自己加 tier_up 條件，trigger.all 不要再加任何條件（例如上一關的旗標），否則條件不成立心魔就永遠錯過。通過時設旗標 金丹_heart_demon_cleared。",
+   "request": {
+    "tag": "heart_demon",
+    "gate": [
+     {
+      "type": "tier_up",
+      "to": "金丹"
+     }
+    ]
+   },
+   "expect": {
+    "chunk_tag": "illusion",
+    "templates": [
+     "boss.heart_demon_mirror"
+    ],
+    "sets_flag": "金丹_heart_demon_cleared",
+    "no_meta_region": true,
+    "mentions_any": [
+     "狼",
+     "山賊",
+     "殺"
+    ],
+    "mentions_none": [
+     "白蘅",
+     "白狐"
+    ],
+    "no_extra_conditions": true
+   }
+  },
+  {
+   "name": "enc_foothills_protector",
+   "note": "護過白蘅的玩家在青雲山腳過了一天",
+   "state": {
+    "time_of_day": "晨",
+    "tier_index": 1,
+    "kills": {
+     "wolf": 6,
+     "demon_hunter": 1
+    },
+    "items": {},
+    "seen_packs": {
+     "pack.fox_repays_kindness.s001": 6,
+     "pack.sect_first_lesson.s001": 10,
+     "pack.heart_demon_trial.zhuji.s001": 13
+    },
+    "day": 14,
+    "flags": {
+     "spared_white_fox": true,
+     "baiheng_ally": true,
+     "followup:pack.fox_repays_kindness.s001": true,
+     "zhuji_heart_demon_cleared": true
+    },
+    "karma": {
+     "正邪": 4,
+     "仁殺": 17
+    },
+    "relations": {
+     "npc.baiheng": 25
+    },
+    "memories": {
+     "npc.baiheng": [
+      "恩公為我與鎮妖司動手。"
+     ]
+    },
+    "region": "region.qingyun_foothills",
+    "history": [
+     {
+      "day": 6,
+      "pack": "pack.fox_repays_kindness.s001",
+      "title": "白狐報恩",
+      "result": "complete",
+      "choices": [
+       "護住白蘅"
+      ],
+      "tags": [
+       "報恩",
+       "妖",
+       "抉擇"
+      ]
+     },
+     {
+      "day": 10,
+      "pack": "pack.sect_first_lesson.s001",
+      "title": "青玄峰問心",
+      "result": "complete",
+      "choices": [
+       "如實稟報山下的事"
+      ],
+      "tags": [
+       "宗門",
+       "師徒"
+      ]
+     },
+     {
+      "day": 13,
+      "pack": "pack.heart_demon_trial.zhuji.s001",
+      "title": "築基心魔",
+      "result": "complete",
+      "choices": [
+       "承認過錯，直面它"
+      ],
+      "tags": [
+       "心魔",
+       "突破",
+       "幻境"
+      ]
+     }
+    ]
+   },
+   "hint": "今日奇遇：發生在玩家目前所在地區的小小偶遇，幾分鐘就能玩完，可以呼應玩家最近的經歷。今天就要能觸發：觸發條件只用這個地區區塊有的地圖標籤，可加時辰，不要用天數或其他事件才會立的旗標。獎勵要小。",
+   "request": {
+    "region": "region.qingyun_foothills",
+    "tag": "encounter",
+    "expires_after_days": 1
+   },
+   "expect": {
+    "region_map_tags": true,
+    "forbid_conditions": [
+     "flag",
+     "days_since_flag",
+     "tier_up",
+     "dialogue_reached"
+    ],
+    "max_loot": 1,
+    "mentions_none": []
+   }
+  },
+  {
+   "name": "enc_sect_betrayer",
+   "note": "交出白蘅的玩家回到青雲宗",
+   "state": {
+    "time_of_day": "午",
+    "tier_index": 1,
+    "kills": {
+     "wolf": 9
+    },
+    "items": {},
+    "seen_packs": {
+     "pack.fox_repays_kindness.s001": 6,
+     "pack.sect_first_lesson.s001": 8,
+     "pack.heart_demon_trial.zhuji.s001": 11
+    },
+    "day": 12,
+    "flags": {
+     "spared_white_fox": true,
+     "baiheng_captured": true,
+     "followup:pack.fox_repays_kindness.s001": true,
+     "zhuji_heart_demon_cleared": true
+    },
+    "karma": {
+     "正邪": 42,
+     "仁殺": -12
+    },
+    "relations": {
+     "npc.baiheng": 0
+    },
+    "memories": {},
+    "region": "region.qingyun_sect",
+    "history": [
+     {
+      "day": 6,
+      "pack": "pack.fox_repays_kindness.s001",
+      "title": "白狐報恩",
+      "result": "complete",
+      "choices": [
+       "親手擒下狐妖交給鎮妖司"
+      ],
+      "tags": [
+       "報恩",
+       "妖",
+       "抉擇"
+      ]
+     },
+     {
+      "day": 8,
+      "pack": "pack.sect_first_lesson.s001",
+      "title": "青玄峰問心",
+      "result": "complete",
+      "choices": [
+       "只說一切平安"
+      ],
+      "tags": [
+       "宗門",
+       "師徒"
+      ]
+     },
+     {
+      "day": 11,
+      "pack": "pack.heart_demon_trial.zhuji.s001",
+      "title": "築基心魔",
+      "result": "complete",
+      "choices": [
+       "拔劍，斬了它"
+      ],
+      "tags": [
+       "心魔",
+       "突破",
+       "幻境"
+      ]
+     }
+    ]
+   },
+   "hint": "今日奇遇：發生在玩家目前所在地區的小小偶遇，幾分鐘就能玩完，可以呼應玩家最近的經歷。今天就要能觸發：觸發條件只用這個地區區塊有的地圖標籤，可加時辰，不要用天數或其他事件才會立的旗標。獎勵要小。",
+   "request": {
+    "region": "region.qingyun_sect",
+    "tag": "encounter",
+    "expires_after_days": 1
+   },
+   "expect": {
+    "region_map_tags": true,
+    "forbid_conditions": [
+     "flag",
+     "days_since_flag",
+     "tier_up",
+     "dialogue_reached"
+    ],
+    "max_loot": 1,
+    "mentions_none": []
+   }
+  },
+  {
+   "name": "enc_heifeng_killer",
+   "note": "沒遇過白狐的殺手在黑風嶺",
+   "state": {
+    "time_of_day": "夜",
+    "tier_index": 1,
+    "kills": {
+     "wolf": 41,
+     "bandit": 11
+    },
+    "items": {},
+    "seen_packs": {
+     "pack.sect_first_lesson.s001": 13,
+     "pack.heart_demon_trial.zhuji.s001": 17
+    },
+    "day": 18,
+    "flags": {
+     "zhuji_heart_demon_cleared": true
+    },
+    "karma": {
+     "正邪": -15,
+     "仁殺": -25
+    },
+    "relations": {},
+    "memories": {},
+    "region": "region.heifeng_ridge",
+    "history": [
+     {
+      "day": 13,
+      "pack": "pack.sect_first_lesson.s001",
+      "title": "青玄峰問心",
+      "result": "complete",
+      "choices": [
+       "只說一切平安"
+      ],
+      "tags": [
+       "宗門",
+       "師徒"
+      ]
+     },
+     {
+      "day": 17,
+      "pack": "pack.heart_demon_trial.zhuji.s001",
+      "title": "築基心魔",
+      "result": "complete",
+      "choices": [
+       "拔劍，斬了它"
+      ],
+      "tags": [
+       "心魔",
+       "突破",
+       "幻境"
+      ]
+     }
+    ]
+   },
+   "hint": "今日奇遇：發生在玩家目前所在地區的小小偶遇，幾分鐘就能玩完，可以呼應玩家最近的經歷。今天就要能觸發：觸發條件只用這個地區區塊有的地圖標籤，可加時辰，不要用天數或其他事件才會立的旗標。獎勵要小。",
+   "request": {
+    "region": "region.heifeng_ridge",
+    "tag": "encounter",
+    "expires_after_days": 1
+   },
+   "expect": {
+    "region_map_tags": true,
+    "forbid_conditions": [
+     "flag",
+     "days_since_flag",
+     "tier_up",
+     "dialogue_reached"
+    ],
+    "max_loot": 1,
+    "mentions_none": [
+     "白蘅",
+     "白狐"
+    ]
+   }
+  }
+ ]
+}
