@@ -140,6 +140,7 @@ var dialogue_label: Label
 var current_choices: Array = []
 var travel_options: Array = []    # 地圖開著時可去的地區 id
 var lingering := false            # 事件結束時最後一句先留在畫面上，按空白才關
+var home_after_dialogue := false  # 事件地圖結束時最後一句還沒關：關掉後才回落腳地圖
 var fits: Dictionary = {}         # 決策模型給的貼合度 {內容包 id: 0–4}，觸發時和 priority 一起排序
 var _ranked_key := ""             # 上次送評分的候選組合，沒變就不重送
 
@@ -266,6 +267,8 @@ func _ask_access_code() -> void:
 			_write_text(WEB_CODE_PATH, code)
 			director.access_code = code
 			add_log("已連上 AI 導演。")
+		else:
+			use_director = false  # 沒有存取碼：只玩手寫事件，不送注定 401 的請求
 		get_tree().paused = false
 		_awaiting_code = false
 		layer.queue_free()
@@ -1024,7 +1027,8 @@ func check_triggers(event: Dictionary) -> void:
 
 
 func start_pack(pack: Dictionary) -> void:
-	add_log("【%s】%s" % [pack["meta"]["title"], pack["meta"]["summary"]])
+	# summary 是寫給導演與設計者看的（會劇透），玩家只看標題
+	add_log("【%s】" % pack["meta"]["title"])
 	_scroll_card(pack["meta"]["title"], event_seal(pack), true)
 	if pack["meta"].get("request_tag", "") == "heart_demon" or _pack_has_tag(pack, "illusion"):
 		audio.stinger("heart_demon", "event_start")
@@ -1066,18 +1070,18 @@ func _on_pack_finished(result: String) -> void:
 	add_log("【%s】結束：%s" % [title, {"complete": "完成", "fail": "失敗", "abandon": "放棄"}[result]])
 	_scroll_card(title, {"complete": "了", "fail": "敗", "abandon": "罷"}[result], false)
 	audio.stinger("event_end", "event_end")
-	for f in state.followups:
-		if f["from_pack"] == runner.pack["id"]:
-			add_log("（交給導演的後續：%s）" % f["hint"])
 	runner = null
 	hud_objective.text = ""
 	objective_panel.visible = false
-	if dialogue_panel.visible and current_choices.is_empty():
+	if dialogue_panel.visible and current_choices.is_empty() and result != "abandon":
 		lingering = true
 	else:
 		_hide_dialogue()
 	update_movement_skills()  # 事件可能用旗標傳授身法
-	if had_map:
+	if had_map and lingering:
+		# 最後一句還在畫面上：玩家關掉對話後才回落腳地圖，免得台詞蓋在別的場景上
+		home_after_dialogue = true
+	elif had_map:
 		go_home()
 	else:
 		_spawn_residents()
@@ -1203,7 +1207,14 @@ func _on_pack_failed(followup: Dictionary, reason: String) -> void:
 		# 失敗訊號不帶請求種類：把主動請求都放掉，下次時機到了再請
 		heart_demon_pending = ""
 		encounter_pending = false
-		add_log("（導演沒有回應：%s）" % reason)
+		if not use_director:
+			pass  # 已經停用，還在路上的請求不再重複提示
+		elif reason.contains("401"):
+			# 存取碼錯了或沒填：這次就不再連導演，免得每個動作都報錯
+			use_director = false
+			add_log("（存取碼無效，這次只玩手寫事件。）")
+		else:
+			add_log("（AI 導演暫時沒有回應，稍後再試。）")
 
 
 func autosave() -> void:
@@ -1335,6 +1346,9 @@ func _hide_dialogue() -> void:
 	current_choices = []
 	dialogue_panel.visible = false
 	player.frozen = false
+	if home_after_dialogue and runner == null:
+		home_after_dialogue = false
+		go_home()
 
 
 func advance_dialogue() -> void:
