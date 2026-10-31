@@ -1,5 +1,5 @@
 {
-  "_comment": "典籍目錄。全部是公有領域古籍。checked 列出已逐字核對過引文的篇章與當時看的版本網址；條目的 quote.verified 為 true 時，quote.chapter 必須在這裡。",
+  "_comment": "典籍目錄。全部是公有領域古籍。checked 列出已逐字核對過引文的篇章與當時看的版本網址；條目的 quote.verified 為 true 時，quote.chapter 必須在這裡。 殆知閣本是簡體，比對時先轉成簡體再比；異體字（罣／挂、太極／大極等）以通行繁體為準時，條目保持 verified false 或在此註明。",
   "src.shanhaijing": {
     "title": "山海經",
     "era": "先秦至漢初",
@@ -19,7 +19,12 @@
     "author": "不詳；《易傳》舊題孔子",
     "about": "六十四卦與卦辭、爻辭，及解經的《易傳》（彖、象、繫辭、說卦等）。陰陽、八卦、變易的觀念是陣法、占卜、五行術法的根。",
     "text_url": "https://zh.wikisource.org/wiki/周易",
-    "checked": {}
+    "checked": {
+      "乾": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/易藏/易经/周易.txt（殆知閣簡體本，繁簡轉換後逐字比對）",
+      "說卦傳": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/易藏/易经/周易.txt（殆知閣簡體本，繁簡轉換後逐字比對）",
+      "卦辭": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/易藏/易经/周易.txt（殆知閣簡體本，繁簡轉換後逐字比對）",
+      "乾·象": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/易藏/易经/周易.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.daodejing": {
     "title": "道德經",
@@ -27,7 +32,9 @@
     "author": "舊題老子",
     "about": "道、無為、陰陽沖和。道門心法、宗門訓詞的來源。",
     "text_url": "https://zh.wikisource.org/wiki/道德經",
-    "checked": {}
+    "checked": {
+      "第四十二章": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/道藏/正统道藏洞神部/本文类/道德真经.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.zhuangzi": {
     "title": "莊子",
@@ -35,7 +42,10 @@
     "author": "莊周及後學",
     "about": "鯤鵬、藐姑射神人、逍遙與齊物。仙人形象與「逍遙」境界的源頭。",
     "text_url": "https://zh.wikisource.org/wiki/莊子",
-    "checked": {}
+    "checked": {
+      "刻意": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/道藏/藏外/庄子.txt（殆知閣簡體本，繁簡轉換後逐字比對；正統道藏本作「吹拘」「熊經烏申」）",
+      "逍遙遊": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/道藏/正统道藏洞神部/本文类/南华真经.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.huainanzi": {
     "title": "淮南子",
@@ -43,7 +53,9 @@
     "author": "劉安及門客",
     "about": "宇宙生成、女媧補天、后羿射日等神話，兼論陰陽五行。",
     "text_url": "https://zh.wikisource.org/wiki/淮南子",
-    "checked": {}
+    "checked": {
+      "覽冥訓": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/子藏/诸子/淮南子.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.liexianzhuan": {
     "title": "列仙傳",
@@ -51,7 +63,9 @@
     "author": "舊題劉向",
     "about": "七十餘位仙人小傳：赤松子、王子喬等。服食、尸解、乘鶴升仙的早期形象。",
     "text_url": "https://zh.wikisource.org/wiki/列仙傳",
-    "checked": {}
+    "checked": {
+      "赤松子": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/道藏/藏外/列仙传.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.baopuzi": {
     "title": "抱朴子內篇",
@@ -59,7 +73,11 @@
     "author": "葛洪",
     "about": "論仙可學、金丹、服食、三尸、符籙、入山禁忌。天仙、地仙、尸解仙之分與「金丹」一詞出於此。",
     "text_url": "https://zh.wikisource.org/wiki/抱朴子/內篇",
-    "checked": {}
+    "checked": {
+      "論仙": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/道藏/正统道藏太清部/抱朴子内篇.txt（殆知閣簡體本，繁簡轉換後逐字比對）",
+      "金丹": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/道藏/正统道藏太清部/抱朴子内篇.txt（殆知閣簡體本，繁簡轉換後逐字比對）",
+      "微旨": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/道藏/正统道藏太清部/抱朴子内篇.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.xuanzhongji": {
     "title": "玄中記",
@@ -67,7 +85,9 @@
     "author": "舊題郭璞",
     "about": "志怪輯佚，有狐修行五十歲、百歲、千歲的說法，是「狐修成仙」設定的根。",
     "text_url": "https://zh.wikisource.org/wiki/玄中記",
-    "checked": {}
+    "checked": {
+      "輯佚": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/子藏/笔记/玄中记.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.soushenji": {
     "title": "搜神記",
@@ -99,7 +119,9 @@
     "author": "玄奘譯",
     "about": "色空、無罣礙、遠離顛倒夢想。佛緣、禪功與心魔試煉「放下」選項的用語。",
     "text_url": "https://zh.wikisource.org/wiki/般若波羅蜜多心經",
-    "checked": {}
+    "checked": {
+      "": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/佛藏/大藏经/经藏/般若部/般若波罗蜜多心经-唐-玄奘.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.jingangjing": {
     "title": "金剛般若波羅蜜經",
@@ -107,7 +129,9 @@
     "author": "鳩摩羅什譯",
     "about": "一切有為法如夢幻泡影。佛門破執、看破幻境的用語。",
     "text_url": "https://zh.wikisource.org/wiki/金剛般若波羅蜜經",
-    "checked": {}
+    "checked": {
+      "": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/佛藏/大藏经/经藏/般若部/金刚般若波罗蜜经-姚秦-鸠摩罗什.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.fengshen": {
     "title": "封神演義",
@@ -123,7 +147,9 @@
     "author": "舊題列禦寇",
     "about": "湯問篇有渤海五仙山、巨鼇負山、龍伯釣鼇等故事。",
     "text_url": "https://zh.wikisource.org/wiki/列子",
-    "checked": {}
+    "checked": {
+      "湯問": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/道藏/藏外/列子.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   },
   "src.shangshu": {
     "title": "尚書",
@@ -131,6 +157,8 @@
     "author": "不詳",
     "about": "洪範篇最早列出水火木金土五行及其性質。",
     "text_url": "https://zh.wikisource.org/wiki/尚書",
-    "checked": {}
+    "checked": {
+      "洪範": "https://github.com/garychowcmu/daizhigev20/blob/4a6d6f2088825f132521d848c2ea86cf9c9a7620/儒藏/尚书/尚书.txt（殆知閣簡體本，繁簡轉換後逐字比對）"
+    }
   }
 }

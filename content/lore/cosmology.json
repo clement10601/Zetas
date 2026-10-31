@@ -58,7 +58,7 @@
       "text": "色不異空，空不異色，色即是空，空即是色。",
       "source": "src.xinjing",
       "chapter": "",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "佛緣",
@@ -89,7 +89,7 @@
       "text": "心無罣礙，無罣礙故，無有恐怖，遠離顛倒夢想，究竟涅槃。",
       "source": "src.xinjing",
       "chapter": "",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "心魔",
@@ -116,7 +116,7 @@
       "text": "一切有為法，如夢幻泡影，如露亦如電，應作如是觀。",
       "source": "src.jingangjing",
       "chapter": "",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "幻境",
@@ -137,8 +137,8 @@
     "quote": {
       "text": "狐五十歲，能變化為婦人；百歲為美女，為神巫，或為丈夫與女人交接，能知千里外事，善蠱魅，使人迷惑失智；千歲即與天通，為天狐。",
       "source": "src.xuanzhongji",
-      "chapter": "",
-      "verified": false
+      "chapter": "輯佚",
+      "verified": true
     },
     "tags": [
       "狐",
@@ -195,7 +195,7 @@
       "text": "往古之時，四極廢，九州裂，天不兼覆，地不周載。",
       "source": "src.huainanzi",
       "chapter": "覽冥訓",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "創世",
@@ -222,7 +222,7 @@
       "text": "北冥有魚，其名為鯤。鯤之大，不知其幾千里也。化而為鳥，其名為鵬。",
       "source": "src.zhuangzi",
       "chapter": "逍遙遊",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "化形",
@@ -246,7 +246,7 @@
       "text": "赤松子者，神農時雨師也。服水玉以教神農，能入火自燒。",
       "source": "src.liexianzhuan",
       "chapter": "赤松子",
-      "verified": false
+      "verified": true
     },
     "tags": [
       "仙人",
