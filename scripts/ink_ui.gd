@@ -126,9 +126,11 @@ static func bar(color: Color, width := 150.0) -> ProgressBar:
 ## 暗角：畫面四周壓一圈淡墨，讓視線集中在中間
 static func vignette_texture() -> GradientTexture2D:
 	var g := Gradient.new()
-	g.set_color(0, Color(INK, 0.0))
-	g.set_color(1, Color(INK, 0.55))
-	g.add_point(0.62, Color(INK, 0.0))
+	# 偏暖的墨色，像紙邊受潮暈開
+	var warm := Color("#2b1d12")
+	g.set_color(0, Color(warm, 0.0))
+	g.set_color(1, Color(warm, 0.6))
+	g.add_point(0.6, Color(warm, 0.0))
 	var tex := GradientTexture2D.new()
 	tex.gradient = g
 	tex.fill = GradientTexture2D.FILL_RADIAL
@@ -177,3 +179,15 @@ static func time_tint(time_of_day: String) -> Color:
 		"暮": Color("#e9b088"),
 		"夜": Color("#6f7ca8"),
 	}.get(time_of_day, Color.WHITE)
+
+
+static var _halo: ShaderMaterial
+
+
+## 角色立繪用：後面一圈淡紙色光暈（scripts/ink_halo.gdshader），大家共用一個材質
+static func halo_material() -> ShaderMaterial:
+	if _halo == null:
+		_halo = ShaderMaterial.new()
+		_halo.shader = load("res://scripts/ink_halo.gdshader")
+	return _halo
+
