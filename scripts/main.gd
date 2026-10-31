@@ -44,6 +44,8 @@ const HOSTILE_SPEED := 70.0
 const SAVE_ID := "save.001"
 
 ## 測試時設成空字串可停用存檔／導演生成資料夾；use_director 設 false 可完全不連導演。
+const WEB_CODE_PATH := "user://director_code.txt"
+var _awaiting_code := false       # 網頁版還沒輸入存取碼：先不送導演請求，免得被擋
 var save_path := "user://save.json"
 var generated_dir := "user://generated"
 var use_director := true
@@ -124,9 +126,10 @@ func _ready() -> void:
 	add_log("%s。T 地圖、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。" % region_name())
 	playlog.write("session_start", {"version": ProjectSettings.get_setting("application/config/version", ""),
 		"director": use_director, "day": state.day, "region": state.region, "tier": state.tier_name()})
-	request_followups()
-	restock()
-	prepare_heart_demon()
+	if not _awaiting_code:
+		request_followups()
+		restock()
+		prepare_heart_demon()
 	check_triggers({"type": "enter_map"})
 
 
@@ -139,8 +142,13 @@ func _notification(what: int) -> void:
 
 ## 測試版：執行檔旁的 director_url.txt 指定導演位址、director_code.txt 放存取碼
 ## （環境變數 ZEWORLD_DIRECTOR_URL、ZEWORLD_DIRECTOR_CODE 優先）。
+## 網頁版：導演網址用專案設定 zetas/web_director_url（網址加 ?director= 可改），
+## 存取碼從網址 ?code= 帶入或第一次開啟時輸入，存在 user://director_code.txt（瀏覽器 IndexedDB）。
 func _read_director_config() -> void:
 	if OS.has_feature("editor"):
+		return
+	if OS.has_feature("web"):
+		_read_web_director_config()
 		return
 	var dir := OS.get_executable_path().get_base_dir()
 	var url := _read_text(dir.path_join("director_url.txt"))
@@ -149,6 +157,71 @@ func _read_director_config() -> void:
 	var code := _read_text(dir.path_join("director_code.txt"))
 	if OS.get_environment("ZEWORLD_DIRECTOR_CODE") == "" and code != "":
 		director.access_code = code
+
+
+func _read_web_director_config() -> void:
+	var url := _web_param("director")
+	if url == "":
+		url = str(ProjectSettings.get_setting("zetas/web_director_url", ""))
+	if url.begins_with("http"):
+		director.base_url = url
+	var code := _web_param("code")
+	if code != "":
+		_write_text(WEB_CODE_PATH, code)
+		JavaScriptBridge.eval("history.replaceState(null, '', location.pathname)")
+	else:
+		code = _read_text(WEB_CODE_PATH)
+	if code != "":
+		director.access_code = code
+	else:
+		_awaiting_code = true
+		_ask_access_code.call_deferred()
+
+
+static func _web_param(name: String) -> String:
+	var v = JavaScriptBridge.eval("new URLSearchParams(location.search).get('%s') || ''" % name)
+	return str(v).strip_edges() if v != null else ""
+
+
+static func _write_text(path: String, text: String) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f != null:
+		f.store_string(text)
+
+
+## 網頁版第一次開啟：請玩家輸入存取碼。留空就只玩手寫事件，下次開啟會再問。
+func _ask_access_code() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(layer)
+	var panel := PanelContainer.new()
+	panel.position = Vector2(340, 260)
+	panel.custom_minimum_size = Vector2(600, 0)
+	layer.add_child(panel)
+	var box := VBoxContainer.new()
+	panel.add_child(box)
+	var label := Label.new()
+	label.text = "輸入存取碼就能連上 AI 導演，生成只屬於你的事件。\n沒有存取碼也能玩，直接按 Enter。"
+	box.add_child(label)
+	var field := LineEdit.new()
+	field.placeholder_text = "存取碼"
+	box.add_child(field)
+	get_tree().paused = true
+	field.text_submitted.connect(func(text: String):
+		var code := text.strip_edges()
+		if code != "":
+			_write_text(WEB_CODE_PATH, code)
+			director.access_code = code
+			add_log("已連上 AI 導演。")
+		get_tree().paused = false
+		_awaiting_code = false
+		layer.queue_free()
+		if code != "":
+			request_followups()
+			restock()
+			prepare_heart_demon())
+	field.grab_focus.call_deferred()
 
 
 static func _read_text(path: String) -> String:
