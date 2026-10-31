@@ -1,0 +1,227 @@
+{
+  "schema_version": "0.2",
+  "id": "pack.heart_demon_trial.zhuji.s001",
+  "kind": "scene",
+  "meta": {
+    "title": "築基心魔",
+    "summary": "突破築基時墜入心魔幻境，幻境地形取自玩家最常去的地圖，心魔化身成玩家最後悔辜負的人，台詞即時引用玩家過去的選擇。",
+    "tags": [
+      "心魔",
+      "突破",
+      "幻境",
+      "個人化"
+    ],
+    "author": "director",
+    "personalized_for": "save.001",
+    "tier_range": {
+      "min": "煉氣",
+      "max": "築基"
+    }
+  },
+  "trigger": {
+    "all": [
+      {
+        "type": "tier_up",
+        "to": "築基"
+      }
+    ],
+    "once": true,
+    "priority": 100
+  },
+  "requires_assets": [
+    {
+      "id": "chunk.illusion_qingyun_town",
+      "type": "chunk",
+      "fallback": "chunk.illusion_generic"
+    },
+    {
+      "id": "vfx.heart_demon_mist",
+      "type": "vfx"
+    },
+    {
+      "id": "bgm.heart_demon",
+      "type": "bgm",
+      "fallback": "bgm.boss_generic"
+    }
+  ],
+  "map": {
+    "chunks": [
+      {
+        "chunk": "chunk.illusion_entry",
+        "order": 0
+      },
+      {
+        "chunk": "chunk.illusion_qingyun_town",
+        "order": 1
+      },
+      {
+        "chunk": "chunk.illusion_arena",
+        "order": 2
+      }
+    ],
+    "spawn": "pt.illusion_start",
+    "points": [
+      "pt.illusion_start",
+      "pt.memory_square",
+      "pt.arena_center",
+      "pt.exit"
+    ],
+    "bgm": "bgm.heart_demon",
+    "ambience": "血月"
+  },
+  "actors": [
+    {
+      "id": "demon",
+      "template": "boss.heart_demon_mirror",
+      "name": "心魔",
+      "title": "汝之所悔",
+      "palette": "palette.shadow_of_player",
+      "disposition": "hostile",
+      "power": 1.0,
+      "spawn_at": "pt.arena_center",
+      "persona": "玩家內心的倒影。語氣冷靜、句句戳中痛處。只能引用世界狀態中玩家確實做過的事，不可捏造。",
+      "spawn": "on_effect"
+    },
+    {
+      "id": "echo",
+      "template": "npc.memory_echo",
+      "name": "白蘅",
+      "title": "回憶",
+      "disposition": "neutral",
+      "spawn_at": "pt.memory_square",
+      "persona": "玩家記憶中被辜負或錯過的人的幻影。若玩家曾護住白蘅，則改為玩家最常失手的一場戰鬥中的對手。"
+    }
+  ],
+  "dialogue": {
+    "entry": "h1",
+    "nodes": {
+      "h1": {
+        "speaker": "narrator",
+        "text": "靈氣逆流，眼前一黑。再睜眼時，你站在熟悉的青雲鎮，天上卻掛著血月。",
+        "next": "h2"
+      },
+      "h2": {
+        "speaker": "echo",
+        "text": "你還記得我嗎？那一天，你轉身走了。",
+        "live_rewrite": true,
+        "next": "h3"
+      },
+      "h3": {
+        "speaker": "demon",
+        "text": "你以為築基就能斬斷過去？我就是你不肯回頭看的那些事。",
+        "live_rewrite": true,
+        "effects": [
+          {
+            "type": "play_vfx",
+            "vfx": "vfx.heart_demon_mist"
+          }
+        ],
+        "next": "h4"
+      },
+      "h4": {
+        "speaker": "narrator",
+        "text": "心魔向你伸出手。",
+        "choices": [
+          {
+            "text": "承認過錯，直面它",
+            "next": "h_face",
+            "effects": [
+              {
+                "type": "set_flag",
+                "key": "heart_demon_faced",
+                "value": true
+              }
+            ]
+          },
+          {
+            "text": "拔劍，斬了它",
+            "next": "h_fight"
+          }
+        ]
+      },
+      "h_face": {
+        "speaker": "demon",
+        "text": "……那就證明給我看。",
+        "live_rewrite": true
+      },
+      "h_fight": {
+        "speaker": "demon",
+        "text": "斬得了我，斬得了你自己嗎？",
+        "live_rewrite": true
+      }
+    }
+  },
+  "stages": [
+    {
+      "id": "s1",
+      "objective": "走到記憶中的廣場",
+      "complete_when": [
+        {
+          "type": "reach_point",
+          "point": "pt.memory_square"
+        }
+      ],
+      "on_complete": [
+        {
+          "type": "start_dialogue",
+          "node": "h1"
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "objective": "擊敗心魔",
+      "on_enter": [
+        {
+          "type": "spawn_actor",
+          "actor": "demon"
+        }
+      ],
+      "complete_when": [
+        {
+          "type": "actor_defeated",
+          "actor": "demon"
+        }
+      ]
+    }
+  ],
+  "outcomes": {
+    "on_complete": [
+      {
+        "type": "set_flag",
+        "key": "zhuji_heart_demon_cleared",
+        "value": true
+      },
+      {
+        "type": "grant_exp",
+        "amount": "large"
+      },
+      {
+        "type": "teleport",
+        "point": "pt.exit"
+      },
+      {
+        "type": "request_followup",
+        "hint": "依玩家在心魔前的選擇（直面或斬殺），調整之後道心相關事件的語氣。",
+        "after_days": 0
+      }
+    ],
+    "on_fail": [
+      {
+        "type": "set_flag",
+        "key": "zhuji_breakthrough_failed",
+        "value": true
+      },
+      {
+        "type": "add_karma",
+        "axis": "仁殺",
+        "delta": -3
+      },
+      {
+        "type": "request_followup",
+        "hint": "突破失敗、道心受損，需要一段療傷支線後才能再試。",
+        "after_days": 1
+      }
+    ]
+  }
+}

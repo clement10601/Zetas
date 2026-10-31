@@ -1,0 +1,14 @@
+; Zetas：仙俠橫軸遊戲，ZeWorld 引擎的第一款遊戲。
+config_version=5
+
+[application]
+
+config/name="Zetas"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.4")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"

@@ -1,0 +1,5 @@
+{
+  "_comment": "掉落表。引擎只轉交 loot_table 與 tier，實際物品由遊戲決定。",
+  "loot.yao_dan_cave": { "common": ["下品妖丹"], "rare": ["中品妖丹", "狐火符"], "epic": ["上品妖丹"] },
+  "loot.zhenyao_bounty": { "common": ["鎮妖司賞銀 50 兩"], "rare": ["鎮妖令"], "epic": ["鎮妖司腰牌"] }
+}
