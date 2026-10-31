@@ -15,6 +15,7 @@ const DirectorClient = preload("res://addons/zeworld/director_client.gd")
 const AssetLibrary = preload("res://addons/zeworld/asset_library.gd")
 const Player = preload("res://scripts/player.gd")
 const Cultivation = preload("res://scripts/cultivation.gd")
+const Playlog = preload("res://scripts/playlog.gd")
 
 const FLOOR_Y := 560.0
 const START_REGION := "region.qingyun_foothills"
@@ -28,6 +29,9 @@ const ATTACK_RANGE := 90.0
 const ATTACK_COOLDOWN := 0.35
 const ENEMY_REACH := 44.0
 const ENEMY_HIT_INTERVAL := 1.0
+## 一句話停留不到「預估閱讀時間 × 這個比例」就翻頁，算跳過（中文約每秒 8 字）
+const SKIP_FACTOR := 0.3
+const READ_CHARS_PER_SEC := 8.0
 const HOSTILE_SPEED := 70.0
 const SAVE_ID := "save.001"
 
@@ -38,6 +42,12 @@ var use_director := true
 ## 素材清單；沒有圖的角色與場景畫色塊
 var assets_path := "res://content/assets.json"
 var art
+## 遊玩紀錄；測試時設空字串停用
+var playlog_path := "user://playlog.jsonl"
+var playlog
+var pack_stats: Dictionary = {}   # 目前事件的 {started, lines, skipped, rewritten}
+var line_shown_at := 0
+var line_length := 0
 ## 每天有奇遇的機率（測試可設 1.0）
 var encounter_chance := 0.5
 var heart_demon_pending := ""     # 已請導演準備心魔、還沒回來的境界
@@ -72,9 +82,11 @@ var lingering := false            # 事件結束時最後一句先留在畫面�
 
 
 func _ready() -> void:
+	playlog = Playlog.new(playlog_path)
 	load_content()
 	director = DirectorClient.new()
 	add_child(director)
+	_read_director_url()
 	director.pack_generated.connect(_on_pack_generated)
 	director.pack_failed.connect(_on_pack_failed)
 	director.line_rewritten.connect(func(node_id, text):
@@ -91,10 +103,28 @@ func _ready() -> void:
 		state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	go_home()
 	add_log("%s。T 地圖、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。" % region_name())
+	playlog.write("session_start", {"version": ProjectSettings.get_setting("application/config/version", ""),
+		"director": use_director, "day": state.day, "region": state.region, "tier": state.tier_name()})
 	request_followups()
 	restock()
 	prepare_heart_demon()
 	check_triggers({"type": "enter_map"})
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and playlog != null:
+		if runner != null:
+			playlog.write("pack_end", _pack_end_row("quit"))
+		playlog.write("session_end", {"day": state.day, "tier": state.tier_name()})
+
+
+## 測試版：執行檔旁的 director_url.txt 指定導演位址（環境變數 ZEWORLD_DIRECTOR_URL 優先）。
+func _read_director_url() -> void:
+	var cfg := OS.get_executable_path().get_base_dir().path_join("director_url.txt")
+	if OS.get_environment("ZEWORLD_DIRECTOR_URL") == "" and not OS.has_feature("editor") and FileAccess.file_exists(cfg):
+		var url := FileAccess.get_file_as_string(cfg).strip_edges()
+		if url.begins_with("http"):
+			director.base_url = url
 
 
 func load_content() -> void:
@@ -207,6 +237,7 @@ func travel_to(id: String) -> bool:
 	state.region = id
 	go_home()
 	add_log("你來到%s。（第 %d 天・%s）" % [region_name(), state.day, state.time_of_day])
+	playlog.write("travel", {"to": id, "day": state.day})
 	if new_day:
 		day_started()
 	restock()
@@ -271,6 +302,9 @@ func check_triggers(event: Dictionary) -> void:
 
 func start_pack(pack: Dictionary) -> void:
 	add_log("【%s】%s" % [pack["meta"]["title"], pack["meta"]["summary"]])
+	pack_stats = {"started": Time.get_ticks_msec(), "lines": 0, "skipped": 0, "rewritten": 0}
+	playlog.write("pack_start", {"pack": pack["id"], "title": pack["meta"]["title"], "author": pack["meta"].get("author", ""),
+		"request_tag": pack["meta"].get("request_tag", ""), "region": state.region, "day": state.day, "tier": state.tier_name()})
 	runner = PackRunner.new(pack, state)
 	runner.actor_spawned.connect(_on_actor_spawned)
 	runner.actor_despawned.connect(_remove_actor_view)
@@ -286,7 +320,16 @@ func start_pack(pack: Dictionary) -> void:
 	runner.start()
 
 
+func _pack_end_row(result: String) -> Dictionary:
+	var row := {"pack": runner.pack["id"], "result": result,
+		"seconds": snappedf((Time.get_ticks_msec() - int(pack_stats.get("started", 0))) / 1000.0, 0.1)}
+	for k in ["lines", "skipped", "rewritten"]:
+		row[k] = int(pack_stats.get(k, 0))
+	return row
+
+
 func _on_pack_finished(result: String) -> void:
+	playlog.write("pack_end", _pack_end_row(result))
 	var title: String = runner.pack["meta"]["title"]
 	var had_map: bool = runner.pack.has("map")
 	add_log("【%s】結束：%s" % [title, {"complete": "完成", "fail": "失敗", "abandon": "放棄"}[result]])
@@ -388,12 +431,15 @@ func _on_pack_generated(pack: Dictionary, followup: Dictionary) -> void:
 				f["status"] = "ready"
 				f["pack"] = pack["id"]
 	add_log("（導演備好了新事件：%s）" % pack["meta"]["title"])
+	playlog.write("director_pack", {"pack": pack["id"], "request_tag": pack["meta"].get("request_tag", ""),
+		"followup": not followup.is_empty(), "region": pack["meta"].get("region", "")})
 	autosave()
 	if pack["meta"].get("request_tag", "") == "encounter":
 		check_triggers({"type": "enter_map"})
 
 
 func _on_pack_failed(followup: Dictionary, reason: String) -> void:
+	playlog.write("director_fail", {"reason": reason, "followup": not followup.is_empty()})
 	for f in state.followups:
 		if f.get("flag") == followup.get("flag") and f.get("status") == "requested":
 			f["status"] = ""
@@ -478,12 +524,16 @@ func _on_presentation(effect: Dictionary) -> void:
 # ---------- 對話 ----------
 
 func _on_line_shown(id: String, line: Dictionary) -> void:
+	pack_stats["lines"] = int(pack_stats.get("lines", 0)) + 1
+	line_shown_at = Time.get_ticks_msec()
+	line_length = line["text"].length()
 	_show_line(line)
 	if line["live_rewrite"] and use_director:
 		director.request_rewrite(id, line["text"], runner.pack, state)
 
 
 func _on_line_updated(_id: String, line: Dictionary) -> void:
+	pack_stats["rewritten"] = int(pack_stats.get("rewritten", 0)) + 1
 	_show_line(line)
 
 
@@ -515,10 +565,18 @@ func advance_dialogue() -> void:
 	if lingering:
 		_hide_dialogue()
 	elif runner != null and runner.current_node != "":
+		_note_skip()
 		runner.advance()
 
 
 ## i 是畫面上的選項順序（從 0 開始）。
+## 翻頁前看這句停留多久，太短算跳過
+func _note_skip() -> void:
+	var read_ms := line_length / READ_CHARS_PER_SEC * 1000.0
+	if Time.get_ticks_msec() - line_shown_at < read_ms * SKIP_FACTOR:
+		pack_stats["skipped"] = int(pack_stats.get("skipped", 0)) + 1
+
+
 func choose_visible(i: int) -> void:
 	if runner != null and i < current_choices.size():
 		runner.choose(current_choices[i]["index"])
@@ -620,6 +678,7 @@ func damage_player(amount: int) -> void:
 ## 重傷倒地：事件以失敗結算，醒來時血回一半、過了一個時辰。
 func player_down() -> void:
 	add_log("你重傷倒地，人事不知……")
+	playlog.write("player_down", {"pack": runner.pack["id"] if runner != null else "", "region": state.region})
 	for id in enemy_cooldown:
 		enemy_cooldown[id] = ENEMY_HIT_INTERVAL
 	if runner != null:
@@ -685,6 +744,7 @@ func breakthrough() -> void:
 		return
 	state.tier_index += 1
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
+	playlog.write("breakthrough", {"tier": state.tier_name(), "day": state.day})
 	add_log("突破至" + state.tier_name() + "！")
 	check_triggers({"type": "tier_up", "to": state.tier_name()})
 	prepare_heart_demon()

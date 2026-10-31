@@ -87,3 +87,10 @@ godot --headless --path . -s res://tests/run_tests.gd
 ## 美術
 
 美術走手繪 2D 插畫風，規格寫在 [art/STYLE.md](art/STYLE.md)。素材清單是 `content/assets.json`，圖檔放在 `art/sprites`、`art/chunks`。缺圖的角色會先退回通用立繪，連通用立繪都沒有就畫色塊；場景缺圖時也畫色塊，所以美術可以一張一張補。同一個模板可以有多張變體，導演生成的 NPC 會依 memory_key 固定分到其中一張。執行 `python tools/art_todo.py` 會依出場次數產生待辦清單 [art/TODO.md](art/TODO.md)。
+
+## 封閉測試
+
+- 遊玩紀錄寫在 `user://playlog.jsonl`（Windows 是 `%APPDATA%\Zetas\playlog.jsonl`），內容只有事件開始與結束、結果、翻頁速度、導演成功或失敗。彙整方式：`python tools/playlog_report.py A.jsonl B.jsonl > report.md`，會算出每個事件的完成率與台詞跳過率。
+- Windows 測試版：到 GitHub Actions 手動執行 `build` workflow（勾選「匯出 Windows 測試版」），下載 artifact。也可以在本機跑 `python tools/fetch_export_template.py 4.4.1 windows_release_x86_64.exe`，再執行 `godot --headless --export-release "Windows Desktop" build/windows/Zetas.exe`。
+- 測試者連導演：在 `Zetas.exe` 旁邊放一個 `director_url.txt`，內容寫導演網址。沒放就只有手寫事件。
+- 給測試者的說明在 [playtest/README.md](playtest/README.md)，匯出時會一起打包。

@@ -1,0 +1,61 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      windows:
+        description: "匯出 Windows 測試版"
+        type: boolean
+        default: true
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Godot
+        run: |
+          curl -sSLo godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 /usr/local/bin/godot
+      - run: pip install jsonschema
+      - run: python tools/sync_engine.py
+      - run: python engine/content-pack/validate.py --game zeworld.json
+      - run: godot --headless --path . --import || true
+      - run: godot --headless --path . -s res://tests/run_tests.gd
+
+  windows:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' && inputs.windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install Godot and the Windows template
+        run: |
+          curl -sSLo godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 /usr/local/bin/godot
+          python tools/fetch_export_template.py ${GODOT_VERSION} windows_release_x86_64.exe
+      - run: python tools/sync_engine.py
+      - run: godot --headless --path . --import || true
+      - name: Export
+        run: |
+          mkdir -p build/windows
+          godot --headless --path . --export-release "Windows Desktop" build/windows/Zetas.exe
+          cp playtest/README.md build/windows/README.md
+          test -s build/windows/Zetas.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zetas-windows-${{ github.sha }}
+          path: build/windows
