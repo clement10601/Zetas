@@ -112,6 +112,7 @@ func _ready() -> void:
 	_build_hud()
 	player = Player.new()
 	add_child(player)
+	player.set_look(art.texture("player.disciple"), float(art.info("player.disciple").get("height", 88)))
 	if save_path != "" and state.load_file(save_path):
 		add_log("讀取存檔：第 %d 天。" % state.day)
 	if not regions.has(state.region):
@@ -245,11 +246,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	shape.shape.size = Vector2(x + 400, 40)
 	shape.position = Vector2(x / 2, FLOOR_Y + 20)
 	ground.add_child(shape)
-	var ground_rect := ColorRect.new()
-	ground_rect.color = Color("#1c1a17")
-	ground_rect.position = Vector2(-200, FLOOR_Y)
-	ground_rect.size = Vector2(x + 400, 160)
-	ground.add_child(ground_rect)
+	ground.add_child(_tiled("prop.ground", Vector2(-200, FLOOR_Y - 3), Vector2(x + 400, 163), Color("#1c1a17")))
 	for wall_x in [-10.0, x + 10.0]:
 		var wall := CollisionShape2D.new()
 		wall.shape = RectangleShape2D.new()
@@ -278,16 +275,14 @@ func _add_platform(left: float, top: float, width: float, skill := "") -> void:
 	shape.position = Vector2(left + width / 2, top + 6)
 	shape.one_way_collision = true
 	body.add_child(shape)
-	var slab := ColorRect.new()
-	slab.color = Color("#2a2620", 0.85)
-	slab.position = Vector2(left, top)
-	slab.size = Vector2(width, 14)
+	var slab := _tiled("prop.platform", Vector2(left, top - 2), Vector2(width, 18), Color("#2a2620", 0.85))
 	body.add_child(slab)
-	var edge := ColorRect.new()
-	edge.color = Color("#9fc4c9") if skill != "" else Color("#0e0d0b")
-	edge.position = Vector2(left, top)
-	edge.size = Vector2(width, 3)
-	body.add_child(edge)
+	if skill != "" or not slab is TextureRect:
+		var edge := ColorRect.new()
+		edge.color = Color("#9fc4c9") if skill != "" else Color("#0e0d0b")
+		edge.position = Vector2(left, top)
+		edge.size = Vector2(width, 3)
+		body.add_child(edge)
 	level.add_child(body)
 
 
@@ -301,11 +296,8 @@ func _add_wall(left: float, width: float, bottom: float, top: float, kind: Strin
 	shape.shape.size = Vector2(width, top - bottom)
 	shape.position = Vector2(left + width / 2, FLOOR_Y - (top + bottom) / 2)
 	body.add_child(shape)
-	var rect := ColorRect.new()
-	rect.color = Color("#7a5a3a") if kind == "thin" else Color("#24221e")
-	rect.position = Vector2(left, FLOOR_Y - top)
-	rect.size = Vector2(width, top - bottom)
-	body.add_child(rect)
+	body.add_child(_tiled("prop.thin_wall" if kind == "thin" else "prop.cliff", Vector2(left, FLOOR_Y - top),
+		Vector2(width, top - bottom), Color("#7a5a3a") if kind == "thin" else Color("#24221e")))
 	level.add_child(body)
 
 
@@ -313,11 +305,19 @@ func _add_wall(left: float, width: float, bottom: float, top: float, kind: Strin
 func _add_cache(c: Dictionary, chunk_left: float) -> void:
 	var view := Node2D.new()
 	view.position = Vector2(chunk_left + float(c["x"]), FLOOR_Y - float(c.get("h", 0)))
-	var box := ColorRect.new()
-	box.color = Color("#b8862b")
-	box.position = Vector2(-12, -16)
-	box.size = Vector2(24, 16)
-	view.add_child(box)
+	var tex: Texture2D = art.texture("prop.cache")
+	if tex:
+		var sprite := Sprite2D.new()
+		sprite.texture = tex
+		sprite.centered = false
+		sprite.position = Vector2(-tex.get_width() / 2.0, -tex.get_height())
+		view.add_child(sprite)
+	else:
+		var box := ColorRect.new()
+		box.color = Color("#b8862b")
+		box.position = Vector2(-12, -16)
+		box.size = Vector2(24, 16)
+		view.add_child(box)
 	level.add_child(view)
 	caches[c["id"]] = {"view": view, "info": c}
 
@@ -367,7 +367,11 @@ func _add_rope_view(rope: Dictionary) -> void:
 	var view := Node2D.new()
 	view.add_to_group("rope")
 	var length: float = rope["bottom"] - rope["top"]
-	if rope["kind"] == "ladder":
+	var tex: Texture2D = art.texture("prop." + rope["kind"])
+	if tex:
+		view.add_child(_tiled("prop." + rope["kind"], Vector2(rope["x"] - tex.get_width() / 2.0, rope["top"]),
+			Vector2(tex.get_width(), length), Color.WHITE))
+	elif rope["kind"] == "ladder":
 		for side in [-10.0, 8.0]:
 			var rail := ColorRect.new()
 			rail.color = Color("#6b4f35")
@@ -387,6 +391,23 @@ func _add_rope_view(rope: Dictionary) -> void:
 		line.size = Vector2(4, length)
 		view.add_child(line)
 	level.add_child(view)
+
+
+## 平台、地面、繩梯、牆的貼圖：有圖就重複鋪滿，沒圖退回色塊。
+func _tiled(id: String, pos: Vector2, size: Vector2, fallback: Color) -> Control:
+	var tex: Texture2D = art.texture(id)
+	var view: Control
+	if tex:
+		view = TextureRect.new()
+		view.texture = tex
+		view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		view.stretch_mode = TextureRect.STRETCH_TILE
+	else:
+		view = ColorRect.new()
+		view.color = fallback
+	view.position = pos
+	view.size = size
+	return view
 
 
 ## 回到目前地區的落腳地圖。

@@ -33,10 +33,11 @@ def main():
             continue
         src = actors.get(aid) or chunks.get(aid) or {}
         desc = src.get("description") or ", ".join(src.get("tags", []))
-        size = f"高 {info['height']}（畫布 480）" if info["type"] == "sprite" else f"{src.get('width', '?')}×600"
+        size = {"sprite": f"高 {info.get('height')}（畫布 480）", "chunk": f"{src.get('width', '?')}×600"}.get(info["type"], "可重複鋪")
         rows.append((-uses[aid], aid, info["type"], src.get("name", ""), desc, size, info["files"][0]))
     rows.sort()
-    lines = ["# 美術待辦", "", "由 `python tools/art_todo.py` 產生，規格見 [STYLE.md](STYLE.md)。出場次數越多越先做。", "",
+    lines = ["# 美術待辦", "", "由 `python tools/art_todo.py` 產生，規格見 [STYLE.md](STYLE.md)。出場次數越多越先做。",
+             "程式畫的水墨版本用 `python tools/paint_art.py` 補上；清單是空的代表每個素材至少有一張圖。", "",
              "| 出場 | 素材 id | 類型 | 名稱 | 說明 | 尺寸 | 檔案 |", "| --- | --- | --- | --- | --- | --- | --- |"]
     lines += [f"| {-u} | `{aid}` | {t} | {n} | {d} | {s} | `{f}` |" for u, aid, t, n, d, s, f in rows]
     (ROOT / "art" / "TODO.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
