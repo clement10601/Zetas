@@ -1,0 +1,12 @@
+# Kc 的 k0s（ubt015）：tunnel 版，加上 PVC 明寫 rustfs-nfs（叢集沒有預設 StorageClass，現有服務都這樣寫）。
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: zetas
+resources:
+  - ../tunnel
+patches:
+  - target: {kind: PersistentVolumeClaim, name: zetas-director-data}
+    patch: |-
+      - op: add
+        path: /spec/storageClassName
+        value: rustfs-nfs

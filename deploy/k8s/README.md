@@ -13,6 +13,7 @@ deploy/
   k8s/base/                Namespace zetas、Deployment、Service、PVC
   k8s/tunnel/              base + cloudflared（建議）
   k8s/ingress/             base + Ingress
+  k8s/fezone/              Kc 的 k0s：tunnel + PVC 用 rustfs-nfs（實際部署用這個）
 ```
 
 以下指令都在 VM（或任何連得到叢集的電腦）上執行，`kubectl` 指的是 `k0s kubectl` 或設好 kubeconfig 的 kubectl。
@@ -98,6 +99,8 @@ kubectl -n zetas rollout restart deploy/zetas-director
 
    ```sh
    kubectl apply -k deploy/k8s/tunnel
+   # Kc 的 k0s（沒有預設 StorageClass，用 rustfs-nfs）：
+   kubectl apply -k deploy/k8s/fezone
    ```
 
 Cloudflare 對單一請求最多等 100 秒；生成一個事件約 45–55 秒，遊戲端等 90 秒就放棄，所以不會撞到。
