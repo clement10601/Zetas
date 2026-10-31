@@ -46,6 +46,7 @@ var ropes: Array = []           # main 建地圖時填：{x, top, bottom}，top/
 var floor_y := 560.0            # 地面高度，用來分辨站在地上還是平台上
 var test_input = null           # 測試用：{"left", "right", "up", "down", "jump"} 布林值，設了就不讀鍵盤
 var camera: Camera2D
+var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
 
 var _coyote := 0.0
 var _jump_buffer := 0.0
@@ -65,6 +66,7 @@ func _ready() -> void:
 	shape.shape.size = SIZE
 	add_child(shape)
 	var body := ColorRect.new()
+	body.name = "Body"
 	body.color = Color("#e8e2c8")
 	body.size = SIZE
 	body.position = -SIZE / 2
@@ -81,6 +83,25 @@ func _ready() -> void:
 	camera.drag_top_margin = 0.3
 	camera.drag_bottom_margin = 0.15
 	add_child(camera)
+
+
+## 換上立繪（面朝右、腳底貼齊圖的底邊），height 是畫面上的身高；碰撞框不變。
+func set_look(tex: Texture2D, height: float) -> void:
+	if tex == null:
+		return
+	if sprite == null:
+		sprite = Sprite2D.new()
+		sprite.centered = false
+		add_child(sprite)
+	sprite.texture = tex
+	sprite.scale = Vector2.ONE * height / tex.get_height()
+	sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, SIZE.y / 2 - height)
+	get_node("Body").visible = false
+
+
+func _process(_delta: float) -> void:
+	if sprite:
+		sprite.flip_h = facing < 0
 
 
 ## 平常會撞到的東西；學會土遁就不撞薄牆
