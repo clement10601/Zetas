@@ -6,6 +6,7 @@
   "chunks": "content/chunks.json",
   "loot": "content/loot.json",
   "actor_templates": "content/actors.json",
+  "regions": "content/regions.json",
   "style": "content/style.md",
   "packs": "content/packs",
   "banned_words": "content/banned_words.txt"
