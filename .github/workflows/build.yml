@@ -14,6 +14,10 @@ on:
         description: "預填進 director_url.txt 的導演網址（留空就不放）"
         type: string
         default: "https://zetas-director.fezone.tw"
+      web:
+        description: "匯出網頁版並發佈到 GitHub Pages"
+        type: boolean
+        default: true
       release_tag:
         description: "填了就把 zip 發佈成 GitHub Release（例如 playtest-0.2.0）"
         type: string
@@ -87,3 +91,42 @@ jobs:
         with:
           name: Zetas-windows-${{ github.sha }}
           path: build/windows
+
+  web:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' && inputs.web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install Godot and the Web template
+        run: |
+          curl -sSLo godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 /usr/local/bin/godot
+          python tools/fetch_export_template.py ${GODOT_VERSION} web_nothreads_release.zip
+      - run: python tools/sync_engine.py
+      - run: godot --headless --path . --import || true
+      - name: Export
+        run: |
+          mkdir -p build/web
+          godot --headless --path . --export-release "Web" build/web/index.html
+          test -s build/web/index.wasm && test -s build/web/index.pck
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+      - id: deploy
+        uses: actions/deploy-pages@v4
