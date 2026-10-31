@@ -108,6 +108,8 @@ var prompt_label: Label           # 「↑ 前往……」「↑ 交談」提示
 var actor_views: Dictionary = {}  # actor id -> Node2D
 var actor_hp: Dictionary = {}
 var actor_power: Dictionary = {}  # actor id -> power，傷害與擊殺修為用
+var actor_max_hp: Dictionary = {}
+var actor_boss: Dictionary = {}   # Boss 的 actor id -> 是否已發狠
 var enemy_cooldown: Dictionary = {}  # actor id -> 收招破綻還剩幾秒（這段時間不動、不出招）
 var enemy_windup: Dictionary = {}    # actor id -> 前搖還剩幾秒（只有正在蓄力的敵人）
 var player_invuln := 0.0
@@ -1242,7 +1244,12 @@ func _on_actor_spawned(actor: Dictionary) -> void:
 	var power := float(actor.get("power", 1.0))
 	actor_views[actor["id"]] = view
 	actor_power[actor["id"]] = power
-	actor_hp[actor["id"]] = Cultivation.enemy_hp(power, pack_tier())
+	var boss: bool = hostile and actor["template"].begins_with("boss.")
+	actor_hp[actor["id"]] = Cultivation.enemy_hp(power, pack_tier(), boss)
+	actor_max_hp[actor["id"]] = actor_hp[actor["id"]]
+	actor_boss.erase(actor["id"])
+	if boss:
+		actor_boss[actor["id"]] = false  # false＝還沒發狠
 	enemy_cooldown[actor["id"]] = 0.0
 
 
@@ -1464,7 +1471,8 @@ func damage_actor(id: String, amount: int) -> void:
 	var away := signf(view.position.x - player.position.x)
 	if away == 0.0:
 		away = float(player.facing)
-	view.position.x += away * ENEMY_KNOCKBACK
+	# Boss 站得穩，只退一半
+	view.position.x += away * ENEMY_KNOCKBACK * (0.5 if actor_boss.has(id) else 1.0)
 	player.move_and_collide(Vector2(-away * PLAYER_RECOIL, 0))
 	_cancel_windup(id)
 	InkFx.number(level, view.position + Vector2(0, -110), str(amount), Color("#f3ecd9"))
@@ -1483,6 +1491,10 @@ func damage_actor(id: String, amount: int) -> void:
 			runner.notify({"type": "actor_defeated", "actor": id})
 	else:
 		hitstop(HITSTOP)
+		if actor_boss.get(id, true) == false and actor_hp[id] <= actor_max_hp[id] * Cultivation.BOSS_ENRAGE_AT:
+			actor_boss[id] = true
+			add_log("%s怒了，出手更快！" % actor_label(id))
+			player.shake(4.0)
 
 
 ## 命中停頓：整個遊戲停一下再恢復。計時器用真實時間；main 被釋放也會恢復（_exit_tree）。
@@ -1497,6 +1509,11 @@ func _exit_tree() -> void:
 	Engine.time_scale = 1.0
 
 
+## 發狠的 Boss 出招更快（乘在前搖與收招時間上）
+func _enemy_speed(id: String) -> float:
+	return Cultivation.BOSS_ENRAGE_SPEED if actor_boss.get(id, false) == true else 1.0
+
+
 func _cancel_windup(id: String) -> void:
 	enemy_windup.erase(id)
 	var view = actor_views.get(id)
@@ -1507,7 +1524,7 @@ func _cancel_windup(id: String) -> void:
 ## 前搖結束：玩家還在眼前、在地面附近、不在無敵時間，才算打中。
 func _enemy_strike(id: String) -> void:
 	_cancel_windup(id)
-	enemy_cooldown[id] = Cultivation.ENEMY_RECOVER
+	enemy_cooldown[id] = Cultivation.ENEMY_RECOVER * _enemy_speed(id)
 	var view: Node2D = actor_views[id]
 	if absf(player.position.x - view.position.x) > ENEMY_STRIKE_REACH or not player_near_ground() or player_invuln > 0.0 or player.dashing > 0.0:
 		return
@@ -1590,7 +1607,7 @@ func _process(delta: float) -> void:
 		if absf(dx) > 40.0:
 			view.position.x += signf(dx) * HOSTILE_SPEED * delta
 		if absf(dx) <= ENEMY_REACH and player_near_ground():
-			enemy_windup[id] = Cultivation.enemy_windup(pack_tier())
+			enemy_windup[id] = Cultivation.enemy_windup(pack_tier()) * _enemy_speed(id)
 			if view.has_method("telegraph"):
 				view.telegraph(true, float(view.get_meta("height", 120.0)))
 			audio.play("enemy_windup")

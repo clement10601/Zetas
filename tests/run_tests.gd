@@ -120,7 +120,7 @@ func test_fox_repays_kindness() -> void:
 	expect(main.hud_objective.text == "目標：擊退獵妖人", "objective switches to fighting the hunter")
 	main.advance_dialogue()
 	expect(not main.dialogue_panel.visible, "dialogue closes")
-	main.damage_actor("hunter", 10)
+	main.damage_actor("hunter", 100)
 	expect(main.runner == null, "event ends after hunter defeated")
 	expect(main.state.relations.get("npc.baiheng") == 25, "白蘅 relation +25")
 	expect(main.state.items.has("中品妖丹"), "rare loot from game loot table")
@@ -145,13 +145,20 @@ func test_heart_demon_trial() -> void:
 	main._process(0.016)
 	expect(main.runner.reached_points.has("pt.memory_square"), "walking to the square is noticed")
 	expect(main.actor_views.has("demon"), "heart demon spawns")
+	expect(main.dialogue_name.text.contains("舊日的你") and not main.dialogue_label.text.contains("白蘅"), "without the director the echo is your younger self, not someone you never met")
 	for i in 2:
 		main.advance_dialogue()
 	expect(main.current_choices.size() == 2, "face or fight choice")
 	main.choose_visible(0)
 	expect(main.state.flags.get("heart_demon_faced") == true, "choice recorded")
 	main.advance_dialogue()
-	main.damage_actor("demon", 10)
+	expect(main.actor_hp["demon"] == 16, "the heart demon is a boss: about 8 hits for a fresh 築基")
+	var Cultivation = load("res://scripts/cultivation.gd")
+	var windup_calm: float = Cultivation.enemy_windup(main.pack_tier()) * main._enemy_speed("demon")
+	main.damage_actor("demon", 8)
+	expect(main.actor_boss["demon"] == true and main.log_lines.any(func(l): return l.contains("怒了")), "at half hp the boss enrages")
+	expect(main._enemy_speed("demon") < 1.0 and Cultivation.enemy_windup(main.pack_tier()) * main._enemy_speed("demon") < windup_calm, "an enraged boss winds up faster")
+	main.damage_actor("demon", 8)
 	expect(main.runner == null, "trial ends")
 	expect(main.state.flags.get("zhuji_heart_demon_cleared") == true, "trial cleared")
 	expect(main.state.tier_name() == "築基", "player is now 築基")
@@ -172,7 +179,7 @@ func test_director_followup_event() -> void:
 		main.advance_dialogue()
 	main.choose_visible(0)
 	main.advance_dialogue()
-	main.damage_actor("hunter", 10)
+	main.damage_actor("hunter", 100)
 	var f: Dictionary = main.state.followups[0]
 	expect(f["flag"] == "followup:pack.fox_repays_kindness.s001", "fox followup carries its flag")
 	var pack = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/generated_zhenyao.json"))
@@ -324,7 +331,7 @@ func test_personal_heart_demon() -> void:
 		main.advance_dialogue()
 	main.choose_visible(0)
 	main.advance_dialogue()
-	main.damage_actor("demon", 10)
+	main.damage_actor("demon", 100)
 	expect(main.runner == null, "築基 trial finished")
 	expect(main.heart_demon_pending == "", "no heart demon request while cultivation is far from full")
 	main.gain_cultivation(300)
@@ -413,12 +420,12 @@ func test_combat() -> void:
 		main.advance_dialogue()
 	main.choose_visible(0)
 	main.advance_dialogue()
-	expect(main.actor_hp["hunter"] == 4, "hunter hp from power 1.2 at 煉氣")
+	expect(main.actor_hp["hunter"] == 5, "hunter takes about 5 hits at 煉氣 (power 1.2)")
 	var hunter: Node2D = main.actor_views["hunter"]
 	hunter.position.x = main.player.position.x + 30
 	main.attack()
 	main.attack()
-	expect(main.actor_hp["hunter"] == 3, "attack has a cooldown")
+	expect(main.actor_hp["hunter"] == 4, "attack has a cooldown")
 	main.player_invuln = 0.0
 	hunter.position.x = main.player.position.x + 30  # 擊退過了，拉回眼前
 	main._process(0.1)
@@ -882,7 +889,7 @@ func test_melee_height() -> void:
 	var hp_before: int = main.hp()
 	main._process(1.0)
 	main.attack()
-	expect(main.hp() == hp_before and main.actor_hp["hunter"] == 4, "on a platform out of melee reach both ways")
+	expect(main.hp() == hp_before and main.actor_hp["hunter"] == 5, "on a platform out of melee reach both ways")
 	main.free()
 
 
