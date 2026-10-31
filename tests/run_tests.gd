@@ -34,6 +34,7 @@ func _run() -> void:
 	await test_playlog()
 	await test_map_layout_data()
 	await test_walk_and_jump()
+	await test_scrolling_camera_and_parallax()
 	await test_platforms_and_ropes()
 	await test_portals_and_residents()
 	await test_melee_height()
@@ -600,6 +601,52 @@ func test_walk_and_jump() -> void:
 	main.player.frozen = true
 	await step(main, {"right": true, "jump": true}, 10)
 	expect(player.is_on_floor() and player.velocity.x == 0.0, "frozen during dialogue")
+	main.free()
+
+
+## 橫向卷軸：鏡頭往前看、小跳不跟高度、按住 ↓ 往下看；背景畫比地面慢；山嵐與近景層。
+func test_scrolling_camera_and_parallax() -> void:
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	var cam: Camera2D = player.camera
+	player.position = Vector2(900, main.FLOOR_Y - 27)
+	player.snap_camera()
+	await step(main, {}, 20)
+	await step(main, {"right": true}, 90)
+	expect(cam.global_position.x > player.position.x + 60.0, "camera looks ahead in the walking direction")
+	await step(main, {"left": true}, 120)
+	expect(cam.global_position.x < player.position.x - 60.0, "turning around swings the look-ahead")
+	# 高 300 的平台底下，跳不上去
+	player.position = Vector2(1700, main.FLOOR_Y - 27)
+	player.snap_camera()
+	await step(main, {}, 30)
+	var cam_y := cam.global_position.y
+	main.player.test_input = {"jump": true}
+	var drift := 0.0
+	for i in 40:
+		await physics_frame
+		drift = maxf(drift, absf(cam.global_position.y - cam_y))
+	main.player.test_input = {}
+	expect(drift < 4.0, "a plain jump does not bob the camera (%.1f)" % drift)
+	await step(main, {}, 20)
+	cam_y = cam.global_position.y
+	await step(main, {"down": true}, 60)
+	expect(cam.global_position.y > cam_y + 60.0, "holding down looks down")
+	await step(main, {}, 60)
+	expect(absf(cam.global_position.y - cam_y) < 10.0, "letting go looks back")
+	# 背景畫：鏡頭走 100，畫只跟著走 DEPTH × 100
+	var painting: TextureRect = main.level.get_children().filter(func(n): return n is TextureRect and n.has_method("setup"))[0]
+	painting._apply(painting.win_left + painting.win_width / 2)
+	var x0: float = painting.position.x
+	painting._apply(painting.win_left + painting.win_width / 2 + 100.0)
+	expect(is_equal_approx(painting.position.x - x0, 100.0 * painting.DEPTH), "chunk painting scrolls slower than the ground")
+	painting._apply(-10000.0)
+	expect(painting.position.x <= painting.win_left and painting.position.x + painting.size.x >= painting.win_left + painting.win_width, "painting always covers its chunk")
+	expect(main.level.has_node("Mist") and main.level.has_node("Foreground"), "map has mist and foreground layers")
+	expect(main.level.get_node("Foreground").z_index > 0 and main.level.get_node("Mist").z_index < 0, "foreground in front of the player, mist behind")
+	# 受傷鏡頭震一下
+	main.damage_player(1)
+	expect(player._shake > 0.0, "getting hit shakes the camera")
 	main.free()
 
 

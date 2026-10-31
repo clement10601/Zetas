@@ -4,6 +4,7 @@
 ## 身法（main 依學會的身法開關，見 scripts/cultivation.gd）：
 ## 輕身術 double_jump 空中再按跳；踏葉 wall_jump 空中貼牆按跳往反方向蹬；
 ## 御風 glide 下落時按住跳滑翔；土遁 earth_escape 穿過薄牆；御劍 sword_flight 空中按 K 飛一小段。
+## 鏡頭往面向的方向多看一點、小跳不晃，站著按住 ↑／↓ 可以往上下看；受傷時輕震。
 ## 美術未到前用色塊。
 extends CharacterBody2D
 
@@ -29,8 +30,22 @@ const GRAVITY := 1800.0
 const MAX_FALL := 900.0
 const CLIMB_SPEED := 170.0
 const ROPE_JUMP := Vector2(220, -420)
-const COYOTE_TIME := 0.08       # 走出平台邊緣後還能起跳的時間
-const JUMP_BUFFER := 0.1        # 落地前一點按跳也算
+const COYOTE_TIME := 0.1        # 走出平台邊緣後還能起跳的時間
+const JUMP_BUFFER := 0.12       # 落地前一點按跳也算
+const TURN_DECEL := 4200.0      # 地上轉身時煞得比較快，不會像溜冰
+const FALL_GRAVITY := 1.15      # 下落比上升快一點，跳起來俐落不飄
+const APEX_SPEED := 90.0        # 跳到頂點附近（上下速度小於這個）重力減半，留一點滯空感
+const APEX_GRAVITY := 0.55
+const HARD_LANDING := 750.0     # 落地速度超過這個，鏡頭輕震一下
+## 鏡頭：往面向的方向多看一點；只在落地或爬繩時跟上高度，小跳不晃；
+## 站著按住 ↑／↓ 一會兒可以往上／往下看。
+const CAM_HEIGHT := 110.0       # 鏡頭中心在腳上方多高
+const LOOK_AHEAD := 120.0
+const LOOK_AHEAD_RATE := 2.2    # 前瞻跟上的速度（越大越快）
+const CAM_Y_RATE := 5.0
+const CAM_AIR_SLACK := 170.0    # 空中往上超過落腳處這麼多才開始跟
+const LOOK_DELAY := 0.45
+const LOOK_DIST := 160.0
 const DROP_TIME := 0.25         # 往下跳時穿過平台的時間
 const ROPE_GRAB := 16.0         # 離繩子多近抓得到
 const SIZE := Vector2(28, 52)
@@ -52,6 +67,12 @@ var ropes: Array = []           # main 建地圖時填：{x, top, bottom}，top/
 var floor_y := 560.0            # 地面高度，用來分辨站在地上還是平台上
 var test_input = null           # 測試用：{"left", "right", "up", "down", "jump"} 布林值，設了就不讀鍵盤
 var camera: Camera2D
+var _cam_ahead := 0.0
+var _cam_anchor := 0.0          # 鏡頭跟著的腳底高度
+var _cam_y := 0.0
+var _look := 0.0
+var _look_hold := 0.0
+var _shake := 0.0
 var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
 var rig: Node2D                 # 立繪的軸心放在腳底：走路一頓一頓、跳起拉長、落地壓扁都繞這裡
 var shadow: TextureRect
@@ -98,17 +119,10 @@ func _ready() -> void:
 	shadow.show_behind_parent = true
 	add_child(shadow)
 	camera = Camera2D.new()
-	camera.position = Vector2(0, -120)
-	camera.position_smoothing_enabled = true
-	camera.position_smoothing_speed = 7.0
-	camera.drag_horizontal_enabled = true
-	camera.drag_left_margin = 0.08
-	camera.drag_right_margin = 0.08
-	# 小跳不晃鏡頭，爬上高處才跟上去
-	camera.drag_vertical_enabled = true
-	camera.drag_top_margin = 0.3
-	camera.drag_bottom_margin = 0.15
+	# 鏡頭自己算位置（見 _update_camera），不掛在玩家身上跟著抖
+	camera.top_level = true
 	add_child(camera)
+	snap_camera()
 
 
 ## 換上立繪（面朝右、腳底貼齊圖的底邊），height 是畫面上的身高；碰撞框不變。
@@ -130,6 +144,38 @@ func _process(delta: float) -> void:
 	if sprite:
 		sprite.flip_h = facing < 0
 	_animate(delta)
+	_update_camera(delta)
+
+
+func _update_camera(delta: float) -> void:
+	if not camera.is_inside_tree():
+		return
+	var input := {} if frozen else _read_input()
+	# 前瞻：走動時慢慢偏到面向那邊，停下來就停在那裡，不來回晃
+	if absf(velocity.x) > 40.0 and not climbing:
+		_cam_ahead = lerpf(_cam_ahead, signf(velocity.x) * LOOK_AHEAD, 1.0 - exp(-LOOK_AHEAD_RATE * delta))
+	# 高度：站穩或爬繩時才跟；空中只在掉到下面、或飛得太高時跟
+	var f := feet()
+	if is_on_floor() or climbing or flying > 0.0 or f > _cam_anchor:
+		_cam_anchor = f
+	elif f < _cam_anchor - CAM_AIR_SLACK:
+		_cam_anchor = f + CAM_AIR_SLACK
+	_cam_y = lerpf(_cam_y, _cam_anchor, 1.0 - exp(-CAM_Y_RATE * delta))
+	# 站著按住 ↑／↓：往上／往下看
+	var look_dir := 0.0
+	if is_on_floor() and absf(velocity.x) < 1.0 and not input.get("jump", false):
+		look_dir = float(input.get("down", false)) - float(input.get("up", false))
+	_look_hold = _look_hold + delta if look_dir != 0.0 else 0.0
+	var look_target := look_dir * LOOK_DIST if _look_hold >= LOOK_DELAY else 0.0
+	_look = lerpf(_look, look_target, 1.0 - exp(-4.0 * delta))
+	camera.global_position = Vector2(position.x + _cam_ahead, _cam_y - CAM_HEIGHT + _look)
+	_shake = maxf(0.0, _shake - 30.0 * delta)
+	camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake if _shake > 0.0 else Vector2.ZERO
+
+
+## 鏡頭震一下（受傷、重重落地）。
+func shake(amount: float) -> void:
+	_shake = maxf(_shake, amount)
 
 
 ## 程式做的小動作（立繪只有一張）：站著呼吸、走路一頓一頓往前傾、
@@ -216,7 +262,12 @@ func snap_camera() -> void:
 	climbing = false
 	flying = 0.0
 	collision_mask = base_mask()
+	_cam_anchor = feet()
+	_cam_y = _cam_anchor
+	_cam_ahead = facing * LOOK_AHEAD * 0.5
+	_look = 0.0
 	if camera.is_inside_tree():
+		camera.global_position = Vector2(position.x + _cam_ahead, _cam_y - CAM_HEIGHT)
 		camera.reset_smoothing()
 
 
@@ -272,7 +323,12 @@ func _physics_process(delta: float) -> void:
 	_jump_buffer = JUMP_BUFFER if jump_pressed else maxf(0.0, _jump_buffer - delta)
 
 	if not is_on_floor():
-		velocity.y = minf(velocity.y + GRAVITY * delta, MAX_FALL)
+		var g := GRAVITY
+		if velocity.y > 0.0:
+			g *= FALL_GRAVITY
+		elif absf(velocity.y) < APEX_SPEED:
+			g *= APEX_GRAVITY
+		velocity.y = minf(velocity.y + g * delta, MAX_FALL)
 		if wall_dir != 0 and int(dir) == wall_dir:
 			velocity.y = minf(velocity.y, WALL_SLIDE)
 		elif glide and jump_down and velocity.y > 0.0:
@@ -301,13 +357,22 @@ func _physics_process(delta: float) -> void:
 
 	if _wall_lock <= 0.0:
 		var target := dir * SPEED
-		var rate := AIR_ACCEL if not is_on_floor() else (GROUND_ACCEL if dir != 0.0 else GROUND_DECEL)
+		var rate := AIR_ACCEL
+		if is_on_floor():
+			if dir == 0.0:
+				rate = GROUND_DECEL
+			elif signf(velocity.x) == -dir:
+				rate = TURN_DECEL
+			else:
+				rate = GROUND_ACCEL
 		velocity.x = move_toward(velocity.x, target, rate * delta)
 	var was_airborne := not is_on_floor()
 	var fall_speed := velocity.y
 	move_and_slide()
 	if was_airborne and is_on_floor() and fall_speed >= LAND_SOUND_SPEED:
 		sound.emit("land")
+	if was_airborne and is_on_floor() and fall_speed >= HARD_LANDING:
+		shake(4.0)
 
 
 ## 御劍：不受重力，方向鍵往四方飛，時間到或落地就停。一次離地只能飛一次。
