@@ -1,0 +1,11 @@
+{
+  "_comment": "ZeWorld 遊戲清單：導演與驗證器從這裡讀遊戲資料。",
+  "game": "zetas",
+  "language": "zh-Hant（繁體中文，仙俠古風）",
+  "ruleset": "content/ruleset.json",
+  "chunks": "content/chunks.json",
+  "loot": "content/loot.json",
+  "actor_templates": "content/actors.json",
+  "style": "content/style.md",
+  "packs": "content/packs"
+}

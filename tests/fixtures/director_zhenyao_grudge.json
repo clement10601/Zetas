@@ -1,0 +1,60 @@
+{
+  "id": "pack.zhenyao_grudge",
+  "kind": "event",
+  "meta": {
+    "title": "鎮妖司的帳",
+    "summary": "鎮妖司記下了替狐妖出頭的人，在山腳村落攔下玩家；白蘅暗中報信。",
+    "tags": ["因果", "鎮妖司", "白蘅"],
+    "author": "director",
+    "tier_range": { "min": "煉氣", "max": "金丹" }
+  },
+  "trigger": {
+    "all": [
+      { "type": "flag", "key": "baiheng_ally", "equals": true },
+      { "type": "enter_map", "map_tag": "forest" },
+      { "type": "time_of_day", "in": ["晨", "午"] }
+    ],
+    "priority": 75
+  },
+  "map": {
+    "chunks": [{ "chunk": "chunk.qingyun_road", "order": 0 }, { "chunk": "chunk.mountain_village", "order": 1 }],
+    "spawn": "pt.village_gate",
+    "points": ["pt.village_gate", "pt.village_well", "pt.village_end"]
+  },
+  "actors": [
+    { "id": "captain", "template": "mob.demon_hunter", "name": "韓厲", "title": "鎮妖司校尉", "disposition": "hostile", "power": 1.4,
+      "spawn_at": "pt.village_well", "persona": "鎮妖司校尉，上次的獵妖人是他手下。冷硬、講規矩，但記仇。", "memory_key": "npc.han_li" },
+    { "id": "fox", "template": "npc.fox_girl", "name": "白蘅", "title": "青丘遺狐", "disposition": "friendly",
+      "spawn_at": "pt.village_end", "spawn": "on_effect", "persona": "曾被玩家救下的狐女，冒險前來報信。", "memory_key": "npc.baiheng" }
+  ],
+  "dialogue": {
+    "entry": "z1",
+    "nodes": {
+      "z1": { "speaker": "captain", "text": "就是你，替妖物擋了鎮妖司的刀？", "live_rewrite": true, "next": "z2" },
+      "z2": { "speaker": "fox", "text": "恩公小心，他帶了縛妖索，是衝著你來的。", "live_rewrite": true,
+        "effects": [{ "type": "spawn_actor", "actor": "fox" }], "next": "z3" },
+      "z3": { "speaker": "narrator", "text": "韓厲按住刀柄，村民紛紛關門。",
+        "choices": [
+          { "text": "拔劍應戰", "next": "z_fight", "effects": [{ "type": "add_karma", "axis": "正邪", "delta": -5 }] },
+          { "text": "以理相爭：白蘅從未害人", "next": "z_argue", "effects": [{ "type": "add_karma", "axis": "仁殺", "delta": 3 }] }
+        ] },
+      "z_fight": { "speaker": "player", "text": "要拿人，先過我這一關。" },
+      "z_argue": { "speaker": "captain", "text": "妖就是妖。多說無益，刀下見真章。" }
+    }
+  },
+  "stages": [
+    { "id": "s1", "objective": "面對鎮妖司校尉", "on_enter": [{ "type": "start_dialogue", "node": "z1" }],
+      "complete_when": [{ "type": "dialogue_reached", "node": "z3" }] },
+    { "id": "s2", "objective": "擊敗韓厲", "complete_when": [{ "type": "actor_defeated", "actor": "captain" }] }
+  ],
+  "outcomes": {
+    "on_complete": [
+      { "type": "change_relation", "npc": "npc.baiheng", "delta": 15 },
+      { "type": "change_relation", "npc": "npc.han_li", "delta": -30 },
+      { "type": "remember", "npc": "npc.han_li", "text": "那人為狐妖兩度與鎮妖司為敵。" },
+      { "type": "set_flag", "key": "zhenyao_enemy", "value": true },
+      { "type": "give_loot", "loot_table": "loot.zhenyao_bounty", "tier": "rare" },
+      { "type": "request_followup", "hint": "鎮妖司上報，派更強的人來；白蘅提議帶玩家去青丘避禍。", "after_days": 4 }
+    ]
+  }
+}
