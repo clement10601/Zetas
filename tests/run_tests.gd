@@ -35,6 +35,8 @@ func _run() -> void:
 	await test_map_layout_data()
 	await test_walk_and_jump()
 	await test_scrolling_camera_and_parallax()
+	await test_dash()
+	await test_battle_camera_zone()
 	await test_platforms_and_ropes()
 	await test_portals_and_residents()
 	await test_melee_height()
@@ -581,6 +583,10 @@ func test_map_layout_data() -> void:
 			var on_it: bool = cache["h"] == 0 or c["platforms"].any(func(q): return q["h"] == cache["h"] and cache["x"] >= q["x"] and cache["x"] <= q["x"] + q["w"])
 			expect(on_it, "%s: %s sits on a platform" % [id, cache["id"]])
 			expect(loot_tables.has(cache["loot"]), "%s: %s loot table exists" % [id, cache["id"]])
+		if c.has("camera"):
+			var cz: Dictionary = c["camera"]
+			expect(cz.get("x0", 0) >= 0 and cz.get("x1", c["width"]) <= c["width"] and cz.get("x0", 0) < cz.get("x1", c["width"]), "%s: camera zone inside the chunk" % id)
+			expect(cz.get("zoom", 0.9) >= 0.8 and cz.get("zoom", 0.9) <= 1.0, "%s: camera zoom 0.8–1.0" % id)
 		for w in c.get("walls", []):
 			expect(w["x"] >= 0 and w["x"] + w["w"] <= c["width"] and w["top"] > w.get("bottom", 0), "%s: wall inside the chunk" % id)
 			expect(w.get("kind", "cliff") in ["cliff", "thin"], "%s: wall kind" % id)
@@ -676,6 +682,64 @@ func test_scrolling_camera_and_parallax() -> void:
 	# 受傷鏡頭震一下
 	main.damage_player(1)
 	expect(player._shake > 0.0, "getting hit shakes the camera")
+	main.free()
+
+
+## 墨影步：閃 120 左右、期間無敵、有冷卻、空中只能一次。
+func test_dash() -> void:
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	player.position = Vector2(1700, main.FLOOR_Y - 27)
+	await step(main, {}, 10)
+	var x0: float = player.position.x
+	main.player.test_input = {"dash": true}
+	await physics_frame
+	await physics_frame
+	expect(player.dashing > 0.0, "shift/X starts the ink step")
+	await step(main, {"dash": true}, 12)
+	expect(absf(player.position.x - x0 - player.DASH_DISTANCE) < 12.0, "ink step covers about 120 (%d)" % int(player.position.x - x0))
+	expect(player.dashing == 0.0 and player._dash_cooldown > 0.0, "ink step ends and cools down")
+	await step(main, {}, 2)
+	var x1: float = player.position.x
+	await step(main, {"dash": true}, 4)
+	expect(absf(player.position.x - x1) < 10.0, "no second ink step during the cooldown")
+	await step(main, {}, 40)
+	# 空中一次
+	await step(main, {"jump": true}, 4)
+	await step(main, {"dash": true}, 12)
+	await step(main, {}, 1)
+	var x2: float = player.position.x
+	await step(main, {"dash": true}, 12)
+	expect(absf(player.position.x - x2) < 10.0, "only one ink step per jump")
+	await step(main, {}, 60)
+	# 期間無敵
+	main._on_actor_spawned({"id": "wolf", "template": "mob.wolf_demon", "name": "狼妖", "disposition": "hostile", "spawn_at": ""})
+	var wolf: Node2D = main.actor_views["wolf"]
+	wolf.position.x = player.position.x + 30
+	main.enemy_windup["wolf"] = 0.01
+	player.dashing = 0.1
+	var hp: int = main.hp()
+	main._process(0.05)
+	expect(main.hp() == hp, "ink step dodges a strike")
+	main.free()
+
+
+## 戰場鏡頭：狼妖巢穴有敵人時鏡頭鎖住、拉遠；敵人沒了就放開。
+func test_battle_camera_zone() -> void:
+	var main: Node = await new_game()
+	main.build_map([{"chunk": "chunk.heifeng_pass", "order": 0}, {"chunk": "chunk.demon_den", "order": 1}], "pt.den_mouth")
+	var player: CharacterBody2D = main.player
+	expect(main.camera_zones.size() == 1, "demon den has a battle camera")
+	await step(main, {}, 10)
+	expect(player.camera_zone.is_empty(), "no lock without enemies")
+	main._on_actor_spawned({"id": "wolf", "template": "mob.wolf_demon", "name": "狼妖", "disposition": "hostile", "spawn_at": "pt.den_heart"})
+	await step(main, {}, 60)
+	var zone: Dictionary = main.camera_zones[0]
+	expect(not player.camera_zone.is_empty() and player.camera.zoom.x < 0.95, "enemy in the den locks and widens the camera")
+	expect(absf(player.camera.get_screen_center_position().x - clampf(player.camera.get_screen_center_position().x, zone["x0"], zone["x1"])) < 1.0, "camera centers inside the battle zone")
+	main._remove_actor_view("wolf")
+	await step(main, {}, 60)
+	expect(player.camera.zoom.x == 1.0, "camera lets go after the fight")
 	main.free()
 
 

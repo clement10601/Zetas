@@ -5,6 +5,8 @@
 ## 輕身術 double_jump 空中再按跳；踏葉 wall_jump 空中貼牆按跳往反方向蹬；
 ## 御風 glide 下落時按住跳滑翔；土遁 earth_escape 穿過薄牆；御劍 sword_flight 空中按 K 飛一小段。
 ## 鏡頭往面向的方向多看一點、小跳不晃，站著按住 ↑／↓ 可以往上下看；受傷時輕震。
+## Shift／X 墨影步：往面向方向閃 120，期間無敵，留下墨色殘影；冷卻 0.6 秒，空中一次。
+## main 設 camera_zone（chunks.json 的 camera）時，鏡頭鎖在戰場上並稍微拉遠。
 ## 美術未到前用色塊。
 extends CharacterBody2D
 
@@ -39,6 +41,10 @@ const APEX_GRAVITY := 0.55
 const HARD_LANDING := 750.0     # 落地速度超過這個，鏡頭輕震一下
 const KNOCKBACK := Vector2(240, -280)  # 被打中往反方向彈開
 const HURT_LOCK := 0.3          # 彈開後這段時間不吃左右輸入
+const DASH_TIME := 0.15         # 墨影步
+const DASH_DISTANCE := 120.0
+const DASH_COOLDOWN := 0.6
+const ZONE_BLEND_TIME := 0.6    # 進出鎖定鏡頭的過渡
 const CORNER_NUDGE := 6         # 轉角修正：撞頭或差一點踩上石壁邊時，最多推這麼多像素
 ## 鏡頭：往面向的方向多看一點；只在落地或爬繩時跟上高度，小跳不晃；
 ## 站著按住 ↑／↓ 一會兒可以往上／往下看。
@@ -77,6 +83,17 @@ var _look := 0.0
 var _look_hold := 0.0
 var _shake := 0.0
 var _hurt_lock := 0.0
+var dashing := 0.0              # 墨影步剩下的秒數（main 把這段時間當無敵）
+var _dash_cooldown := 0.0
+var _dash_used := false         # 空中已經閃過一次
+var _dash_was_down := false
+var _dash_dir := 1
+var _ghost_timer := 0.0
+## 鎖定鏡頭的戰場：{x0, x1（世界座標）, zoom, lock_y?}；空的就照平常跟
+var camera_zone: Dictionary = {}
+var _zone_blend := 0.0
+var _zone_last: Dictionary = {}
+var _base_limit_top := 0
 var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
 var rig: Node2D                 # 立繪的軸心放在腳底：走路一頓一頓、跳起拉長、落地壓扁都繞這裡
 var shadow: TextureRect
@@ -172,9 +189,75 @@ func _update_camera(delta: float) -> void:
 	_look_hold = _look_hold + delta if look_dir != 0.0 else 0.0
 	var look_target := look_dir * LOOK_DIST if _look_hold >= LOOK_DELAY else 0.0
 	_look = lerpf(_look, look_target, 1.0 - exp(-4.0 * delta))
-	camera.global_position = Vector2(position.x + _cam_ahead, _cam_y - CAM_HEIGHT + _look)
+	var target := Vector2(position.x + _cam_ahead, _cam_y - CAM_HEIGHT + _look)
+	# 戰場鎖定：0.6 秒內滑到戰場構圖、拉遠；離開後同樣滑回來
+	if not camera_zone.is_empty():
+		_zone_last = camera_zone
+	_zone_blend = move_toward(_zone_blend, 1.0 if not camera_zone.is_empty() else 0.0, delta / ZONE_BLEND_TIME)
+	var zoom := 1.0
+	if _zone_blend > 0.0 and not _zone_last.is_empty():
+		var k := smoothstep(0.0, 1.0, _zone_blend)
+		var z := float(_zone_last.get("zoom", 1.0))
+		var view := get_viewport_rect().size / z
+		var x0 := float(_zone_last["x0"])
+		var x1 := float(_zone_last["x1"])
+		var zx := (x0 + x1) / 2 if x1 - x0 <= view.x else clampf(target.x, x0 + view.x / 2, x1 - view.x / 2)
+		var zy := float(_zone_last["lock_y"]) if _zone_last.has("lock_y") else camera.limit_bottom - view.y / 2
+		target = target.lerp(Vector2(zx, zy), k)
+		zoom = lerpf(1.0, z, k)
+		camera.limit_top = mini(_base_limit_top, int(zy - view.y / 2) - 1)
+	else:
+		camera.limit_top = _base_limit_top
+	camera.zoom = Vector2.ONE * zoom
+	camera.global_position = target
 	_shake = maxf(0.0, _shake - 30.0 * delta)
 	camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake if _shake > 0.0 else Vector2.ZERO
+
+
+## 墨影步：水平閃一段，不受重力，撞牆就停；結束後保留走路速度。
+func _dash(dir: float, delta: float) -> void:
+	if dashing <= 0.0:
+		dashing = DASH_TIME
+		_dash_dir = int(dir) if dir != 0.0 else facing
+		facing = _dash_dir
+		_dash_cooldown = DASH_COOLDOWN
+		_dash_used = not is_on_floor()
+		_ghost_timer = 0.0
+		_hurt_lock = 0.0
+		sound.emit("dash")
+	var part := minf(delta, dashing) / delta   # 最後一格只走剩下的那一點，總距離剛好 120
+	dashing = maxf(0.0, dashing - delta)
+	if dashing < 0.001:
+		dashing = 0.0
+	velocity = Vector2(_dash_dir * DASH_DISTANCE / DASH_TIME * part, 0.0)
+	collision_mask = base_mask()
+	move_and_slide()
+	_ghost_timer -= delta
+	if _ghost_timer <= 0.0:
+		_ghost_timer = 0.03
+		_leave_ghost()
+	if is_on_wall():
+		dashing = 0.0
+	if dashing <= 0.0:
+		# 還按著同方向就接著跑，否則停住
+		velocity.x = _dash_dir * SPEED if int(dir) == _dash_dir else 0.0
+
+
+## 殘影：立繪的墨色拷貝，原地淡掉。
+func _leave_ghost() -> void:
+	if sprite == null or not is_inside_tree() or get_parent() == null:
+		return
+	var g := Sprite2D.new()
+	g.texture = sprite.texture
+	g.centered = false
+	g.flip_h = sprite.flip_h
+	g.global_transform = sprite.global_transform
+	g.modulate = Color(0.1, 0.09, 0.08, 0.45)
+	g.z_index = -1
+	get_parent().add_child(g)
+	var tw := g.create_tween()
+	tw.tween_property(g, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(g.queue_free)
 
 
 ## 被打中：往遠離 from_x 的方向彈開，短暫不吃左右輸入。
@@ -187,6 +270,7 @@ func knock_back(from_x: float) -> void:
 		rope = {}
 		collision_mask = base_mask()
 	flying = 0.0
+	dashing = 0.0
 	velocity = Vector2(away * KNOCKBACK.x, KNOCKBACK.y)
 	_hurt_lock = HURT_LOCK
 
@@ -292,6 +376,7 @@ func set_camera_limits(left: float, right: float, top: float, bottom: float) -> 
 	camera.limit_left = int(left)
 	camera.limit_right = int(right)
 	camera.limit_top = int(top)
+	_base_limit_top = int(top)
 	camera.limit_bottom = int(bottom)
 
 
@@ -304,6 +389,8 @@ func snap_camera() -> void:
 	_cam_y = _cam_anchor
 	_cam_ahead = facing * LOOK_AHEAD * 0.5
 	_look = 0.0
+	_zone_blend = 0.0
+	dashing = 0.0
 	if camera.is_inside_tree():
 		camera.global_position = Vector2(position.x + _cam_ahead, _cam_y - CAM_HEIGHT)
 		camera.reset_smoothing()
@@ -319,6 +406,7 @@ func _read_input() -> Dictionary:
 		"down": Input.is_physical_key_pressed(KEY_DOWN) or Input.is_physical_key_pressed(KEY_S),
 		"jump": Input.is_physical_key_pressed(KEY_ALT) or Input.is_physical_key_pressed(KEY_C) or Input.is_physical_key_pressed(KEY_SPACE),
 		"fly": Input.is_physical_key_pressed(KEY_K),
+		"dash": Input.is_physical_key_pressed(KEY_SHIFT) or Input.is_physical_key_pressed(KEY_X),
 	}
 
 
@@ -331,8 +419,13 @@ func _physics_process(delta: float) -> void:
 	var fly_down: bool = input.get("fly", false)
 	var fly_pressed := fly_down and not _fly_was_down and not frozen
 	_fly_was_down = fly_down
+	var dash_down: bool = input.get("dash", false)
+	var dash_pressed := dash_down and not _dash_was_down and not frozen
+	_dash_was_down = dash_down
+	_dash_cooldown = maxf(0.0, _dash_cooldown - delta)
 	if frozen:
 		input = {}
+		dashing = 0.0
 	var dir := float(input.get("right", false)) - float(input.get("left", false))
 	if dir != 0.0:
 		facing = int(dir)
@@ -340,6 +433,9 @@ func _physics_process(delta: float) -> void:
 		_climb(input, dir, jump_pressed, delta)
 		return
 	if _try_grab_rope(input):
+		return
+	if dashing > 0.0 or (dash_pressed and _dash_cooldown <= 0.0 and not _dash_used and flying <= 0.0):
+		_dash(dir, delta)
 		return
 	if flying > 0.0 or (fly_pressed and sword_flight and not _flight_used and not is_on_floor()):
 		if flying <= 0.0:
@@ -353,6 +449,7 @@ func _physics_process(delta: float) -> void:
 	collision_mask = base_mask() & ~(PLATFORM_LAYER if _drop > 0.0 else 0)
 	_coyote = COYOTE_TIME if is_on_floor() else maxf(0.0, _coyote - delta)
 	if is_on_floor():
+		_dash_used = false
 		_air_jumps = 1 if double_jump else 0
 		_flight_used = false
 	# 踏葉：空中貼著牆、而且往牆那邊按
