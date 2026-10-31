@@ -50,6 +50,7 @@ func _run() -> void:
 	await test_earth_escape_and_flight()
 	await test_audio()
 	await test_wild_mobs()
+	await test_errand_board()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -1179,7 +1180,7 @@ func test_wild_mobs() -> void:
 	expect(not main.wild.has(g) and main.wild.size() == 1, "a defeated mob stays gone for the day")
 	main.pass_day()
 	expect(main.wild_defeated().is_empty() and main.wild.has(g), "mobs respawn the next day")
-	expect(int(main.state.game_data["wild_kills"]["mob.wandering_ghost"]) == 1, "wild kills are counted by template")
+	expect(int(main.state.kills.get("mob.wandering_ghost", 0)) == 1, "wild kills are recorded in the engine by template")
 	# 黑風嶺：強度跟著地區門檻（築基），夜裡狼妖加倍
 	main.state.time_of_day = "夜"
 	await at_region(main, "region.heifeng_ridge", 1)
@@ -1218,4 +1219,84 @@ func test_wild_mobs() -> void:
 	expect(main.runner != null and main.wild.is_empty(), "wild mobs leave when an event starts")
 	main.runner.abort("abandon")
 	expect(main.runner == null and not main.wild.is_empty(), "wild mobs come back after the event")
+	main.free()
+
+
+## 宗門差事榜：每天最多 3 件、接了是「打倒 N 隻」的事件（只算接了之後的），進行中照樣能趕路、打野怪，
+## 完成給修為與掉落；同一件今天不能再接。導演寫的打怪事件（沒有地圖）也一樣不綁住玩家。
+func test_errand_board() -> void:
+	var main: Node = await new_game()
+	main.wild_drop_chance = 0.0
+	main.state.time_of_day = "晨"
+	await at_region(main, "region.qingyun_sect", 0)
+	expect(main.board_view != null, "the sect plaza has an errand board")
+	var list: Array = main.todays_errands()
+	expect(list.size() == 3 and list.all(func(e): return int(e["tier_min"]) == 0), "three 煉氣 errands on the board")
+	main.player.position.x = main.board_view.position.x
+	await step(main, {}, 5)
+	expect(main.nearby_board() and main.prompt_label.text == "↑ 看差事榜", "standing at the board shows a prompt")
+	main.state.record_kill("mob.shengsheng")
+	main.state.record_kill("mob.shengsheng")
+	main.interact()
+	expect(main.dialogue_panel.visible and main.errand_options.size() == 3, "↑ opens the board with three errands")
+	var pick := -1
+	for i in main.errand_options.size():
+		if main.errand_options[i]["errand"]["id"] == "monkey_fruit":
+			pick = i
+	if pick < 0:
+		# 今天不在榜上就直接接
+		main.close_errand_board()
+		main.start_pack(main.errand_pack(main.errands["errands"][0]))
+	else:
+		main.choose_errand(pick)
+	expect(main.runner != null and main.runner.pack["meta"]["request_tag"] == "errand", "choosing an errand starts it")
+	expect(not main.dialogue_panel.visible and main.errand_options.is_empty(), "the board closes")
+	expect(main.hud_objective.text == "目標：打倒2隻狌狌（0／2）", "kills before accepting do not count")
+	expect(not main.blocking(), "an errand does not tie the player down")
+	expect(main.travel_to("region.qingyun_foothills", true), "can travel with an errand in hand")
+	var monkeys: Array = main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.shengsheng")
+	expect(monkeys.size() == 2 and main.runner != null, "wild mobs stay out during an errand")
+	main.meditate()
+	expect(main.runner != null and main.state.time_of_day == "暮", "can meditate during an errand")
+	var exp_before: int = main.cultivation()
+	for m in monkeys:
+		while main.wild.has(m):
+			main.attack_cooldown = 0.0
+			main.actor_views[m].position.x = main.player.position.x + 30
+			main.attack()
+		if main.runner != null:
+			expect(main.hud_objective.text == "目標：打倒2隻狌狌（1／2）", "objective shows progress")
+	expect(main.runner == null, "the errand completes after two kills")
+	expect(main.cultivation() - exp_before == 3 + 3 + main.Cultivation.EXP_REWARD["small"], "kills plus the errand reward")
+	expect(main.state.items.has("凝氣草"), "the errand gives its loot")
+	main.state.region = "region.qingyun_sect"
+	main.go_home()
+	expect(main.todays_errands().all(func(e): return e["id"] != "monkey_fruit"), "a finished errand is off the board for the day")
+	main.pass_day()
+	expect(main.todays_errands().size() >= 2, "new errands the next day")
+	# 放棄
+	if main.runner != null:  # 第二天在宗門會觸發師父的第一課，先略過
+		main.runner.abort("abandon")
+	main._hide_dialogue()
+	var e2: Dictionary = main.todays_errands()[0]
+	main.start_pack(main.errand_pack(e2))
+	main.player.position.x = main.board_view.position.x
+	main.open_errand_board()
+	expect(main.errand_options[0]["kind"] == "abandon", "the board offers to drop the current errand")
+	main.choose_errand(0)
+	expect(main.runner == null and not main.todays_errands().has(e2), "dropping an errand ends it for today")
+	# 築基才看得到黑風嶺的差事
+	main.state.tier_index = 1
+	var all_ok: Array = main.errands["errands"].filter(func(e): return int(e["tier_min"]) <= 1)
+	expect(all_ok.size() == 5, "築基 can take the heifeng errands too")
+	# 一般事件仍然綁住玩家
+	main.state.tier_index = 0
+	main.spare_fox()
+	main.state.region = "region.qingyun_foothills"
+	main.go_home()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	expect(main.runner != null and main.blocking() and main.wild.is_empty(), "a story event still keeps the player in the scene")
 	main.free()
