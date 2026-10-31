@@ -34,6 +34,7 @@ func _run() -> void:
 	await test_platforms_and_ropes()
 	await test_portals_and_residents()
 	await test_melee_height()
+	await test_double_jump_and_caches()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -450,6 +451,7 @@ func step(main: Node, input: Dictionary, frames: int) -> void:
 func test_map_layout_data() -> void:
 	var chunks: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/chunks.json"))
 	var jump_height: float = 660.0 * 660.0 / (2.0 * 1800.0)
+	var loot_tables: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/loot.json"))
 	for id in chunks:
 		if id.begins_with("_"):
 			continue
@@ -461,12 +463,24 @@ func test_map_layout_data() -> void:
 				var landed: bool = end == 0 or c.get("platforms", []).any(func(p): return p["h"] == end and r["x"] >= p["x"] and r["x"] <= p["x"] + p["w"])
 				expect(landed, "%s: rope at %d ends on ground or a platform (%d)" % [id, r["x"], end])
 			expect(r["kind"] in ["rope", "vine", "ladder"], "%s: rope kind" % id)
-		# 沒有繩子通上去的平台，要能從地面或別的平台跳上去
-		for p in c.get("platforms", []):
+		# 沒有繩子通上去的平台，要能從地面或別的平台跳上去；要身法的平台不算墊腳石
+		var basic: Array = c.get("platforms", []).filter(func(q): return q.get("skill", "") == "")
+		for p in basic:
 			if c.get("ropes", []).any(func(r): return r["top"] == p["h"] and r["x"] >= p["x"] and r["x"] <= p["x"] + p["w"]):
 				continue
-			var from_below: bool = p["h"] < jump_height - 10 or c["platforms"].any(func(q): return q != p and p["h"] - q["h"] > 0 and p["h"] - q["h"] < jump_height - 10)
+			var from_below: bool = p["h"] < jump_height - 10 or basic.any(func(q): return q != p and p["h"] - q["h"] > 0 and p["h"] - q["h"] < jump_height - 10)
 			expect(from_below, "%s: platform at h %d is reachable" % [id, p["h"]])
+		# 要二段跳的平台：一般跳躍上不去（附近 200 像素內沒有夠高的立足點），二段跳上得去
+		var double_height: float = jump_height + 600.0 * 600.0 / (2.0 * 1800.0)
+		for p in c.get("platforms", []).filter(func(q): return q.get("skill", "") == "double_jump"):
+			var too_easy: bool = p["h"] < jump_height + 30 or basic.any(func(q): return h_gap(p, q) < 200 and p["h"] - q["h"] < jump_height + 30)
+			expect(not too_easy, "%s: double-jump platform at h %d needs the double jump" % [id, p["h"]])
+			var reachable: bool = p["h"] < double_height - 10 or basic.any(func(q): return h_gap(p, q) == 0 and p["h"] - q["h"] > 0 and p["h"] - q["h"] < double_height - 10)
+			expect(reachable, "%s: double-jump platform at h %d is reachable with it" % [id, p["h"]])
+		for cache in c.get("caches", []):
+			var on_it: bool = cache["h"] == 0 or c["platforms"].any(func(q): return q["h"] == cache["h"] and cache["x"] >= q["x"] and cache["x"] <= q["x"] + q["w"])
+			expect(on_it, "%s: %s sits on a platform" % [id, cache["id"]])
+			expect(loot_tables.has(cache["loot"]), "%s: %s loot table exists" % [id, cache["id"]])
 	var regions: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/regions.json"))
 	for id in regions:
 		if id.begins_with("_"):
@@ -477,6 +491,11 @@ func test_map_layout_data() -> void:
 		for r in regions[id].get("residents", []):
 			expect(r["chunk"] in regions[id]["home"], "%s: resident %s stands on the home map" % [id, r["id"]])
 			expect(not r.get("lines", []).is_empty(), "%s: resident %s has lines" % [id, r["id"]])
+
+
+## 兩個平台水平方向的距離，重疊為 0
+func h_gap(p: Dictionary, q: Dictionary) -> float:
+	return maxf(0.0, maxf(p["x"], q["x"]) - minf(p["x"] + p["w"], q["x"] + q["w"]))
 
 
 func test_walk_and_jump() -> void:
@@ -595,3 +614,38 @@ func test_melee_height() -> void:
 	main.attack()
 	expect(main.hp() == hp_before and main.actor_hp["hunter"] == 4, "on a platform out of melee reach both ways")
 	main.free()
+
+
+func test_double_jump_and_caches() -> void:
+	var path := "user://zetas_test_double_jump.json"
+	var main: Node = await new_game(false, path)
+	var player: CharacterBody2D = main.player
+	expect(not player.double_jump, "煉氣 starts without 輕身術")
+	# 樹梢藥匣在高 390 的平台上，底下是高 200 的平台（x 480~680）
+	player.position = Vector2(580, main.FLOOR_Y - 200 - 27)
+	await step(main, {}, 10)
+	expect(player.on_platform(), "stand on the 200 platform under the pine")
+	await step(main, {"jump": true}, 4)
+	await step(main, {}, 2)
+	await step(main, {"jump": true}, 60)
+	expect(absf(player.feet() - (main.FLOOR_Y - 200)) < 2.0, "without 輕身術 a second press does nothing")
+	main.gain_cultivation(100)
+	expect(player.double_jump and main.state.game_data["movement"].has("double_jump"), "full cultivation at 煉氣 teaches 輕身術")
+	expect(main.log_lines.any(func(l): return l.contains("輕身術")), "the log says so")
+	await step(main, {}, 2)
+	await step(main, {"jump": true}, 12)
+	await step(main, {}, 2)
+	await step(main, {"jump": true}, 60)
+	await step(main, {}, 10)
+	expect(player.on_platform() and absf(player.feet() - (main.FLOOR_Y - 390)) < 2.0, "double jump reaches the 390 ledge")
+	main._process(0.016)
+	expect(main.prompt_label.text.contains("拿取"), "standing by the cache shows the prompt")
+	var bag: int = main.state.items.size()
+	expect(main.interact() and main.state.items.size() > bag, "open the cache")
+	expect(main.state.game_data["found"].has("cache.road_pine") and not main.caches.has("cache.road_pine"), "cache is taken")
+	main.free()
+	var again: Node = await new_game(false, path)
+	expect(again.player.double_jump, "輕身術 restored from save")
+	expect(not again.caches.has("cache.road_pine"), "a taken cache stays taken")
+	again.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

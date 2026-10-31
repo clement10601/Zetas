@@ -8,6 +8,16 @@ const EXP_REWARD := {"small": 15, "medium": 40, "large": 100}
 const HEART_DEMON_PREP := 0.8
 const MEDITATE_EXP := 8
 const MEDITATE_EXP_IN_SECT := 15
+## 身法（docs/design/skill-tree.md）：名稱與領悟條件。tier 是境界 index，full 表示該境界修為圓滿也算。
+const MOVEMENT_SKILLS := {
+	"double_jump": {"name": "輕身術", "note": "空中再按一次跳", "tier": 0, "full": true},
+}
+
+
+## 依境界與修為，這個身法領悟了沒
+static func knows_movement(skill: String, tier: int, exp: int) -> bool:
+	var rule: Dictionary = MOVEMENT_SKILLS[skill]
+	return tier > int(rule["tier"]) or (tier == int(rule["tier"]) and rule.get("full", false) and exp >= need(tier))
 
 
 ## 從 tier 突破到下一境界需要的修為

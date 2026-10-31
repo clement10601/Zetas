@@ -1,5 +1,5 @@
 {
-  "_comment": "地圖區塊庫。內容包的 map.chunks 只能引用這裡的區塊；points 的 x 是區塊內的位置（像素）。M0 用色塊代替美術。 platforms 是單向平台：x 為左緣、h 為離地高度、w 為寬；基本跳躍約 120 高，相鄰兩層差 100 左右。ropes 是繩子（rope）、藤蔓（vine）、梯子（ladder）：x 位置，top／bottom 是兩端離地高度（bottom 省略是地面），兩端要接在地面或平台上。",
+  "_comment": "地圖區塊庫。內容包的 map.chunks 只能引用這裡的區塊；points 的 x 是區塊內的位置（像素）。M0 用色塊代替美術。 platforms 是單向平台：x 為左緣、h 為離地高度、w 為寬；基本跳躍約 120 高，相鄰兩層差 100 左右。ropes 是繩子（rope）、藤蔓（vine）、梯子（ladder）：x 位置，top／bottom 是兩端離地高度（bottom 省略是地面），兩端要接在地面或平台上。 平台加 skill 表示要那個身法才上得去（double_jump 二段跳約 220 高）。caches 是藏在高處的寶物：x、h 是位置，loot／tier 指掉落表，每份存檔只拿一次。",
   "chunk.qingyun_road": {
     "name": "青雲山道",
     "width": 960,
@@ -25,6 +25,12 @@
         "x": 760,
         "h": 100,
         "w": 140
+      },
+      {
+        "x": 520,
+        "h": 390,
+        "w": 120,
+        "skill": "double_jump"
       }
     ],
     "ropes": [
@@ -32,6 +38,16 @@
         "x": 640,
         "top": 200,
         "kind": "vine"
+      }
+    ],
+    "caches": [
+      {
+        "id": "cache.road_pine",
+        "name": "松頂藥匣",
+        "x": 580,
+        "h": 390,
+        "loot": "loot.mountain_herbs",
+        "tier": "rare"
       }
     ]
   },
@@ -296,6 +312,12 @@
         "x": 400,
         "h": 210,
         "w": 300
+      },
+      {
+        "x": 900,
+        "h": 300,
+        "w": 120,
+        "skill": "double_jump"
       }
     ],
     "ropes": [
@@ -303,6 +325,16 @@
         "x": 520,
         "top": 210,
         "kind": "rope"
+      }
+    ],
+    "caches": [
+      {
+        "id": "cache.plaza_eaves",
+        "name": "簷角劍匣",
+        "x": 960,
+        "h": 300,
+        "loot": "loot.sect_reward",
+        "tier": "rare"
       }
     ]
   },
@@ -422,6 +454,12 @@
         "x": 420,
         "h": 200,
         "w": 260
+      },
+      {
+        "x": 960,
+        "h": 290,
+        "w": 120,
+        "skill": "double_jump"
       }
     ],
     "ropes": [
@@ -429,6 +467,16 @@
         "x": 540,
         "top": 200,
         "kind": "rope"
+      }
+    ],
+    "caches": [
+      {
+        "id": "cache.ravine_ledge",
+        "name": "崖上遺囊",
+        "x": 1020,
+        "h": 290,
+        "loot": "loot.cultivator_pouch",
+        "tier": "rare"
       }
     ]
   },
