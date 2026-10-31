@@ -101,6 +101,8 @@ def check(lore_dir=LORE):
                 errors.append(f"{where}: {field} {hooks[field]} 不在 ruleset 的境界")
         if "fate" in hooks and hooks["fate"] not in FATES:
             errors.append(f"{where}: fate 要是 {sorted(FATES)}")
+        if "fate" in hooks and f"fate_{hooks['fate']}" not in hooks.get("request_tags", []):
+            errors.append(f"{where}: 有 fate 就要在 request_tags 加 fate_{hooks['fate']}（引擎只認 request_tags）")
         if "actor" in hooks and hooks["actor"] not in actors:
             errors.append(f"{where}: actor {hooks['actor']} 不在 content/actors.json")
 
