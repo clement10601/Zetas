@@ -171,6 +171,13 @@ static func soft_dot(size := 16) -> GradientTexture2D:
 	return tex
 
 
+## 正邪的色調（GRIS 式，幅度小，感覺得到、看不太出來）：lean 1 偏正略冷、-1 偏邪略暖紅
+static func karma_tint(lean: float) -> Color:
+	if lean >= 0.0:
+		return Color.WHITE.lerp(Color(0.95, 0.99, 1.04), lean)
+	return Color.WHITE.lerp(Color(1.04, 0.95, 0.92), -lean)
+
+
 ## 各時辰的整體色調（CanvasModulate，只染世界、不染介面）
 static func time_tint(time_of_day: String) -> Color:
 	return {

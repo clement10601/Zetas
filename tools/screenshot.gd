@@ -49,6 +49,7 @@ func _run() -> void:
 	await _frames(4)
 	# 進宗門可能直接觸發事件（青玄峰問心）：先拍事件對話
 	if main.runner != null:
+		await create_timer(0.7).timeout   # 等卷軸標題卡展開、朱印蓋下
 		await _shot("04_dialogue")
 		for i in 40:
 			if main.runner == null:
@@ -81,7 +82,7 @@ func _run() -> void:
 	main.actor_hp["mirror"] = 999
 	await _frames(20)
 	main.attack()
-	await _frames(3)
+	await create_timer(0.22).timeout
 	await _shot("06_illusion")
 	# 7. 暮色：回山腳換時辰
 	main.go_home()
@@ -91,4 +92,16 @@ func _run() -> void:
 	main.player.position.x = 1500
 	main.player.snap_camera()
 	await _shot("07_dusk")
+	# 8. 出劍寫「斬」字（沒打到東西：寫完淡出）
+	main.state.time_of_day = "晨"
+	main.tint.color = Color.WHITE
+	main.attack_cooldown = 0.0
+	main.attack()
+	await create_timer(0.16).timeout
+	await _shot("08_glyph")
+	# 9. 突破時整圖染色（偏邪：朱）
+	main.state.karma["正邪"] = -40
+	main._breakthrough_wash()
+	await create_timer(0.7).timeout
+	await _shot("09_breakthrough")
 	quit(0)

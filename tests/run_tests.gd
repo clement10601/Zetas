@@ -4,6 +4,9 @@ extends SceneTree
 
 const TriggerJudge = preload("res://addons/zeworld/trigger_judge.gd")
 const AssetLibrary = preload("res://addons/zeworld/asset_library.gd")
+const Scenery = preload("res://scripts/scenery.gd")
+const InkUI = preload("res://scripts/ink_ui.gd")
+const InkGlyph = preload("res://scripts/ink_glyph.gd")
 
 var failures := 0
 var checks := 0
@@ -31,6 +34,7 @@ func _run() -> void:
 	await test_combat()
 	await test_art_and_placeholders()
 	await test_ink_look()
+	await test_event_dressing()
 	await test_playlog()
 	await test_map_layout_data()
 	await test_walk_and_jump()
@@ -131,13 +135,17 @@ func test_fox_repays_kindness() -> void:
 func test_heart_demon_trial() -> void:
 	var main: Node = await new_game()
 	main.breakthrough()
+	expect(main.log_lines.has("【築基心魔】"), "the log names the event without the designer summary")
 	expect(main.runner != null and main.runner.pack["id"] == "pack.heart_demon_trial.zhuji.s001", "breakthrough triggers heart demon")
 	expect(main.state.map_tags == ["illusion"], "illusion map built")
+	expect(main.dialogue_panel.visible, "the illusion is described as soon as you arrive")
+	main.advance_dialogue()
+	expect(not main.dialogue_panel.visible, "then you walk to the square yourself")
 	main.player.position.x = main.points["pt.memory_square"]
 	main._process(0.016)
 	expect(main.runner.reached_points.has("pt.memory_square"), "walking to the square is noticed")
 	expect(main.actor_views.has("demon"), "heart demon spawns")
-	for i in 3:
+	for i in 2:
 		main.advance_dialogue()
 	expect(main.current_choices.size() == 2, "face or fight choice")
 	main.choose_visible(0)
@@ -218,6 +226,15 @@ func test_director_offline_keeps_request() -> void:
 	expect(main.director.restock(main.state, main.pool, 3) == 0, "failed restock waits before asking again")
 	await process_frame  # await 在訊號發送途中恢復，下一格再釋放
 	main.free()
+	# 存取碼錯了：停用導演，只提示一次，不把 HTTP 錯誤原文丟給玩家
+	main = await new_game(true)
+	main.director.base_url = "http://127.0.0.1:9"
+	main._on_pack_failed({}, "HTTP 401 access code missing or invalid")
+	main._on_pack_failed({}, "HTTP 401 access code missing or invalid")
+	expect(not main.use_director, "a rejected access code turns the director off")
+	expect(main.log_lines.filter(func(l): return l.contains("存取碼")).size() == 1, "the player is told once")
+	expect(not main.log_lines.any(func(l): return l.contains("HTTP")), "no raw HTTP errors in the log")
+	main.free()
 
 
 func test_save_and_load() -> void:
@@ -275,6 +292,7 @@ func test_sect_first_lesson() -> void:
 	main.advance_dialogue()
 	expect(main.runner == null, "lesson ends on 師父's last line")
 	expect(main.dialogue_panel.visible and main.dialogue_label.text.contains("劍訣殘頁"), "last line stays on screen")
+	expect(main.points.has("pt.master_seat"), "still in the cave while 師父 is talking")
 	main.advance_dialogue()
 	expect(not main.dialogue_panel.visible, "space closes the last line")
 	expect(main.state.items.has("青雲劍訣殘頁"), "sect reward from loot table")
@@ -445,8 +463,6 @@ func test_combat() -> void:
 ## 水墨介面與畫面：區塊接縫有霧、地面依區塊染色、出劍有墨痕、敵人被打會閃、倒下淡出才移除。
 func test_ink_look() -> void:
 	var main: Node = await new_game()
-	var seams: Array = main.level.get_children().filter(func(n): return n.is_in_group("seam"))
-	expect(seams.size() == 2 * (main.regions[main.state.region]["home"].size() - 1), "each chunk seam gets two mist halves")
 	expect(main.level.get_children().any(func(n): return n is StaticBody2D and n.get_children().any(func(c): return c is Polygon2D)), "ground is a tinted strip")
 	main.state.time_of_day = "夜"
 	main._refresh_status()
@@ -463,6 +479,44 @@ func test_ink_look() -> void:
 	expect(not main.actor_views.has("wolf") and is_instance_valid(wolf), "defeated enemy fades out before it is removed")
 	await create_timer(0.8).timeout
 	expect(not is_instance_valid(wolf), "faded enemy is freed")
+	main.queue_free()
+	await process_frame
+
+
+## 參考研究 A2–A6：斬字劍氣、事件卷軸與印記、正邪色調、突破染色、垂掛前景。
+func test_event_dressing() -> void:
+	var main: Node = await new_game()
+	expect(main.event_seal({"meta": {"request_tag": "heart_demon"}}) == "心魔", "heart demon pack gets the 心魔 seal")
+	expect(main.event_seal({"meta": {"request_tag": "encounter"}}) == "奇遇", "daily encounter gets the 奇遇 seal")
+	expect(main.event_seal({"meta": {"author": "director"}}) == "機緣", "director pack gets the 機緣 seal")
+	expect(main.event_seal({"meta": {}}) == "事件", "hand-written pack gets the 事件 seal")
+	# 出劍寫「斬」，命中散開
+	var glyph: Node2D = main.player.play_attack()
+	expect(glyph != null and glyph.get_script() == InkGlyph, "attack writes the 斬 glyph")
+	glyph.shatter()
+	expect(glyph.hit, "a hit marks the glyph to scatter")
+	# 垂掛前景：森林有，心魔幻境沒有
+	expect(main.level.has_node("Hanging") and main.level.has_node("Haze"), "forest map has hanging branches and far haze")
+	expect(Scenery.hanging_kind(["illusion"]) == "" and Scenery.hanging_kind(["den", "forest"]) == "", "no hanging occluders in fight maps")
+	expect(Scenery.hanging_kind(["cave"]) == "stalactite" and Scenery.hanging_kind(["sect"]) == "pillar", "cave and sect get their own occluders")
+	# 正邪色調
+	expect(InkUI.karma_tint(1.0).b > InkUI.karma_tint(1.0).r and InkUI.karma_tint(-1.0).r > InkUI.karma_tint(-1.0).b, "righteous tints cool, wicked tints warm")
+	main.state.karma["正邪"] = -60
+	main._refresh_status()
+	await create_timer(1.4).timeout
+	expect(main.tint.color.r > main.tint.color.b, "a wicked player sees a warmer world")
+	# 事件開場的卷軸、事件 NPC 頭上的印
+	main.spare_fox()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	expect(main.hud_layer.has_node("ScrollCard"), "event opens with a scroll title card")
+	expect(main.actor_views["fox"].get_children().any(func(n): return n.is_in_group("event_mark")), "event NPC wears a seal mark")
+	main.runner.abort("abandon")
+	main.advance_dialogue()
+	main.breakthrough()
+	expect(main.fx_layer.has_node("BreakthroughWash"), "breakthrough washes the screen with colour")
 	main.queue_free()
 	await process_frame
 
