@@ -56,7 +56,9 @@ export ZEWORLD_ANTHROPIC_API_KEY=...   # Claude API 金鑰，只放環境變數�
 python -m director serve --game ../zeworld.json
 ```
 
-預設導演用 claude-opus-5-5、即時台詞用 claude-sonnet-5-5（實測 Haiku 會混簡體字）。也可以改接 OpenAI 相容端點，見 [ZeWorld README](engine/README.md)。
+預設導演用 claude-opus-5-5、即時台詞用 claude-sonnet-5-5（實測 Haiku 會混簡體字）。
+
+再設 `ZEWORLD_JUDGE_API_KEY`（OpenRouter 金鑰）的話，導演會用 TypeSafe Jev 替候選事件評分。遊戲在進地區、過一天、收到新事件時送出評分請求，觸發時依 `priority` 加上貼合度排序，讓最接得上你經歷的事件先上場。沒設金鑰就只看 priority。也可以改接 OpenAI 相容端點，見 [ZeWorld README](engine/README.md)。
 
 沒有模型也能試流程：`python -m director serve --game ../zeworld.json --fake-pack ../tests/fixtures/director_zhenyao_grudge.json --fake-line "恩公，又見面了。"`
 
