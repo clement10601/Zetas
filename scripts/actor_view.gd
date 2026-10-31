@@ -12,6 +12,9 @@ var _hit := 0.0             # 被打後的閃紅、後仰，1 → 0
 var _hit_dir := 1.0
 var _dying := false
 var _shadow: TextureRect
+var _omen: Label            # 出招前搖時頭上的朱紅「煞」字
+var _windup := 0.0          # 前搖蓄力，0–1
+var winding := false
 
 
 func _ready() -> void:
@@ -43,8 +46,49 @@ func _process(delta: float) -> void:
 	var step := absf(sin(_walk)) * 0.035 * _moving
 	scale = Vector2(1.0 - breathe * 0.5, 1.0 + breathe - step)
 	var lean := signf(dx) * 0.07 * _moving if hostile else 0.0
-	rotation = lean - _hit_dir * 0.18 * _hit
-	modulate = Color.WHITE.lerp(Color(1.0, 0.45, 0.4), _hit)
+	_windup = move_toward(_windup, 1.0 if winding else 0.0, delta * (5.0 if winding else 8.0))
+	# 前搖：往後仰、身子拉高、泛朱紅；收招時回來
+	scale *= Vector2(1.0 - 0.05 * _windup, 1.0 + 0.07 * _windup)
+	rotation = lean - _hit_dir * 0.18 * _hit + (0.12 if hostile else 0.0) * _windup * (1.0 if _facing_right() else -1.0)
+	var omen_tint := Color(1.0, 0.55 - 0.15 * sin(phase * 22.0), 0.45)
+	modulate = Color.WHITE.lerp(omen_tint, _windup * 0.8).lerp(Color(1.0, 0.45, 0.4), _hit)
+
+
+func _facing_right() -> bool:
+	for c in get_children():
+		if c is Sprite2D:
+			return not c.flip_h
+	return false
+
+
+## 出招前搖（朱紅預兆）：頭上浮現「煞」字、身子後仰泛紅；on=false 收起。height 是角色身高。
+func telegraph(on: bool, height := 120.0) -> void:
+	winding = on
+	if not on:
+		if _omen != null:
+			var fade := _omen.create_tween()
+			fade.tween_property(_omen, "modulate:a", 0.0, 0.15)
+			fade.tween_callback(_omen.queue_free)
+			_omen = null
+		return
+	if _omen != null:
+		return
+	_omen = Label.new()
+	_omen.text = "煞"
+	_omen.add_theme_font_size_override("font_size", 30)
+	_omen.add_theme_color_override("font_color", Color("#d2321e"))
+	_omen.add_theme_color_override("font_outline_color", Color(0.08, 0.05, 0.04, 0.9))
+	_omen.add_theme_constant_override("outline_size", 6)
+	_omen.size = Vector2(40, 40)
+	_omen.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_omen.pivot_offset = Vector2(20, 20)
+	_omen.position = Vector2(-20, -height - 70)
+	_omen.scale = Vector2.ONE * 1.8
+	_omen.modulate.a = 0.0
+	add_child(_omen)
+	var tw := _omen.create_tween().set_parallel(true)
+	tw.tween_property(_omen, "scale", Vector2.ONE, 0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(_omen, "modulate:a", 1.0, 0.12)
 
 
 ## 被擊中：閃紅、往後仰。from_x 是打過來的人的位置。
@@ -58,6 +102,7 @@ func hit(from_x: float) -> void:
 
 ## 倒下：往後倒、化成墨散掉，然後移除。
 func die() -> void:
+	telegraph(false)
 	_dying = true
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(self, "rotation", -_hit_dir * 1.2, 0.45).set_ease(Tween.EASE_IN)

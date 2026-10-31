@@ -15,6 +15,7 @@
     "attack": {"files": ["res://audio/sfx/attack_1.ogg", "res://audio/sfx/attack_2.ogg", "res://audio/sfx/attack_3.ogg"], "volume_db": -8.0},
     "hit": {"files": ["res://audio/sfx/hit_1.ogg", "res://audio/sfx/hit_2.ogg", "res://audio/sfx/hit_3.ogg"], "volume_db": -6.0},
     "hurt": {"files": ["res://audio/sfx/hurt_1.ogg", "res://audio/sfx/hurt_2.ogg"], "volume_db": -6.0},
+    "enemy_windup": {"files": ["res://audio/sfx/enemy_windup_1.ogg"], "volume_db": -8.0},
     "defeat": {"files": ["res://audio/sfx/defeat_1.ogg"], "volume_db": -6.0},
     "event_start": {"files": ["res://audio/sfx/event_start_1.ogg"], "volume_db": -5.0},
     "event_end": {"files": ["res://audio/sfx/event_end_1.ogg"], "volume_db": -6.0},

@@ -37,6 +37,9 @@ const FALL_GRAVITY := 1.15      # 下落比上升快一點，跳起來俐落不�
 const APEX_SPEED := 90.0        # 跳到頂點附近（上下速度小於這個）重力減半，留一點滯空感
 const APEX_GRAVITY := 0.55
 const HARD_LANDING := 750.0     # 落地速度超過這個，鏡頭輕震一下
+const KNOCKBACK := Vector2(240, -280)  # 被打中往反方向彈開
+const HURT_LOCK := 0.3          # 彈開後這段時間不吃左右輸入
+const CORNER_NUDGE := 6         # 轉角修正：撞頭或差一點踩上石壁邊時，最多推這麼多像素
 ## 鏡頭：往面向的方向多看一點；只在落地或爬繩時跟上高度，小跳不晃；
 ## 站著按住 ↑／↓ 一會兒可以往上／往下看。
 const CAM_HEIGHT := 110.0       # 鏡頭中心在腳上方多高
@@ -73,6 +76,7 @@ var _cam_y := 0.0
 var _look := 0.0
 var _look_hold := 0.0
 var _shake := 0.0
+var _hurt_lock := 0.0
 var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
 var rig: Node2D                 # 立繪的軸心放在腳底：走路一頓一頓、跳起拉長、落地壓扁都繞這裡
 var shadow: TextureRect
@@ -170,6 +174,40 @@ func _update_camera(delta: float) -> void:
 	camera.global_position = Vector2(position.x + _cam_ahead, _cam_y - CAM_HEIGHT + _look)
 	_shake = maxf(0.0, _shake - 30.0 * delta)
 	camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * _shake if _shake > 0.0 else Vector2.ZERO
+
+
+## 被打中：往遠離 from_x 的方向彈開，短暫不吃左右輸入。
+func knock_back(from_x: float) -> void:
+	var away := signf(position.x - from_x)
+	if away == 0.0:
+		away = -float(facing)
+	if climbing:
+		climbing = false
+		rope = {}
+		collision_mask = base_mask()
+	flying = 0.0
+	velocity = Vector2(away * KNOCKBACK.x, KNOCKBACK.y)
+	_hurt_lock = HURT_LOCK
+
+
+## 轉角修正（只對實心的石壁有用，單向平台本來就穿得過）：
+## 往上跳撞到石壁下緣的角，差幾像素就往旁邊推開；往前撞到石壁頂端的角，差幾像素就推上去。
+func _corner_correct(rise_speed: float, dir: float) -> void:
+	if rise_speed < 0.0 and is_on_ceiling():
+		for k in range(1, CORNER_NUDGE + 1):
+			for side in [-1, 1]:
+				var shift := Vector2(side * k, 0)
+				if not test_move(global_transform.translated(shift), Vector2(0, -4)):
+					position += shift
+					velocity.y = rise_speed    # 推開後照原本的速度繼續往上
+					return
+	elif dir != 0.0 and is_on_wall() and not is_on_floor():
+		for k in range(1, CORNER_NUDGE + 1):
+			var lift := Vector2(0, -k)
+			if not test_move(global_transform.translated(lift), Vector2(dir * 3, 0)):
+				position += lift + Vector2(dir * 2, 0)
+				velocity.y = minf(velocity.y, 0.0)
+				return
 
 
 ## 鏡頭震一下（受傷、重重落地）。
@@ -310,6 +348,7 @@ func _physics_process(delta: float) -> void:
 
 	_drop = maxf(0.0, _drop - delta)
 	_wall_lock = maxf(0.0, _wall_lock - delta)
+	_hurt_lock = maxf(0.0, _hurt_lock - delta)
 	collision_mask = base_mask() & ~(PLATFORM_LAYER if _drop > 0.0 else 0)
 	_coyote = COYOTE_TIME if is_on_floor() else maxf(0.0, _coyote - delta)
 	if is_on_floor():
@@ -354,7 +393,7 @@ func _physics_process(delta: float) -> void:
 		_jump_buffer = 0.0
 		sound.emit("double_jump")
 
-	if _wall_lock <= 0.0:
+	if _wall_lock <= 0.0 and _hurt_lock <= 0.0:
 		var target := dir * SPEED
 		var rate := AIR_ACCEL
 		if is_on_floor():
@@ -367,7 +406,10 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, target, rate * delta)
 	var was_airborne := not is_on_floor()
 	var fall_speed := velocity.y
+	var rise_speed := minf(velocity.y, 0.0)
 	move_and_slide()
+	if was_airborne:
+		_corner_correct(rise_speed, dir)
 	if was_airborne and is_on_floor() and fall_speed >= LAND_SOUND_SPEED:
 		sound.emit("land")
 	if was_airborne and is_on_floor() and fall_speed >= HARD_LANDING:

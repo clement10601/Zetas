@@ -53,5 +53,15 @@ static func enemy_damage(power: float, pack_tier: int) -> int:
 	return maxi(1, roundi(4.0 * power * (1 + pack_tier)))
 
 
+## 敵人出招：靠近 → 前搖（朱紅預兆）→ 判定 → 收招破綻。境界越高的內容包，前搖越短。
+const ENEMY_WINDUP := 0.45
+const ENEMY_WINDUP_MIN := 0.28
+const ENEMY_RECOVER := 0.6
+
+
+static func enemy_windup(pack_tier: int) -> float:
+	return maxf(ENEMY_WINDUP_MIN, ENEMY_WINDUP - 0.04 * pack_tier)
+
+
 static func kill_exp(power: float) -> int:
 	return maxi(1, roundi(5.0 * power))
