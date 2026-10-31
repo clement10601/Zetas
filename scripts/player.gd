@@ -56,7 +56,7 @@ const CAM_AIR_SLACK := 170.0    # 空中往上超過落腳處這麼多才開始�
 const LOOK_DELAY := 0.45
 const LOOK_DIST := 160.0
 const DROP_TIME := 0.25         # 往下跳時穿過平台的時間
-const ROPE_GRAB := 16.0         # 離繩子多近抓得到
+const ROPE_GRAB := 26.0         # 離繩子多近抓得到（楓之谷式，站在旁邊按 ↑ 就抓）
 const SIZE := Vector2(28, 52)
 const GROUND_LAYER := 1
 const PLATFORM_LAYER := 2
@@ -83,6 +83,7 @@ var _look := 0.0
 var _look_hold := 0.0
 var _shake := 0.0
 var _hurt_lock := 0.0
+var sitting := 0.0              # 打坐的坐姿還剩幾秒（期間不能動）
 var dashing := 0.0              # 墨影步剩下的秒數（main 把這段時間當無敵）
 var _dash_cooldown := 0.0
 var _dash_used := false         # 空中已經閃過一次
@@ -260,6 +261,35 @@ func _leave_ghost() -> void:
 	tw.tween_callback(g.queue_free)
 
 
+## 打坐：坐下一會兒，身邊升起幾縷靈氣。
+func sit(seconds: float) -> void:
+	sitting = seconds
+	velocity = Vector2.ZERO
+	if not is_inside_tree() or get_parent() == null:
+		return
+	var g := GradientTexture2D.new()
+	g.fill = GradientTexture2D.FILL_RADIAL
+	g.fill_from = Vector2(0.5, 0.5)
+	g.fill_to = Vector2(1.0, 0.5)
+	g.width = 24
+	g.height = 24
+	g.gradient = Gradient.new()
+	g.gradient.set_color(0, Color(0.85, 0.97, 0.9, 0.9))
+	g.gradient.set_color(1, Color(0.85, 0.97, 0.9, 0.0))
+	for i in 8:
+		var q := Sprite2D.new()
+		q.texture = g
+		q.position = position + Vector2(randf_range(-26, 26), SIZE.y / 2 - randf_range(0, 20))
+		q.modulate.a = 0.0
+		get_parent().add_child(q)
+		var tw := q.create_tween()
+		tw.tween_interval(i * seconds / 10.0)
+		tw.tween_property(q, "modulate:a", 0.8, 0.2)
+		tw.parallel().tween_property(q, "position:y", q.position.y - randf_range(60, 100), seconds * 0.6)
+		tw.tween_property(q, "modulate:a", 0.0, 0.3)
+		tw.tween_callback(q.queue_free)
+
+
 ## 被打中：往遠離 from_x 的方向彈開，短暫不吃左右輸入。
 func knock_back(from_x: float) -> void:
 	var away := signf(position.x - from_x)
@@ -271,6 +301,7 @@ func knock_back(from_x: float) -> void:
 		collision_mask = base_mask()
 	flying = 0.0
 	dashing = 0.0
+	sitting = 0.0
 	velocity = Vector2(away * KNOCKBACK.x, KNOCKBACK.y)
 	_hurt_lock = HURT_LOCK
 
@@ -309,7 +340,11 @@ func _animate(delta: float) -> void:
 	var target_rot := 0.0
 	var bob := 0.0
 	var speed := absf(velocity.x)
-	if flying > 0.0:
+	if sitting > 0.0:
+		# 打坐：盤腿坐下（壓低、略寬），隨呼吸起伏
+		var b := sin(_time * 1.6) * 0.02
+		target_scale = Vector2(1.12, 0.64 + b)
+	elif flying > 0.0:
 		target_rot = facing * 0.35
 		target_scale = Vector2(1.06, 0.95)
 	elif climbing:
@@ -426,9 +461,13 @@ func _physics_process(delta: float) -> void:
 	var dash_pressed := dash_down and not _dash_was_down and not frozen
 	_dash_was_down = dash_down
 	_dash_cooldown = maxf(0.0, _dash_cooldown - delta)
-	if frozen:
+	sitting = maxf(0.0, sitting - delta)
+	if frozen or sitting > 0.0:
 		input = {}
 		dashing = 0.0
+		jump_pressed = false
+		dash_pressed = false
+		fly_pressed = false
 	var dir := float(input.get("right", false)) - float(input.get("left", false))
 	if dir != 0.0:
 		facing = int(dir)
