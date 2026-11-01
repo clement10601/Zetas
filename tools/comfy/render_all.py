@@ -57,6 +57,8 @@ SUBJECTS = {
     "boss.heart_demon_mirror": f"a dark mirror double of a sect disciple, black robe, red sash, glowing red eyes, holding a crimson glowing sword, {ROBE}, red mist aura, scattered falling leaves",
 }
 # boss.demon_lord 不重繪：輪廓被改太多（長角、潑墨），留程式原圖
+# player.disciple 只出圖比較、不寫回：遊戲裡主角由衣櫃分層疊出，這張是 test_wardrobe 對齊用的底稿
+NO_APPLY = {"player.disciple"}
 VARIANTS = {"d50": (202, 0.50), "d55": (303, 0.55)}
 # 進遊戲的版本；沒列的用 d55。d50 那幾張是 0.55 會轉臉或糊掉
 PICK = {n: "d50" for n in ["npc.villager_b", "npc.villager_c", "npc.merchant_a", "npc.memory_echo",
@@ -166,7 +168,7 @@ def main():
             cut.putalpha(alpha)
             cut.resize(src.size, Image.LANCZOS).save(out / f"{name}_{tag}_alpha.png")
             print(f"{name}\t{tag}\t{time.time() - t0:.1f}s", flush=True)
-        if a.apply:
+        if a.apply and name not in NO_APPLY:
             shutil.copy(out / f"{name}_{PICK.get(name, 'd55')}_alpha.png", ROOT / "art/sprites" / f"{name}.png")
     print(f"total {time.time() - t_all:.1f}s")
 

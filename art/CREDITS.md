@@ -21,7 +21,7 @@
 
 ## AI 重繪的角色立繪（AI 預先生成美術，上 Steam 要揭露）
 
-`art/sprites/` 的角色立繪（`boss.demon_lord.png` 除外，仍是程式畫的原圖）是拿 `tools/paint_art.py` 畫的底稿，用 ComfyUI 做 img2img 重繪成水墨手繪風，再用底稿的 alpha 切回原尺寸。做法和重跑方式見 `tools/comfy/README.md`。屬 Steam 定義的「預先生成」AI 內容，上架時要在內容問卷揭露。
+`art/sprites/` 的角色立繪（`boss.demon_lord.png` 與 `player.disciple.png` 除外，仍是程式畫的原圖；主角在遊戲中由衣櫃分層圖疊出）是拿 `tools/paint_art.py` 畫的底稿，用 ComfyUI 做 img2img 重繪成水墨手繪風，再用底稿的 alpha 切回原尺寸。做法和重跑方式見 `tools/comfy/README.md`。屬 Steam 定義的「預先生成」AI 內容，上架時要在內容問卷揭露。
 
 | 模型 | 來源 | 授權 |
 |---|---|---|

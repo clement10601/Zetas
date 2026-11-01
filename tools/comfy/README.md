@@ -1,6 +1,6 @@
 # 角色立繪水墨重繪（ComfyUI）
 
-`art/sprites/` 的角色立繪（`boss.demon_lord` 除外）是 `tools/inkpaint` 程式畫的底稿，經 ComfyUI img2img 重繪成水墨手繪風，再用底稿的 alpha 切回 360×480。授權與揭露見 [art/CREDITS.md](../../art/CREDITS.md)。
+`art/sprites/` 的角色立繪（`boss.demon_lord`、`player.disciple` 除外）是 `tools/inkpaint` 程式畫的底稿，經 ComfyUI img2img 重繪成水墨手繪風，再用底稿的 alpha 切回 360×480。授權與揭露見 [art/CREDITS.md](../../art/CREDITS.md)。
 
 **別再跑 `python tools/paint_art.py --all`**，會把這些圖蓋回底稿。改了 `inkpaint/sprites.py` 的某個角色，就用這裡重跑那一張。
 
