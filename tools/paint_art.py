@@ -9,6 +9,8 @@
 
 同一個素材 id 每次畫出同一張圖（亂數種子取自 id）。筆觸工具在 tools/inkpaint/。
 手繪或其他來源的圖直接放進 art/ 蓋掉同名檔即可；之後別再用 --all，免得被重畫覆蓋。
+注意：art/sprites/ 的角色立繪（boss.demon_lord 以外）已經用 tools/comfy/render_all.py 重繪成水墨版，
+--all 會把它們蓋回程式底稿；要改角色就改 inkpaint/sprites.py 後用 tools/comfy/ 重跑那一張。
 """
 import argparse
 import json

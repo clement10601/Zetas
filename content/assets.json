@@ -21,7 +21,8 @@
       "files": [
         "sprites/npc.memory_echo.png"
       ],
-      "height": 96
+      "height": 96,
+      "alpha": 0.6
     },
     "npc.villager": {
       "type": "sprite",
@@ -278,7 +279,8 @@
       "files": [
         "sprites/mob.wandering_ghost.png"
       ],
-      "height": 96
+      "height": 96,
+      "alpha": 0.6
     }
   }
 }

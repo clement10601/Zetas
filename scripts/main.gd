@@ -1715,6 +1715,8 @@ func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
 		sprite.texture = tex
 		sprite.centered = false
 		var height := float(art.info(actor["template"]).get("height", 120))
+		# 魂體（memory_echo、遊魂）在 assets.json 設 alpha；用 self_modulate，不跟 ActorView 每格改的 modulate 打架
+		sprite.self_modulate.a = float(art.info(actor["template"]).get("alpha", 1.0))
 		sprite.scale = Vector2.ONE * height / tex.get_height()
 		sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, -height)
 		sprite.flip_h = hostile  # 立繪面朝右；敵人預設面向玩家來的方向
