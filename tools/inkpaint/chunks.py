@@ -4,6 +4,7 @@ import math
 import numpy as np
 from PIL import Image
 
+from . import layers as L
 from . import paintings as P
 from . import scenery as S
 from .ink import INK, Canvas, chaikin, mix, seed_of
@@ -12,9 +13,62 @@ RED = (178, 30, 36)
 BLOOD = (150, 16, 24)
 
 
+# 戶外區塊（2026-11-01 起）：背景是多張獨立圖層（layers.py），區塊圖只畫這一塊自己的東西——
+# 建築、石碑、樹與坡腳，其餘透明；顏色用 layers.PALETTES 同一套，和丘陵、近景山石對得上。
+REGION = {
+    "chunk.qingyun_road": "forest", "chunk.qingyun_woods": "forest", "chunk.forest_clearing_a": "forest",
+    "chunk.mountain_village": "village", "chunk.ruined_shrine": "village",
+    "chunk.sect_gate": "sect", "chunk.sect_plaza": "sect", "chunk.sect_hall": "sect",
+    "chunk.heifeng_pass": "mountain", "chunk.heifeng_ravine": "mountain",
+}
+
+
+def bank(cv, region):
+    """區塊底部的坡腳：一道起伏的土坡（受光的上緣、墨線、皴點），兩頭種幾棵樹、散幾塊石頭。"""
+    p = L.PALETTES[region]
+    w, rng = cv.w, cv.rng
+    xs = np.linspace(-10, w + 10, max(12, int(w / 30)))
+    ph = [rng.uniform(0, 6.3) for _ in range(3)]
+    top = [(x, 488 - 22 * math.sin(x / 170 + ph[0]) - 12 * math.sin(x / 61 + ph[1]) - 6 * math.sin(x / 23 + ph[2])) for x in xs]
+    m = cv.poly(top + [(w + 10, 605), (-10, 605)], blur=1.5)
+    cv.paint(m, p["rock"], 1.0)        # 坡體不透明，後面的圖層不會透過來
+    cv.paint(cv.textured(cv.vgrad(m, 450, 560, 1.0, 0.0), 0.5, "cloud"), p["lit"], 0.7)
+    cv.paint(cv.textured(cv.vgrad(m, 520, 600, 0.0, 1.0), 0.5, "cloud"), p["pine"], 0.35)
+    cv.stroke(top, 2.6, p["pine"], 0.9, dry=0.45, taper=(0.02, 0.02))
+    for _ in range(int(w / 18)):
+        x = rng.uniform(10, w - 10)
+        y = np.interp(x, xs, [t[1] for t in top]) + rng.uniform(4, 60)
+        cv.dab(x, y, rng.uniform(1.4, 3.0), p["pine"], rng.uniform(0.4, 0.8), squash=0.5)
+    for _ in range(int(w / 70)):
+        x = rng.uniform(20, w - 20)
+        y = np.interp(x, xs, [t[1] for t in top]) + rng.uniform(8, 40)
+        cv.stroke([(x, y), (x - 6, y + 14), (x - 9, y + 28)], 1.6, p["pine"], 0.5, dry=0.6)
+    for x0, x1 in ((40, w * 0.18), (w * 0.82, w - 40)):
+        for _ in range(rng.integers(1, 3)):
+            x = rng.uniform(x0, x1)
+            gy = np.interp(x, xs, [t[1] for t in top]) + 10
+            if region in ("sect", "mountain") or rng.random() < 0.5:
+                S.pine(cv, x, gy, rng.uniform(150, 230), lean=rng.uniform(-0.6, 0.6), color=p["pine"], alpha=0.95)
+            else:
+                S.leafy_tree(cv, x, gy, rng.uniform(150, 220), color=p["pine"], leaf=p["rock"], alpha=0.95)
+    for _ in range(rng.integers(2, 5)):
+        x = rng.uniform(30, w - 30)
+        S.rock(cv, x, 600, rng.uniform(40, 90), rng.uniform(24, 46), p["rock"], 0.9)
+
+
+def _mist(cv, *args, **kw):
+    """區塊裡的橫向霧帶；戶外區塊（只畫坡腳與建築、上面透明）不畫，霧交給遊戲的山嵐層，免得在區塊兩端切出直邊"""
+    if not getattr(cv, "layered", False):
+        S.mist(cv, *args, **kw)
+
+
 def base(cid, w, theme):
-    """古畫底圖（paintings.py）調色後鋪滿畫布；沒有對應古畫的區塊才用程式畫的天與山。"""
+    """戶外區塊：透明底＋程式畫的坡腳（bank）。沒有分層的區塊（幻境）才用古畫（paintings.py）或程式畫的天與山。"""
     cv = Canvas(w, 600, seed_of(cid))
+    if cid in REGION:
+        cv.layered = True
+        bank(cv, REGION[cid])
+        return cv
     img = P.crop(cid, w)
     if img is not None:
         arr = np.asarray(P.grade(img, theme).resize((cv.W, cv.H), Image.BICUBIC), np.float32) / 255
@@ -24,9 +78,9 @@ def base(cid, w, theme):
     S.sky(cv, theme, S.ILLUSION_EDGE if theme == "illusion" else S.EDGE_SKY)
     t = S.THEMES[theme]
     S.mountains(cv, S.ridge(cv, S.EDGE_FAR, 90, 160, S.EDGE_FAR), t["far"], 0.45, mist=160)
-    S.mist(cv, 400, 50, (230, 228, 216) if theme != "illusion" else (120, 30, 34), 0.45)
+    _mist(cv, 400, 50, (230, 228, 216) if theme != "illusion" else (120, 30, 34), 0.45)
     S.mountains(cv, S.ridge(cv, S.EDGE_MID, 70, 120, S.EDGE_MID), t["mid"], 0.55, mist=120, ink_edge=2.2, cuns=int(w / 40))
-    S.mist(cv, 470, 40, (236, 232, 220) if theme != "illusion" else (110, 24, 28), 0.5)
+    _mist(cv, 470, 40, (236, 232, 220) if theme != "illusion" else (110, 24, 28), 0.5)
     return cv
 
 
@@ -56,9 +110,9 @@ def edge_profile(family):
             _PROFILES[family] = np.asarray(cv.image(), np.float32)[:, 16:48].mean(1)
             return _PROFILES[family]
         S.mountains(cv, np.full(64, float(S.EDGE_FAR)), colors[0], 0.45, mist=160)
-        S.mist(cv, 400, 50, mist_c, 0.45)
+        _mist(cv, 400, 50, mist_c, 0.45)
         S.mountains(cv, np.full(64, float(S.EDGE_MID)), colors[1], 0.55, mist=120)
-        S.mist(cv, 470, 40, mist_c, 0.5)
+        _mist(cv, 470, 40, mist_c, 0.5)
         S.ground_strip(cv, "illusion" if family == "illusion" else "forest", with_grass=False)
         _PROFILES[family] = np.asarray(cv.image(), np.float32)[:, 16:48].mean(1)
     return _PROFILES[family]
@@ -88,7 +142,7 @@ def qingyun_road(cid, w, name):
 
 def qingyun_woods(cid, w, name):
     cv = base(cid, w, "forest")
-    S.mist(cv, 540, 40, (236, 232, 220), 0.45)
+    _mist(cv, 540, 40, (236, 232, 220), 0.45)
     return finish(cv, name, "forest")
 
 
@@ -109,13 +163,13 @@ def mountain_cave(cid, w, name):
     S.rock(cv, 760, 600, 120, 70, (70, 68, 60))
     for x in (380, 520):
         cv.stroke([(x, 600), (x + 8, 560)], 3, (90, 110, 80), 0.6)
-    S.mist(cv, 560, 30, (120, 116, 104), 0.4)
+    _mist(cv, 560, 30, (120, 116, 104), 0.4)
     return finish(cv, name, "mountain", dark=True)
 
 
 def ruined_shrine(cid, w, name):
     cv = base(cid, w, "forest")
-    S.mist(cv, 560, 50, (236, 232, 220), 0.55)
+    _mist(cv, 560, 50, (236, 232, 220), 0.55)
     S.dead_tree(cv, 140, 600, 260)
     S.hall(cv, 560, 600, 280, 240, wall=(170, 160, 140), pillar=(110, 70, 50), roof_c=(60, 58, 52), text="山神")
     cv.paint(cv.textured(cv.poly([(620, 380), (690, 362), (705, 400), (640, 414)], blur=2), 0.6), (200, 196, 180), 0.8)
@@ -127,7 +181,7 @@ def ruined_shrine(cid, w, name):
 
 def mountain_village(cid, w, name):
     cv = base(cid, w, "forest")
-    S.mist(cv, 560, 50, (236, 232, 220), 0.55)
+    _mist(cv, 560, 50, (236, 232, 220), 0.55)
     for cx, hw in [(240, 170), (520, 140), (850, 180)]:
         S.house(cv, cx, 600, hw, hw * 0.9, lantern=cx == 520)
     for x in range(640, 740, 14):
@@ -140,7 +194,7 @@ def mountain_village(cid, w, name):
 
 def sect_gate(cid, w, name):
     cv = base(cid, w, "sect")
-    S.mist(cv, 580, 60, (234, 230, 214), 0.6)
+    _mist(cv, 580, 60, (234, 230, 214), 0.6)
     for k in range(10):
         y = 600 - k * 14
         cv.paint(cv.rect(560 - 90 + k * 6, y - 14, 560 + 90 - k * 6, y, blur=0.5), (170, 168, 160), 0.9)
@@ -170,7 +224,7 @@ def sect_plaza(cid, w, name):
 
 def sect_hall(cid, w, name):
     cv = base(cid, w, "sect")
-    S.mist(cv, 590, 60, (234, 230, 214), 0.6)
+    _mist(cv, 590, 60, (234, 230, 214), 0.6)
     S.hall(cv, w * 0.5, 600, 520, 420, roof_c=(56, 68, 80), text="傳功殿")
     S.cauldron(cv, w * 0.5, 600, 28)
     return finish(cv, name, "sect")
@@ -234,13 +288,13 @@ def heifeng_ravine(cid, w, name):
         ys = np.linspace(-10, 600, 34)
         edge = [(x0 + sgn * (190 + 40 * math.sin(y / 40) + cv.rng.uniform(-10, 10)), y) for y in ys]
         outer = [(x0 - sgn * 200, 600), (x0 - sgn * 200, -10)]
-        cv.wash(edge + outer, mix(t["mid"], INK, 0.2), 0.92, blur=2, tex=0.5, mode="over")
+        cv.wash(edge + outer, L.PALETTES["mountain"]["rock"], 0.95, blur=2, tex=0.5, mode="over")
         cv.stroke(edge, 4, INK, 0.85, dry=0.5)
         for _ in range(16):
             y = cv.rng.uniform(100, 560)
             x = x0 + sgn * cv.rng.uniform(40, 180)
             cv.stroke([(x, y), (x - sgn * 10, y + 20), (x - sgn * 14, y + 40)], 2, INK, 0.45, dry=0.6)
-    S.mist(cv, 560, 60, (220, 214, 200), 0.7)
+    _mist(cv, 560, 60, (220, 214, 200), 0.7)
     xs = np.linspace(250, w - 250, 30)
     bridge = [(x, 250 + 60 * math.sin((x - 250) / (w - 500) * math.pi)) for x in xs[:18]]
     cv.stroke(bridge, 2, (80, 60, 40), 0.85)

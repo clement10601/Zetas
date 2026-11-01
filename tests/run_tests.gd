@@ -754,15 +754,14 @@ func test_scrolling_camera_and_parallax() -> void:
 	expect(painting.position.x == x0 and painting.position.x <= painting.win_left and painting.position.x + painting.size.x >= painting.win_left + painting.win_width, "painting always covers its chunk")
 	expect(main.level.has_node("Sky") and main.level.has_node("Ranges_far") and main.level.has_node("Ranges_mid"), "outdoor maps have sky and far ranges behind the painting")
 	# 多層背景：每層各自一張圖，由遠到近捲得越來越快，古畫只是其中一層
-	var speeds: Array = ["Ranges_far", "Ranges_mid", "Hills", "Flow"].map(func(n): return main.level.get_node(n).scroll_scale.x if main.level.has_node(n) else -1.0)
+	var speeds: Array = ["Ranges_far", "Ranges_mid", "Hills", "Flow", "Near"].map(func(n): return main.level.get_node(n).scroll_scale.x if main.level.has_node(n) else -1.0)
 	speeds.append(1.0 - painting.DEPTH_FAR)
-	speeds.append(main.level.get_node("Near").scroll_scale.x if main.level.has_node("Near") else -1.0)
 	speeds.append(1.0)
 	var ordered_speeds := true
 	for i in speeds.size() - 1:
 		ordered_speeds = ordered_speeds and speeds[i] > 0.0 and speeds[i] < speeds[i + 1]
 	expect(ordered_speeds, "background layers scroll faster the nearer they are %s" % [speeds])
-	expect(main.level.get_node("Near").z_index > painting.z_index and main.level.get_node("Hills").z_index < painting.z_index, "near rocks in front of the painting, hills behind it")
+	expect(main.level.get_node("Near").z_index < painting.z_index and main.level.get_node("Hills").z_index < painting.z_index, "the chunk's own buildings and banks sit in front of every backdrop layer")
 	expect(main.level.has_node("Mist") and main.level.has_node("Foreground"), "map has mist and foreground layers")
 	expect(main.level.get_node("Foreground").z_index > 0 and main.level.get_node("Mist").z_index < 0, "foreground in front of the player, mist behind")
 	# 天頂擋住御劍，不會飛出畫面

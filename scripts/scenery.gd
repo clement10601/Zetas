@@ -10,7 +10,7 @@ extends RefCounted
 const SKY_Z := -13
 const RANGES_Z := -12
 const HILLS_Z := -11            # 丘陵、水面／雲海：在遠山前、古畫（-10）後
-const NEAR_Z := -9              # 近景山石：古畫前、角色後
+const NEAR_Z := -11             # 近景山石：在水面／雲海前、區塊圖（-10，建築與坡腳）後
 const Painting = preload("res://scripts/parallax_painting.gd")
 const HAZE_Z := -9
 const MIST_Z := -8              # 底圖 -10、接縫霧 -9，山嵐在其上、平台與角色之下
@@ -84,7 +84,7 @@ static func add_sky(level: Node, floor_y: float, spans: Array) -> void:
 
 
 ## 遠山和古畫之間、古畫和角色之間的景深圖層（tools/inkpaint/layers.py 畫的，左右無縫重複）。
-## 由遠到近、捲動越來越快：丘陵 0.2 → 水面或雲海 0.34 →（古畫約 0.6）→ 近景山石 0.82 →（地面 1）
+## 由遠到近、捲動越來越快：丘陵 0.2 → 水面或雲海 0.34 → 近景山石 0.55 →（區塊圖約 0.88）→（地面 1）
 static func add_depth_layers(level: Node, floor_y: float, tags: Array, sky: Color) -> void:
 	var region := Painting.region_of(tags)
 	if region == "":
@@ -96,7 +96,7 @@ static func add_depth_layers(level: Node, floor_y: float, tags: Array, sky: Colo
 			["Hills", "hills_" + region, 0.2, floor_y - 570.0, HILLS_Z, Color(1, 1, 1, 0.92), 0.0],
 			["Flow", flow, 0.34, floor_y - (330.0 if flow == "cloudsea" else 312.0), HILLS_Z, water_tint, -6.0],
 			# 宗門的古畫上有山門、殿宇：近景石壓低，只露出石頂，不擋建築
-			["Near", "near_" + region, 0.82, floor_y - (200.0 if region == "sect" else 318.0), NEAR_Z, Color(1, 1, 1, 0.94), 0.0]]:
+			["Near", "near_" + region, 0.55, floor_y - (200.0 if region == "sect" else 318.0), NEAR_Z, Color(1, 1, 1, 0.94), 0.0]]:
 		var tex: Texture2D = load("res://art/bg/%s.png" % spec[1])
 		if tex == null:
 			continue

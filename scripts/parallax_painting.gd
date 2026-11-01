@@ -1,19 +1,18 @@
-## 區塊古畫在多層背景裡只當其中一層（中近景，建築與坡腳）：上半段（畫裡的遠山與天）淡掉，
-## 讓後面的天色、遠峰、遠山、丘陵、水面／雲海（scenery.gd，tools/inkpaint/layers.py）各自一層露出來。
+## 區塊圖在多層背景裡是最靠近地面的一層：戶外區塊只畫建築、石碑、樹和坡腳（tools/inkpaint/chunks.py），
+## 上面透明，露出後面的天色、遠峰、遠山、丘陵、水面／雲海、近景山石（scenery.gd，tools/inkpaint/layers.py）。
+## 洞窟、幻境還是整張畫（幻境是古畫），照舊拉彩度、上色。
 ## 框固定在區塊範圍（左右各多出半個接縫寬，再多留畫能移動的距離），鏡頭移動時著色器在框裡把畫往回取樣：
-## 畫跟著鏡頭走 DEPTH 那麼多，所以在螢幕上只移動 1 - DEPTH，比地面慢、比後面的丘陵快。
+## 畫跟著鏡頭走 DEPTH 那麼多，所以在螢幕上移動 1 - DEPTH，比地面慢一點、比後面各層都快。
 ## 畫裡越上面的跟得越多（螢幕上走得越少），同一張畫裡也有一點遠近。
 ## 相鄰兩塊的畫只會越移越疊在一起，接縫處和左邊的區塊交疊淡入，不會有硬邊。
 extends TextureRect
 
-const DEPTH := 0.36             # 畫的下半（近處）：鏡頭走 100，畫跟著走 36（螢幕上走 64）
-const DEPTH_FAR := 0.44         # 畫留下來的最上緣：跟得多一點，螢幕上走得少
-const CUT_FROM := 0.4           # 戶外區塊：畫高這個比例以上（畫裡的遠山與天）淡掉，交給後面的圖層
-const CUT_TO := 0.56
+const DEPTH := 0.1              # 畫的下半（坡腳、建築）：鏡頭走 100，畫跟著走 10，幾乎貼著地面
+const DEPTH_FAR := 0.14         # 畫頂：跟得多一點，螢幕上走得少
 const RIGID_FROM := 0.62        # 畫高這個比例以下都用 DEPTH，房子、牌坊不會被拉斜
 const FEATHER := 140.0          # 接縫交疊的寬度
 const HEIGHT := 600.0           # 美術規格的畫高（art/STYLE.md）
-const SINK := 120.0             # 畫往下沉（底下被地面蓋住），畫面上緣露出天與遠山
+const SINK := 120.0             # 洞窟、幻境的整張畫往下沉（底下被地面蓋住）；戶外區塊圖的地面線就是畫底，不沉
 
 const SHADER := """
 shader_type canvas_item;
@@ -25,8 +24,7 @@ uniform float depth_far = 0.06;
 uniform float depth_near = 0.24;
 uniform float rigid_from = 0.62;
 uniform float feather = 0.05;     // 以畫寬為 1
-uniform float cut_from = 0.0;     // 畫頂淡掉的範圍（0 表示不淡，洞窟、幻境）
-uniform float cut_to = 0.07;
+uniform float grade = 1.0;        // 古畫（洞窟、幻境）要拉彩度；戶外區塊是程式畫的，顏色已經對好，不再調
 uniform bool fade_left = true;
 uniform vec4 haze : source_color = vec4(0.9, 0.88, 0.82, 0.35);
 // 青綠山水式的上色：依明度把墨色映到「深墨 → 地區主色 → 紙色」，再和原畫混合 tone_mix
@@ -51,7 +49,7 @@ void fragment() {
 	vec4 c = texture(TEXTURE, vec2(clamp(u, 0.0, 1.0), UV.y));
 	// 古畫褪色的絹底偏灰：拉一點彩度與對比，畫面不再那麼素
 	float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
-	c.rgb = clamp((mix(vec3(l), c.rgb, 1.35) - 0.55) * 1.08 + 0.55, 0.0, 1.0);
+	c.rgb = mix(c.rgb, clamp((mix(vec3(l), c.rgb, 1.35) - 0.55) * 1.08 + 0.55, 0.0, 1.0), grade);
 	vec3 toned = l < 0.55 ? mix(tone_dark.rgb, tone_mid.rgb, smoothstep(0.05, 0.55, l))
 		: mix(tone_mid.rgb, tone_light.rgb, smoothstep(0.55, 0.9, l));
 	c.rgb = mix(c.rgb, toned, tone_mix);
@@ -65,7 +63,7 @@ void fragment() {
 	if (fade_left) {
 		a *= smoothstep(0.0, feather, u);
 	}
-	a *= smoothstep(cut_from, cut_to, UV.y);    // 畫頂不留硬邊；戶外整段遠景淡掉
+	a *= smoothstep(0.0, 0.07, UV.y);    // 畫頂不留硬邊
 	COLOR = vec4(c.rgb, c.a * a) * tint;   // fragment 裡的 COLOR 已乘過原 UV 的貼圖色，不能直接乘
 }
 """
@@ -115,7 +113,8 @@ func setup(tex: Texture2D, left: float, width: float, floor_y: float, first: boo
 	var rect_w := paint_w + 2 * extra
 	var h := HEIGHT * paint_w / width     # 等比放大，畫不會被壓扁
 	size = Vector2(rect_w, h)
-	position = Vector2(left - margin - extra, floor_y + SINK - h)
+	var outdoor := region_of(tags) != "" and not (tags.has("illusion") or tags.has("cave") or tags.has("den"))
+	position = Vector2(left - margin - extra, floor_y + (0.0 if outdoor else SINK) - h)
 	if _shader == null:
 		_shader = Shader.new()
 		_shader.code = SHADER
@@ -130,9 +129,12 @@ func setup(tex: Texture2D, left: float, width: float, floor_y: float, first: boo
 	material.set_shader_parameter("feather", FEATHER / paint_w)
 	material.set_shader_parameter("fade_left", not first)
 	material.set_shader_parameter("haze", Color(haze.lerp(Color.WHITE, 0.45), 0.35))
-	if not (tags.has("illusion") or tags.has("cave") or tags.has("den")):
-		material.set_shader_parameter("cut_from", CUT_FROM)
-		material.set_shader_parameter("cut_to", CUT_TO)
+	if outdoor:
+		# 戶外區塊圖（tools/inkpaint/chunks.py 的 bank）已經用圖層同一套色畫好：不上色、不加霧、不拉彩度
+		material.set_shader_parameter("grade", 0.0)
+		material.set_shader_parameter("haze", Color(1, 1, 1, 0))
+		_apply(left + width / 2)
+		return
 	var tone := tone_for(tags)
 	if not tone.is_empty() and not (tags.has("illusion") or tags.has("cave")):
 		material.set_shader_parameter("tone_dark", tone[0])
