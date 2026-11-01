@@ -31,6 +31,8 @@ const Keys = preload("res://scripts/keys.gd")
 const KeyPanel = preload("res://scripts/key_panel.gd")
 const Martial = preload("res://scripts/martial.gd")
 const InkGlyph = preload("res://scripts/ink_glyph.gd")
+const Wardrobe = preload("res://scripts/wardrobe.gd")
+const WardrobePanel = preload("res://scripts/wardrobe_panel.gd")
 
 const FLOOR_Y := 560.0
 ## 鏡頭下緣在地面下多少：留一條地面給操作說明，其餘都給畫面
@@ -103,6 +105,7 @@ var audio_settings_path := "user://audio.cfg"
 var keys_path := "user://keys.json"
 var help_label: Label
 var key_panel                      # 按鍵設定畫面（scripts/key_panel.gd）
+var wardrobe_panel                 # 衣櫃與容貌（scripts/wardrobe_panel.gd）
 var menu_text := ""                # 有編號選項的對話框原文，menu_cursor 那一行加上「◆」
 var menu_cursor := 0
 var _combat_hold := 0.0           # 戰鬥曲還要留幾秒
@@ -209,10 +212,11 @@ func _ready() -> void:
 	add_child(audio)
 	player = Player.new()
 	add_child(player)
-	player.set_look(art.texture("player.disciple"), float(art.info("player.disciple").get("height", 88)))
 	player.sound.connect(func(n): audio.play(n))
 	if save_path != "" and state.load_file(save_path):
 		add_log("讀取存檔：第 %d 天。" % state.day)
+	apply_look()
+	note_new_looks(true)
 	if not regions.has(state.region):
 		state.region = START_REGION
 	if not state.game_data.has("hp"):
@@ -1629,6 +1633,7 @@ func _on_pack_failed(followup: Dictionary, reason: String) -> void:
 
 
 func autosave() -> void:
+	note_new_looks()
 	if save_path != "":
 		state.save_file(save_path)
 
@@ -1639,6 +1644,7 @@ func load_game() -> void:
 			state.region = START_REGION
 		update_movement_skills()
 		_apply_gear()
+		apply_look()
 		go_home()
 		add_log("讀取存檔：第 %d 天，%s。" % [state.day, region_name()])
 
@@ -2474,6 +2480,8 @@ func breakthrough() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if key_panel != null and key_panel.visible:
 		return
+	if wardrobe_panel != null and wardrobe_panel.visible:
+		return
 	if event is InputEventKey:
 		if not event.pressed or event.echo:
 			return
@@ -2523,6 +2531,8 @@ func handle_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("settings"):
 		open_key_panel()
+	elif event.is_action_pressed("wardrobe"):
+		open_wardrobe()
 	elif event.is_action_pressed("map"):
 		open_travel_menu()
 	elif event.is_action_pressed("interact"):
@@ -2626,6 +2636,56 @@ func open_key_panel() -> void:
 		hud_layer.add_child(key_panel)
 	player.input_blocked = true
 	key_panel.open()
+
+
+# ---------- 衣櫃與容貌 ----------
+
+## 目前穿著的外觀：存檔裡的選擇，沒解鎖的（例如心性變了，赤霞髮色的條件不成立）換回預設。
+func player_look() -> Dictionary:
+	return Wardrobe.only_unlocked(Wardrobe.normalize(state.game_data.get("look", {})), state)
+
+
+func player_texture() -> Texture2D:
+	return Wardrobe.compose(player_look())
+
+
+func apply_look() -> void:
+	player.set_look(player_texture(), float(art.info("player.disciple").get("height", 88)))
+
+
+func open_wardrobe() -> void:
+	if runner != null and not (wardrobe_panel != null and wardrobe_panel.visible):
+		add_log("事件進行中，不能換衣服。")
+		return
+	if wardrobe_panel == null:
+		wardrobe_panel = WardrobePanel.new()
+		wardrobe_panel.changed.connect(func(look: Dictionary):
+			state.game_data["look"] = look
+			apply_look()
+			autosave())
+		wardrobe_panel.closed.connect(func():
+			player.input_blocked = false
+			_refresh_status())
+		hud_layer.add_child(wardrobe_panel)
+	player.input_blocked = true
+	wardrobe_panel.open(state, player_look())
+
+
+## 有新解鎖的外觀就在紀錄提一句。first：讀檔時只記下已有的，不提示。
+func note_new_looks(first := false) -> void:
+	var seen: Array = state.game_data.get("looks_seen", [])
+	var fresh := []
+	for slot in Wardrobe.slots():
+		for o in Wardrobe.options(slot["id"]):
+			var key := "%s/%s" % [slot["id"], o["id"]]
+			if o.get("unlock", []).is_empty() or seen.has(key):
+				continue
+			if Wardrobe.is_unlocked(slot["id"], o["id"], state):
+				seen.append(key)
+				fresh.append(o["name"])
+	state.game_data["looks_seen"] = seen
+	if not fresh.is_empty() and not first:
+		add_log("衣櫃多了：%s（%s 打開）" % ["、".join(fresh), Keys.hint("wardrobe")])
 
 
 func _on_keys_changed() -> void:
@@ -2810,6 +2870,12 @@ func _portrait_crop(tex: Texture2D) -> Texture2D:
 		return null
 	if _portrait_cache.has(tex):
 		return _portrait_cache[tex]
+	if tex == player_texture():   # 換裝立繪：飄帶、披風會撐大不透明範圍，頭像改用固定位置
+		var fixed := AtlasTexture.new()
+		fixed.atlas = tex
+		fixed.region = Wardrobe.PORTRAIT_RECT
+		_portrait_cache[tex] = fixed
+		return fixed
 	var used := Rect2i(0, 0, tex.get_width(), tex.get_height())
 	var img := tex.get_image()
 	if img != null:
@@ -2832,7 +2898,7 @@ func _portrait_crop(tex: Texture2D) -> Texture2D:
 
 func _speaker_texture(speaker: String) -> Texture2D:
 	if speaker == "player":
-		return art.texture("player.disciple")
+		return player_texture()
 	var view: Node2D = actor_views.get(speaker)
 	if view == null and residents.has(speaker):
 		view = residents[speaker]["view"]

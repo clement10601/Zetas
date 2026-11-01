@@ -26,12 +26,13 @@ const ACTIONS := [
 	{"id": "dash", "name": "閃避", "keys": [KEY_C, KEY_L, KEY_SHIFT],
 		"pad": [JOY_BUTTON_B, JOY_BUTTON_RIGHT_SHOULDER]},
 	{"id": "fly", "name": "御劍（空中）", "keys": [KEY_V, KEY_I, 0], "pad": [JOY_BUTTON_Y]},
-	{"id": "art", "name": "術法（主修功法的招牌術法）", "keys": [KEY_F, KEY_U, 0], "pad": [JOY_BUTTON_RIGHT_STICK]},
+	{"id": "art", "name": "術法（主修功法的招牌術法）", "keys": [KEY_F, KEY_U, 0], "pad": []},
 	{"id": "gear", "name": "兵器・功法", "keys": [KEY_G, KEY_O, 0], "pad": []},
 	{"id": "interact", "name": "交談・傳送・拿取", "keys": [KEY_UP, KEY_W, KEY_E], "pad": [JOY_BUTTON_DPAD_UP]},
 	{"id": "meditate", "name": "打坐", "keys": [KEY_M, 0, 0], "pad": [JOY_BUTTON_LEFT_SHOULDER]},
 	{"id": "breakthrough", "name": "突破", "keys": [KEY_B, 0, 0], "pad": [JOY_BUTTON_LEFT_STICK]},
 	{"id": "map", "name": "地圖", "keys": [KEY_T, 0, 0], "pad": [JOY_BUTTON_BACK]},
+	{"id": "wardrobe", "name": "衣櫃・容貌", "keys": [KEY_Y, 0, 0], "pad": [JOY_BUTTON_RIGHT_STICK]},
 	{"id": "music", "name": "配樂開關", "keys": [KEY_N, 0, 0], "pad": []},
 	{"id": "settings", "name": "按鍵設定", "keys": [KEY_ESCAPE, KEY_F10, 0], "pad": [JOY_BUTTON_START]},
 ]
@@ -188,6 +189,7 @@ static func help_line() -> String:
 		"%s 地圖" % hint("map"),
 		"%s 打坐" % hint("meditate"),
 		"%s 突破" % hint("breakthrough"),
+		"%s 衣櫃" % hint("wardrobe"),
 		"%s 按鍵設定" % hint("settings"),
 	])
 
