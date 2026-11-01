@@ -28,6 +28,7 @@ python tools/sync_engine.py   # 把引擎 addon 複製到 addons/zeworld
 | 打坐一個時辰：修為增加（宗門內較快）、氣血回滿 | M | | | LB |
 | 修為圓滿時突破境界（突破時可能遇上心魔） | B | | | L3 |
 | 地圖：直接在青雲宗、青雲山腳、黑風嶺（築基以上）之間移動，花 1–2 個時辰 | T | | | Back |
+| 衣櫃與容貌：換衣著、頭飾、背飾、腰飾，改髮型、髮色、臉型、眼、眉；沒解鎖的可以試穿（見 [docs/design/attire.md](docs/design/attire.md)） | Y | | | R3 |
 | 開關背景音樂（音效照常；設定存在 `user://audio.cfg`） | N | | | |
 | 按鍵設定 | Esc | F10 | | Start |
 

@@ -53,6 +53,7 @@ func _run() -> void:
 	await test_wild_mobs()
 	await test_errand_board()
 	await test_keyboard_layout()
+	await test_wardrobe()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -1428,3 +1429,83 @@ func test_music_by_map_and_event() -> void:
 	expect(main.music_choice() == "event.heart_demon", "the heart demon gets its own battle music")
 	main.free()
 
+
+
+## 衣櫃與容貌：每個選項都有圖層、疊出來跟原本立繪同尺寸、解鎖照條件、試穿關掉會換回、存檔帶著走。
+func test_wardrobe() -> void:
+	const Wardrobe = preload("res://scripts/wardrobe.gd")
+	var layers: Dictionary = Wardrobe.layers()["layers"]
+	var d := Wardrobe.default_look()
+	for slot in Wardrobe.slots():
+		var id: String = slot["id"]
+		expect(d.has(id), "default look has %s" % id)
+		var opts := Wardrobe.options(id)
+		expect(opts.size() >= 2, "%s has choices" % id)
+		for o in opts:
+			for c in o.get("unlock", []):
+				expect(c is Dictionary and c.has("type"), "%s/%s unlock is a condition" % [id, o["id"]])
+			if not o.get("unlock", []).is_empty():
+				expect(o.get("source", "") != "", "%s/%s says how to get it" % [id, o["id"]])
+			var look := d.duplicate()
+			look[id] = o["id"]
+			for key in Wardrobe.layer_keys(look):
+				# 短髮沒有後髮、沒戴配件沒有那層：那些 key 本來就可以沒有圖
+				if key.begins_with("hair_back/") or key.begins_with("hair_under/"):
+					continue
+				expect(layers.has(key), "layer %s exists" % key)
+				if layers.has(key):
+					expect(ResourceLoader.exists("res://art/" + layers[key]["file"]), "layer file %s" % layers[key]["file"])
+	var tex := Wardrobe.compose(d)
+	var old: Texture2D = load("res://art/sprites/player.disciple.png")
+	expect(tex.get_size() == old.get_size(), "composed look is the same size as the old sprite")
+	var img := tex.get_image()
+	var used := img.get_used_rect()
+	var old_used := old.get_image().get_used_rect()
+	expect(absi(used.position.y - old_used.position.y) <= 3 and absi(used.end.y - old_used.end.y) <= 3, "default look stands where the old sprite stood")
+	expect(Wardrobe.compose(d) == tex, "same look composed once")
+	expect(Wardrobe.normalize({"outfit": "nope", "hair": "twin"})["outfit"] == d["outfit"]
+		and Wardrobe.normalize({"hair": "twin"})["hair"] == "twin", "normalize keeps known choices, drops unknown")
+
+	var path := "user://zetas_test_wardrobe.json"
+	var main: Node = await new_game(false, path)
+	expect(main.player.sprite.texture == main.player_texture(), "player wears the composed look")
+	expect(not Wardrobe.is_unlocked("outfit", "inner", main.state), "內門青衫 locked at 煉氣")
+	main.state.tier_index = 1
+	expect(Wardrobe.is_unlocked("outfit", "inner", main.state), "內門青衫 unlocked at 築基")
+	main.autosave()
+	expect(main.log_lines.any(func(l): return l.contains("內門青衫")), "new look announced")
+	main.state.tier_index = 0
+	main.open_wardrobe()
+	var panel = main.wardrobe_panel
+	expect(panel.visible and main.player.input_blocked, "Y opens the wardrobe")
+	# 衣著欄往後換：外門短褐（已解鎖）直接穿上
+	panel.cycle(1)
+	expect(main.state.game_data["look"]["outfit"] == "outer", "unlocked outfit is worn at once")
+	# 再往後：散修布衣、內門青衫（煉氣還沒解鎖）→ 試穿
+	panel.cycle(1)
+	panel.cycle(1)
+	expect(panel.look["outfit"] == "inner" and main.state.game_data["look"]["outfit"] == "wanderer", "locked outfit is only tried on")
+	expect(panel.note.text.contains("突破築基"), "locked outfit says where it comes from")
+	var tried: Texture2D = panel.preview.texture
+	panel.close()
+	expect(not main.player.input_blocked, "closing gives control back")
+	expect(main.player.sprite.texture != tried and main.player_look()["outfit"] == "wanderer", "closing drops the try-on")
+	# 容貌：髮型換一個
+	main.open_wardrobe()
+	while panel.current_slot() != "hair":
+		panel.move_row(1)
+	panel.cycle(1)
+	panel.close()
+	expect(main.player_look()["hair"] == "bun", "hair changed")
+	expect(main._portrait_crop(main._speaker_texture("player")).region == Wardrobe.PORTRAIT_RECT, "player portrait uses the fixed head crop")
+	# 事件中不能換
+	main.free()
+	var again: Node = await new_game(false, path)
+	expect(again.player_look()["outfit"] == "wanderer" and again.player_look()["hair"] == "bun", "look restored from save")
+	# 心性變了：赤霞髮色條件不成立就換回預設
+	again.state.game_data["look"]["hair_color"] = "crimson"
+	expect(again.player_look()["hair_color"] == "ink", "crimson hair needs a killer's heart")
+	again.state.karma["仁殺"] = -40
+	expect(again.player_look()["hair_color"] == "crimson", "crimson hair with 仁殺 -40")
+	again.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

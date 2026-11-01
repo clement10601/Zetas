@@ -65,24 +65,64 @@ def figure(cv, s):
     alpha = s.get("alpha", 1.0)
     outline = s.get("outline", 2.4)
     ink = s.get("ink", INK)
+    # only：只畫這些部位（換裝用的分層立繪，見 wardrobe.py）；None 是整張一次畫完
+    only = s.get("only")
+    on = (lambda part: True) if only is None else (lambda part: part in only)
 
-    for e in s.get("behind", []):
-        e(f)
+    if on("behind"):
+        for e in s.get("behind", []):
+            e(f)
     # 背後的頭髮
     hair = s.get("hair", "bun")
     hc = s.get("hair_color", INK)
+    if on("hair_back"):
+        back_hair(f, hair, hc, alpha, ink)
+    # 後袖
+    sleeve = s.get("sleeve", "wide")
+    if on("sleeve_back"):
+        if sleeve == "wide":
+            f.fill([(-36, .81), (-58, .7), (-74, .5), (-62, .44), (-46, .48), (-34, .64)], mix(robe, INK, 0.18), outline, 0.2, alpha, ink=ink)
+        else:
+            f.fill([(-34, .81), (-48, .66), (-50, .5), (-40, .48), (-34, .64)], mix(robe, INK, 0.18), outline, 0.2, alpha, ink=ink)
+    if on("back_items"):
+        for e in s.get("back_items", []):
+            e(f)
+    if on("body"):
+        body_layer(f, s, robe, inner, sash, trim, flare, alpha, outline, ink)
+    if on("belt"):
+        for e in s.get("belt", []):
+            e(f)
+    # 頭
+    if on("face"):
+        neck = [(-6, .86), (10, .86), (10, .89), (-6, .89)]
+        f.fill(neck, s.get("skin", SKIN), 0, 0, alpha)
+    head(f, s, alpha, ink, on)
+    # 前袖與手
+    pose = s.get("pose", "rest")
+    skin = s.get("skin", SKIN)
+    front_sleeve(f, s, pose, sleeve, robe, skin, alpha, outline, ink, on("sleeve_front"))
+    if on("front"):
+        for e in s.get("front", []):
+            e(f)
+    return f
+
+
+def back_hair(f, hair, hc, alpha, ink):
     if hair in ("long", "long_bun"):
         f.fill([(-6, .97), (-34, .9), (-40, .7), (-34, .55), (-18, .6), (-14, .8), (6, .9)], hc, 1.6, 0, alpha, ink=ink)
     if hair == "ponytail":
         f.line([(-26, .97), (-46, .9), (-50, .78), (-44, .66)], 12, hc, alpha, taper=(0.0, 0.8))
-    # 後袖
-    sleeve = s.get("sleeve", "wide")
-    if sleeve == "wide":
-        f.fill([(-36, .81), (-58, .7), (-74, .5), (-62, .44), (-46, .48), (-34, .64)], mix(robe, INK, 0.18), outline, 0.2, alpha, ink=ink)
-    else:
-        f.fill([(-34, .81), (-48, .66), (-50, .5), (-40, .48), (-34, .64)], mix(robe, INK, 0.18), outline, 0.2, alpha, ink=ink)
-    for e in s.get("back_items", []):
-        e(f)
+    if hair == "high_tail":
+        # 高馬尾：從頭頂後方束起，甩一道長弧到背後
+        f.line([(-14, 1.06), (-44, 1.05), (-66, .96), (-74, .82), (-70, .68)], 15, hc, alpha, taper=(0.0, 0.85))
+        f.line([(-30, 1.05), (-58, .99), (-70, .86)], 1.0, mix(hc, INK, 0.5), 0.5 * alpha, dry=0.5)
+    if hair == "wild":
+        # 散亂長髮：幾綹參差往後下散開
+        for k, (x, y) in enumerate(((-44, .62), (-56, .7), (-50, .56), (-36, .58))):
+            f.line([(-8, .99 - k * .02), (-30 - k * 4, .9), (x, y)], 12 - k * 2, hc, alpha, taper=(0.05, 0.9), jitter=0.2)
+
+
+def body_layer(f, s, robe, inner, sash, trim, flare, alpha, outline, ink):
     # 內袍下襬
     if not s.get("short_robe"):
         f.fill([(-46 * flare, .14), (52 * flare, .14), (50 * flare, .03), (10, .015), (-44 * flare, .03)], inner, outline * 0.8, 0.15, alpha, ink=ink)
@@ -97,6 +137,14 @@ def figure(cv, s):
         for x in (-18, 18):  # 褲腿
             f.fill([(x - 16, .37), (x + 16, .37), (x + 13, .04), (x - 13, .04)], s.get("pants", mix(robe, INK, 0.3)), outline, 0.25, alpha, ink=ink)
     f.fill(body, robe, outline, 0.32, alpha, ink=ink)
+    band = s.get("hem_band")
+    if band:  # 下襬鑲邊：一道寬色帶沿著袍底
+        if s.get("short_robe"):
+            f.fill([(-50, .40), (50, .40), (50, .36), (-50, .36)], band, 1.2, 0.2, alpha, ink=ink)
+        else:
+            f.fill([(-58 * flare, .15), (55 * flare, .17), (64 * flare, .08), (20, .065), (-20, .055), (-62 * flare, .07)], band, 1.2, 0.2, alpha, ink=ink)
+    for e in s.get("robe_marks", []):
+        e(f)
     # 衣褶
     for x0, x1 in ((-20, -34), (8, 18), (26, 46)):
         if not s.get("short_robe"):
@@ -108,15 +156,12 @@ def figure(cv, s):
     f.fill([(-36, .63), (38, .635), (37, .585), (-35, .58)], sash, 1.4, 0.2, alpha, ink=ink)
     if s.get("sash_tail", True):
         f.line([(-4, .59), (-8, .48), (-4, .4)], 5, sash, alpha, taper=(0.1, 0.4))
-    for e in s.get("belt", []):
-        e(f)
-    # 頭
-    neck = [(-6, .86), (10, .86), (10, .89), (-6, .89)]
-    f.fill(neck, s.get("skin", SKIN), 0, 0, alpha)
-    head(f, s, alpha, ink)
-    # 前袖與手
-    pose = s.get("pose", "rest")
-    skin = s.get("skin", SKIN)
+
+
+def front_sleeve(f, s, pose, sleeve, robe, skin, alpha, outline, ink, draw=True):
+    """前袖與手。draw=False 只算出手的位置（f.hand），給兵器、提籃用。"""
+    if not draw:
+        f = _Ghost(f)
     if pose == "forward":
         f.fill([(28, .82), (50, .81), (84, .7), (100, .66), (98, .58), (72, .6), (42, .66), (30, .72)], robe, outline, 0.28, alpha, ink=ink)
         f.fill([(96, .66), (110, .645), (110, .61), (97, .6)], skin, 1.2, 0, alpha, ink=ink)
@@ -134,12 +179,60 @@ def figure(cv, s):
             f.fill([(30, .82), (50, .79), (58, .64), (62, .5), (50, .49), (44, .62), (32, .7)], robe, outline, 0.3, alpha, ink=ink)
             f.fill([(52, .5), (64, .5), (64, .46), (52, .455)], skin, 1.2, 0, alpha, ink=ink)
             f.hand = f.P(58, .475)
-    for e in s.get("front", []):
-        e(f)
-    return f
+    if not draw:
+        f.real.hand = f.hand
 
 
-def head(f, s, alpha, ink):
+class _Ghost:
+    """不畫任何東西的 Fig 替身：front_sleeve 只想知道手在哪。"""
+    def __init__(self, real):
+        self.real, self.P = real, real.P
+
+    def fill(self, *a, **kw):
+        pass
+
+
+# 臉型：側臉下半部的輪廓。chin＝下巴尖、jaw＝下顎角（都以頭的半徑為單位，相對頭心）
+FACES = {
+    "oval":   dict(rx=0.82, ry=0.86, chin=(0.40, 0.98), jaw=None),          # 鵝蛋臉（原本的臉）
+    "slender": dict(rx=0.76, ry=0.86, chin=(0.58, 1.08), jaw=(0.02, 0.78)),  # 瓜子臉：下巴尖、往前
+    "round":  dict(rx=0.90, ry=0.84, chin=(0.34, 0.96), jaw=(-0.10, 0.86)),  # 圓臉：頰肉飽滿
+    "square": dict(rx=0.84, ry=0.86, chin=(0.52, 1.02), jaw=(-0.04, 0.96)),  # 方臉：下顎角明顯，劍客相
+}
+
+
+def eyes(cv, s, ex, ey, eye_c, alpha, ink):
+    style = s.get("eye_style", "almond")
+    if style == "phoenix":   # 鳳眼：細長、眼尾上挑
+        cv.stroke([(ex - 7, ey + 0.8), (ex - 1, ey - 1.4), (ex + 6, ey - 3.6)], 2.4, eye_c, alpha, taper=(0.1, 0.2))
+        if not s.get("glow_eyes"):
+            cv.paint(cv.ellipse(ex - 0.5, ey + 0.2, 1.6, 1.7, blur=0.4), eye_c, alpha)
+            cv.stroke([(ex - 4, ey + 2.2), (ex + 3, ey + 1.0)], 0.9, ink, 0.35 * alpha, smooth=0)
+    elif style == "gentle":  # 垂眼：圓、眼尾微垂，溫和
+        cv.stroke([(ex - 6, ey - 1.6), (ex - 1, ey - 2.8), (ex + 4, ey + 0.6)], 2.4, eye_c, alpha, taper=(0.1, 0.4))
+        if not s.get("glow_eyes"):
+            cv.paint(cv.ellipse(ex - 0.8, ey + 0.6, 2.2, 2.4, blur=0.4), eye_c, alpha)
+            cv.stroke([(ex - 4, ey + 3.0), (ex + 2, ey + 3.0)], 0.9, ink, 0.35 * alpha, smooth=0)
+    else:                    # 杏眼（原本的眼）
+        cv.stroke([(ex - 6, ey - 0.5), (ex - 1, ey - 2.2), (ex + 4, ey - 1)], 2.4, eye_c, alpha, taper=(0.1, 0.4))
+        if not s.get("glow_eyes"):
+            cv.paint(cv.ellipse(ex - 0.5, ey + 0.6, 1.9, 2.1, blur=0.4), eye_c, alpha)
+            cv.stroke([(ex - 4, ey + 2.6), (ex + 2, ey + 2.4)], 0.9, ink, 0.35 * alpha, smooth=0)
+
+
+def brows(cv, s, ex, ey, color, alpha):
+    style = s.get("brow_style", "straight")
+    if style == "sword":     # 劍眉：粗、斜飛入鬢
+        cv.stroke([(ex - 9, ey - 3.5), (ex - 2, ey - 6), (ex + 6, ey - 9)], 3.0, color, 0.95 * alpha, taper=(0.1, 0.7))
+    elif style == "willow":  # 柳葉眉：細、彎
+        cv.stroke([(ex - 7, ey - 4.5), (ex - 1.5, ey - 7), (ex + 5, ey - 5.5)], 1.5, color, 0.9 * alpha, taper=(0.4, 0.5))
+    elif style == "low":     # 原本 NPC 的眉，位置偏高、多半藏在瀏海下
+        cv.stroke([(ex - 7, ey - 8), (ex + 4, ey - 10)], 1.8, color, 0.9 * alpha, taper=(0.1, 0.5))
+    else:                    # 平眉
+        cv.stroke([(ex - 7, ey - 5), (ex + 4, ey - 6.5)], 2.0, color, 0.9 * alpha, taper=(0.1, 0.5))
+
+
+def head(f, s, alpha, ink, on=lambda part: True):
     cv = f.cv
     hx, hy = f.P(4, .935)
     rx, ry = f.h * 0.052, f.h * 0.064
@@ -149,36 +242,59 @@ def head(f, s, alpha, ink):
     rx, ry = rx * k, ry * k
     hair, hc = s.get("hair", "bun"), s.get("hair_color", INK)
     skin = s.get("skin", SKIN)
+    shape = FACES[s.get("face", "oval")]
     # 頭髮底：比臉大、往後上偏
-    cv.paint(cv.ellipse(hx - rx * 0.25, hy - ry * 0.12, rx * 1.12, ry * 1.08, blur=0.6), hc, alpha)
-    # 臉：側臉，往右前偏
-    face = cv.ellipse(hx + rx * 0.28, hy + ry * 0.18, rx * 0.82, ry * 0.86, blur=0.6)
-    cv.paint(face, skin, alpha)
-    cv.paint(hramp(face, hx, hx + rx * 1.2, 0.0, 0.25), mix(skin, INK, 0.3), alpha)
-    # 鼻與下巴輪廓
+    if on("hair_under"):
+        cv.paint(cv.ellipse(hx - rx * 0.25, hy - ry * 0.12, rx * 1.12, ry * 1.08, blur=0.6), hc, alpha)
     nx, ny = hx + rx * 1.08, hy + ry * 0.12
-    cv.stroke([(hx + rx * 0.9, hy - ry * 0.2), (nx + 2, ny), (nx - 2, ny + 4), (hx + rx * 0.9, hy + ry * 0.55), (hx + rx * 0.4, hy + ry * 0.98)], 1.6, ink, 0.8 * alpha, dry=0.2)
+    cx_, cy_ = shape["chin"]
+    if on("face"):
+        # 臉：側臉，往右前偏
+        face = cv.ellipse(hx + rx * 0.28, hy + ry * 0.18, rx * shape["rx"], ry * shape["ry"], blur=0.6)
+        cv.paint(face, skin, alpha)
+        if shape["jaw"]:   # 下半臉照臉型補一塊膚色：下顎角到下巴尖
+            jx, jy = shape["jaw"]
+            low = cv.poly(chaikin([(hx - rx * 0.3, hy + ry * 0.2), (hx + rx * jx, hy + ry * jy), (hx + rx * cx_, hy + ry * cy_),
+                                   (hx + rx * 0.9, hy + ry * 0.55), (hx + rx * 0.9, hy - ry * 0.1)], 1), 0.6)
+            cv.paint(low, skin, alpha)
+            cv.stroke(chaikin([(hx + rx * (jx - 0.08), hy + ry * (jy - 0.12)), (hx + rx * jx, hy + ry * jy), (hx + rx * cx_, hy + ry * cy_)], 1), 1.2, ink, 0.4 * alpha, dry=0.3, taper=(0.6, 0.1))
+        cv.paint(hramp(face, hx, hx + rx * 1.2, 0.0, 0.25), mix(skin, INK, 0.3), alpha)
+        # 鼻與下巴輪廓
+        cv.stroke([(hx + rx * 0.9, hy - ry * 0.2), (nx + 2, ny), (nx - 2, ny + 4), (hx + rx * 0.9, hy + ry * 0.55), (hx + rx * cx_, hy + ry * cy_)], 1.6, ink, 0.8 * alpha, dry=0.2)
     # 瀏海：蓋住額頭
-    cv.paint(cv.poly(chaikin([(hx - rx * 0.6, hy - ry * 1.05), (hx + rx * 0.95, hy - ry * 0.75), (hx + rx * 0.8, hy - ry * 0.35), (hx + rx * 0.2, hy - ry * 0.3), (hx - rx * 0.4, hy + ry * 0.3)], 2), 0.6), hc, alpha)
+    if on("hair_over"):
+        cv.paint(cv.poly(chaikin([(hx - rx * 0.6, hy - ry * 1.05), (hx + rx * 0.95, hy - ry * 0.75), (hx + rx * 0.8, hy - ry * 0.35), (hx + rx * 0.2, hy - ry * 0.3), (hx - rx * 0.4, hy + ry * 0.3)], 2), 0.6), hc, alpha)
     # 眼與眉
     ex, ey = hx + rx * 0.62, hy + ry * 0.02
     eye_c = s.get("eye", ink)
-    # 耳：臉後緣一個小弧，頭像裁出來時側臉才有結構
-    ear_x, ear_y = hx - rx * 0.1, hy + ry * 0.15
-    cv.paint(cv.ellipse(ear_x, ear_y, rx * 0.16, ry * 0.22, blur=0.5), mix(skin, INK, 0.12), alpha)
-    cv.stroke([(ear_x + rx * 0.05, ear_y - ry * 0.18), (ear_x - rx * 0.14, ear_y), (ear_x + rx * 0.02, ear_y + ry * 0.2)], 1.2, ink, 0.6 * alpha, dry=0.2)
+    if on("face"):
+        # 耳：臉後緣一個小弧，頭像裁出來時側臉才有結構
+        ear_x, ear_y = hx - rx * 0.1, hy + ry * 0.15
+        cv.paint(cv.ellipse(ear_x, ear_y, rx * 0.16, ry * 0.22, blur=0.5), mix(skin, INK, 0.12), alpha)
+        cv.stroke([(ear_x + rx * 0.05, ear_y - ry * 0.18), (ear_x - rx * 0.14, ear_y), (ear_x + rx * 0.02, ear_y + ry * 0.2)], 1.2, ink, 0.6 * alpha, dry=0.2)
     # 眼：上眼線＋瞳仁，眼角一點下眼線
-    cv.stroke([(ex - 6, ey - 0.5), (ex - 1, ey - 2.2), (ex + 4, ey - 1)], 2.4, eye_c, alpha, taper=(0.1, 0.4))
-    if not s.get("glow_eyes"):
-        cv.paint(cv.ellipse(ex - 0.5, ey + 0.6, 1.9, 2.1, blur=0.4), eye_c, alpha)
-        cv.stroke([(ex - 4, ey + 2.6), (ex + 2, ey + 2.4)], 0.9, ink, 0.35 * alpha, smooth=0)
-    # 頰上一抹淡紅
-    cv.paint(cv.ellipse(hx + rx * 0.45, hy + ry * 0.38, rx * 0.22, ry * 0.12, blur=2.0), (205, 120, 105), 0.25 * alpha)
-    if s.get("glow_eyes"):
+    if on("eyes"):
+        eyes(cv, s, ex, ey, eye_c, alpha, ink)
+    if on("face"):
+        # 頰上一抹淡紅
+        cv.paint(cv.ellipse(hx + rx * 0.45, hy + ry * 0.38, rx * 0.22, ry * 0.12, blur=2.0), (205, 120, 105), 0.25 * alpha)
+    if on("eyes") and s.get("glow_eyes"):
         cv.paint(cv.ellipse(ex, ey, 10, 7, blur=4), s["glow_eyes"], 0.9, "over")
         cv.paint(cv.ellipse(ex, ey, 3.5, 2.2, blur=0.6), (255, 230, 200), 1.0)
-    cv.stroke([(ex - 7, ey - 8), (ex + 4, ey - 10)], 1.8, hc if hc != (236, 236, 230) else (150, 150, 150), 0.9 * alpha, taper=(0.1, 0.5))
-    cv.stroke([(hx + rx * 0.62, hy + ry * 0.6), (hx + rx * 0.8, hy + ry * 0.58)], 1.4, (150, 70, 60), 0.7 * alpha, smooth=0)
+    if on("brows"):
+        brows(cv, s, ex, ey, s.get("brow_color", hc if hc != (236, 236, 230) else (150, 150, 150)), alpha) if "brow_style" in s else \
+            brows(cv, dict(brow_style="low"), ex, ey, hc if hc != (236, 236, 230) else (150, 150, 150), alpha)
+    if on("face"):
+        cv.stroke([(hx + rx * 0.62, hy + ry * 0.6), (hx + rx * 0.8, hy + ry * 0.58)], 1.4, (150, 70, 60), 0.7 * alpha, smooth=0)
+    if on("hair_over"):
+        hair_top(f, s, hx, hy, rx, ry, hair, hc, alpha, ink)
+    if on("head_items"):
+        for e in s.get("head_items", []):
+            e(f, hx, hy, rx, ry)
+
+
+def hair_top(f, s, hx, hy, rx, ry, hair, hc, alpha, ink):
+    cv = f.cv
     # 髮型
     if hair in ("bun", "long_bun"):
         cv.paint(cv.ellipse(hx - rx * 0.35, hy - ry * 1.05, rx * 0.5, ry * 0.36, blur=0.6), hc, alpha)
@@ -188,9 +304,15 @@ def head(f, s, alpha, ink):
     elif hair == "twin":
         for dx in (-0.7, 0.25):
             cv.paint(cv.ellipse(hx + rx * dx, hy - ry * 0.95, rx * 0.34, ry * 0.3, blur=0.6), hc, alpha)
+    elif hair == "high_tail":
+        # 頭頂後方的束髮處，綁一條髮帶
+        cv.paint(cv.ellipse(hx - rx * 0.45, hy - ry * 1.02, rx * 0.34, ry * 0.26, blur=0.6), hc, alpha)
+        cv.stroke([(hx - rx * 0.62, hy - ry * 1.18), (hx - rx * 0.38, hy - ry * 0.84)], 3.2, s.get("pin", GOLD), alpha, taper=(0.1, 0.1))
+    elif hair == "wild":
+        # 額前幾綹亂髮垂到眉眼
+        for k, (dx, dy) in enumerate(((0.95, -0.05), (0.7, 0.1), (0.4, -0.1))):
+            cv.stroke([(hx + rx * (0.1 + k * 0.15), hy - ry * 0.75), (hx + rx * (dx - 0.1), hy - ry * 0.3), (hx + rx * dx, hy + ry * dy)], 7 - k, hc, alpha, taper=(0.05, 0.9))
     cv.stroke(chaikin([(hx - rx * 1.1, hy + ry * 0.1), (hx - rx * 1.05, hy - ry * 0.7), (hx - rx * 0.2, hy - ry * 1.15), (hx + rx * 0.7, hy - ry * 0.9)], 2), 1.8, ink, 0.8 * alpha, dry=0.4)
-    for e in s.get("head_items", []):
-        e(f, hx, hy, rx, ry)
 
 
 # ---------- 配件 ----------

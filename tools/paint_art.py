@@ -5,6 +5,7 @@
   python tools/paint_art.py --all        # 全部重畫
   python tools/paint_art.py npc.fox_girl chunk.sect_gate   # 只畫這幾個
   python tools/paint_art.py --sheet out.png                # 另存一張總覽圖
+  python tools/paint_art.py --wardrobe                     # 玩家換裝分層立繪（tools/inkpaint/wardrobe.py）
 
 同一個素材 id 每次畫出同一張圖（亂數種子取自 id）。筆觸工具在 tools/inkpaint/。
 手繪或其他來源的圖直接放進 art/ 蓋掉同名檔即可；之後別再用 --all，免得被重畫覆蓋。
@@ -45,11 +46,17 @@ def main():
     ap.add_argument("ids", nargs="*")
     ap.add_argument("--all", action="store_true", help="已經有檔案的也重畫")
     ap.add_argument("--sheet", help="另存一張角色與場景的總覽圖")
+    ap.add_argument("--wardrobe", action="store_true", help="重畫玩家換裝的分層立繪（art/wardrobe/）")
     args = ap.parse_args()
 
     manifest = json.loads((ROOT / "content/assets.json").read_text(encoding="utf-8"))
     chunk_data = json.loads((ROOT / "content/chunks.json").read_text(encoding="utf-8"))
     art_root = ROOT / manifest["root"].removeprefix("res://")
+    if args.wardrobe:
+        from inkpaint import wardrobe as WD
+        n = len(WD.paint_all(art_root)["layers"])
+        print(f"wardrobe: {n} layers painted")
+        return
     jobs = painters(manifest, chunk_data)
     unknown = [a for a in args.ids if a not in jobs]
     if unknown:
