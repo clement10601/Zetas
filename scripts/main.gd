@@ -1,10 +1,10 @@
 ## 遊戲主控：橫軸地圖、玩家、角色，並把 ZeWorld 內容包與導演接到畫面上。
 ## 地圖有單向平台與繩梯（chunks.json 的 platforms／ropes），操作見 scripts/player.gd。
-## 地圖兩端有傳送點，站上去按 ↑ 走到相鄰地區（regions.json 的 exits）；也可以按 T 開地圖直接去。
+## 地圖兩端有傳送點，站上去按 ↑（交談鍵）走到相鄰地區（regions.json 的 exits）；也可以按 T 開地圖直接去。
 ## 移動要花時辰。地區裡的常駐 NPC（regions.json 的 residents）靠近按 ↑ 或 E 說話。
 ## 身法（輕身術、踏葉、御風、土遁、御劍）隨境界與修為領悟；有些平台要身法才上得去，
 ## 上面的寶物（chunks.json 的 caches）按 ↑ 拿。區塊的 walls：cliff 是可以踏葉的石壁，thin 是土遁穿得過的薄牆。
-## J 攻擊，敵人近身會傷人，血量歸零就重傷倒地（事件以失敗結算）。M 打坐增加修為、回滿血，
+## 攻擊鍵（X/J）攻擊，敵人近身會傷人，血量歸零就重傷倒地（事件以失敗結算）。M 打坐增加修為、回滿血，
 ## 修為圓滿後按 B 突破境界。
 ## 除錯鍵用來快速製造觸發條件：F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、
 ## F6 請導演生成一個新事件、F5 存檔、F9 讀檔。N 開關配樂。
@@ -27,6 +27,8 @@ const InkUI = preload("res://scripts/ink_ui.gd")
 const ActorView = preload("res://scripts/actor_view.gd")
 const InkFx = preload("res://scripts/ink_fx.gd")
 const GameAudio = preload("res://scripts/audio.gd")
+const Keys = preload("res://scripts/keys.gd")
+const KeyPanel = preload("res://scripts/key_panel.gd")
 
 const FLOOR_Y := 560.0
 ## 鏡頭下緣在地面下多少：留一條地面給操作說明，其餘都給畫面
@@ -93,6 +95,12 @@ var director
 ## 配樂與音效；測試時 audio_settings_path 設空字串，不寫設定檔
 var audio
 var audio_settings_path := "user://audio.cfg"
+## 自訂按鍵；測試時設空字串，不讀寫檔案（scripts/keys.gd）
+var keys_path := "user://keys.json"
+var help_label: Label
+var key_panel                      # 按鍵設定畫面（scripts/key_panel.gd）
+var menu_text := ""                # 有編號選項的對話框原文，menu_cursor 那一行加上「◆」
+var menu_cursor := 0
 
 var state
 var pool: Array = []
@@ -176,6 +184,7 @@ func _ready() -> void:
 	director.line_rewritten.connect(func(node_id, text):
 		if runner != null:
 			runner.apply_rewrite(node_id, text))
+	Keys.setup(keys_path)
 	_build_hud()
 	audio = GameAudio.new()
 	audio.settings_path = audio_settings_path
@@ -192,7 +201,7 @@ func _ready() -> void:
 		state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	update_movement_skills()
 	go_home()
-	add_log("%s。T 地圖、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。" % region_name())
+	add_log(("%s。" + Keys.hint("map") + " 地圖、" + Keys.hint("settings") + " 按鍵設定、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。") % region_name())
 	playlog.write("session_start", {"version": ProjectSettings.get_setting("application/config/version", ""),
 		"director": use_director, "day": state.day, "region": state.region, "tier": state.tier_name()})
 	if not _awaiting_code:
@@ -976,9 +985,9 @@ func open_errand_board() -> void:
 				errand_options.append({"kind": "accept", "errand": e})
 				text += "\n  %d. 【%s】%s：打倒 %d 隻%s（%s）" % [errand_options.size(), e["giver"], e["title"],
 					int(e["count"]), _template_name(e["template"]), e.get("where", "")]
-	text += "\n  （Esc 關閉）"
+	text += "\n  （%s 選、%s 確定、Esc 關閉）" % [Keys.first("move_up") + Keys.first("move_down"), Keys.hint("jump")] if not errand_options.is_empty() else "\n  （Esc 關閉）"
 	_set_speaker("差事榜", null)
-	dialogue_label.text = text
+	_set_menu_text(text)
 	dialogue_panel.visible = true
 	player.frozen = true
 	if errand_options.is_empty():
@@ -1225,7 +1234,7 @@ func interact() -> bool:
 	return false
 
 
-## 常駐 NPC 一次說一句，輪著說。空白鍵關掉。
+## 常駐 NPC 一次說一句，輪著說。跳鍵（或 Enter）關掉。
 func talk_to(id: String) -> void:
 	var r: Dictionary = residents[id]
 	var lines: Array = r["info"].get("lines", [])
@@ -1234,7 +1243,7 @@ func talk_to(id: String) -> void:
 	var line: String = lines[r["said"] % lines.size()]
 	r["said"] += 1
 	_set_speaker(r["info"]["name"], _speaker_texture(id))
-	dialogue_label.text = "%s\n（空白鍵繼續）" % line
+	dialogue_label.text = "%s\n（%s 繼續）" % [line, Keys.hint("jump")]
 	dialogue_panel.visible = true
 	player.frozen = true
 	lingering = true
@@ -1297,9 +1306,9 @@ func open_travel_menu() -> void:
 		var id: String = travel_options[i]
 		var note := "（需%s）" % state.ruleset["tiers"][REGION_MIN_TIER[id]] if state.tier_index < int(REGION_MIN_TIER.get(id, 0)) else ""
 		text += "\n  %d. %s・%d 個時辰%s" % [i + 1, region_name(id), int(regions[id].get("travel_hours", 1)), note]
-	text += "\n  （Esc 取消）"
+	text += "\n  （%s 選、%s 確定、Esc 取消）" % [Keys.first("move_up") + Keys.first("move_down"), Keys.hint("jump")]
 	_set_speaker("輿圖", null)
-	dialogue_label.text = text
+	_set_menu_text(text)
 	dialogue_panel.visible = true
 	player.frozen = true
 
@@ -1644,8 +1653,8 @@ func _show_line(line: Dictionary) -> void:
 	for i in current_choices.size():
 		text += "\n  %d. %s" % [i + 1, current_choices[i]["text"]]
 	if current_choices.is_empty():
-		text += "\n（空白鍵繼續）"
-	dialogue_label.text = text
+		text += "\n（%s 繼續）" % Keys.hint("jump")
+	_set_menu_text(text)
 	dialogue_panel.visible = true
 	player.frozen = true
 
@@ -2000,13 +2009,13 @@ func _update_prompt() -> void:
 			if state.tier_index < need:
 				text = "需%s才能前往%s" % [state.ruleset["tiers"][need], region_name(portal["to"])]
 			else:
-				text = "↑ 前往%s" % region_name(portal["to"])
+				text = "%s 前往%s" % [Keys.hint("interact"), region_name(portal["to"])]
 		elif nearby_cache() != "":
-			text = "↑ 拿取"
+			text = Keys.hint("interact") + " 拿取"
 		elif nearby_board():
-			text = "↑ 看差事榜"
+			text = Keys.hint("interact") + " 看差事榜"
 		elif nearby_resident() != "":
-			text = "↑ 交談"
+			text = Keys.hint("interact") + " 交談"
 	prompt_label.text = text
 	prompt_label.visible = text != ""
 	if prompt_label.visible and player.is_inside_tree():
@@ -2054,40 +2063,70 @@ func breakthrough() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey and event.pressed and not event.echo):
+	if key_panel != null and key_panel.visible:
 		return
-	if not errand_options.is_empty():
-		if event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
-			choose_errand(event.physical_keycode - KEY_1)
-		elif event.physical_keycode in [KEY_ESCAPE, KEY_SPACE, KEY_UP, KEY_W, KEY_E]:
+	if event is InputEventKey:
+		if not event.pressed or event.echo:
+			return
+	elif event is InputEventJoypadButton:
+		if not event.pressed:
+			return
+	else:
+		return
+	handle_input(event)
+	_refresh_status()
+
+
+## 一個按下去的按鍵／手把按鈕（測試也直接呼叫這個）。
+func handle_input(event: InputEvent) -> void:
+	var kc: int = event.physical_keycode if event is InputEventKey else 0
+	var number := kc - KEY_1 if kc >= KEY_1 and kc <= KEY_4 else -1
+	var confirm: bool = event.is_action_pressed("jump") or event.is_action_pressed("attack") or kc == KEY_ENTER or kc == KEY_KP_ENTER
+	var cancel: bool = event.is_action_pressed("settings")
+	var count := menu_count()
+	# 有編號選項時：1-4 直接選，上下鍵／十字鍵移動游標，跳／攻擊／Enter 確定
+	if count > 0:
+		if number >= 0:
+			choose_menu(number)
+		elif event.is_action_pressed("move_up"):
+			move_menu_cursor(-1)
+		elif event.is_action_pressed("move_down"):
+			move_menu_cursor(1)
+		elif confirm:
+			choose_menu(menu_cursor)
+		elif cancel or event.is_action_pressed("map"):
+			if not travel_options.is_empty():
+				close_travel_menu()
+			elif not errand_options.is_empty():
+				close_errand_board()
+		return
+	if not errand_options.is_empty():   # 差事榜上沒東西可接：任何確定／取消都關掉
+		if confirm or cancel or event.is_action_pressed("interact"):
 			close_errand_board()
-		_refresh_status()
 		return
-	if not travel_options.is_empty():
-		if event.physical_keycode >= KEY_1 and event.physical_keycode <= KEY_4:
-			choose_travel(event.physical_keycode - KEY_1)
-		elif event.physical_keycode in [KEY_ESCAPE, KEY_T]:
-			close_travel_menu()
-		_refresh_status()
-		return
-	match event.physical_keycode:
-		KEY_T:
-			open_travel_menu()
-		KEY_UP, KEY_W, KEY_E:
-			interact()
-		KEY_SPACE, KEY_ENTER:
+	if dialogue_panel.visible:
+		if confirm:
 			advance_dialogue()
-		KEY_1, KEY_2, KEY_3, KEY_4:
-			choose_visible(event.physical_keycode - KEY_1)
-		KEY_J:
-			if not dialogue_panel.visible:
-				attack()
-		KEY_M:
-			if not dialogue_panel.visible:
-				meditate()
-		KEY_B:
-			if not dialogue_panel.visible:
-				try_breakthrough()
+		elif cancel and lingering:
+			_hide_dialogue()
+		return
+	if event.is_action_pressed("settings"):
+		open_key_panel()
+	elif event.is_action_pressed("map"):
+		open_travel_menu()
+	elif event.is_action_pressed("interact"):
+		interact()
+	elif event.is_action_pressed("attack"):
+		attack()
+	elif event.is_action_pressed("meditate"):
+		meditate()
+	elif event.is_action_pressed("breakthrough"):
+		try_breakthrough()
+	elif event.is_action_pressed("music"):
+		add_log("配樂：" + ("開" if audio.toggle_music() else "關"))
+	elif event.is_action_pressed("jump"):
+		advance_dialogue()   # 事件剛結束、對話框收起前的最後一句
+	match kc:
 		KEY_F1:
 			spare_fox()
 		KEY_F2:
@@ -2103,9 +2142,76 @@ func _unhandled_input(event: InputEvent) -> void:
 			request_fresh_event()
 		KEY_F9:
 			load_game()
-		KEY_N:
-			add_log("配樂：" + ("開" if audio.toggle_music() else "關"))
-	_refresh_status()
+
+
+# ---------- 選單游標 ----------
+
+## 對話框裡有幾個編號選項（對話選項、差事榜、地圖）。
+func menu_count() -> int:
+	if not travel_options.is_empty():
+		return travel_options.size()
+	if not errand_options.is_empty():
+		return errand_options.size() if errand_options[0]["kind"] != "none" else 0
+	if dialogue_panel.visible:
+		return current_choices.size()
+	return 0
+
+
+func choose_menu(i: int) -> void:
+	if not travel_options.is_empty():
+		choose_travel(i)
+	elif not errand_options.is_empty():
+		choose_errand(i)
+	else:
+		choose_visible(i)
+
+
+func move_menu_cursor(d: int) -> void:
+	var n := menu_count()
+	if n == 0:
+		return
+	menu_cursor = posmod(menu_cursor + d, n)
+	audio.play("ui_tick")
+	_render_menu()
+
+
+func _set_menu_text(text: String) -> void:
+	menu_text = text
+	menu_cursor = 0
+	_render_menu()
+
+
+## 編號選項那幾行（「  1. ……」）裡，游標所在的那行換成「▶ 1. ……」。
+func _render_menu() -> void:
+	var lines := menu_text.split("\n")
+	var n := 0
+	for i in lines.size():
+		var l: String = lines[i]
+		if l.length() > 4 and l.begins_with("  ") and l[2].is_valid_int() and l[3] == ".":
+			if n == menu_cursor and menu_count() > 1:
+				lines[i] = "◆ " + l.substr(2)
+			n += 1
+	dialogue_label.text = "\n".join(lines)
+
+
+# ---------- 按鍵設定 ----------
+
+func open_key_panel() -> void:
+	if key_panel == null:
+		key_panel = KeyPanel.new()
+		key_panel.keys_path = keys_path
+		key_panel.changed.connect(_on_keys_changed)
+		key_panel.closed.connect(func():
+			player.input_blocked = false
+			_refresh_status())
+		hud_layer.add_child(key_panel)
+	player.input_blocked = true
+	key_panel.open()
+
+
+func _on_keys_changed() -> void:
+	help_label.text = Keys.help_line()
+	_update_prompt()
 
 
 # ---------- HUD ----------
@@ -2239,12 +2345,12 @@ func _build_hud() -> void:
 	dialogue_name_box.add_child(dialogue_name)
 	dialogue_panel.resized.connect(_layout_dialogue)
 	dialogue_panel.visibility_changed.connect(_layout_dialogue)
-	var help := Label.new()
-	help.text = "←→ 移動　Alt/C/空白 跳　↑↓ 爬繩梯　↓+跳 下平台　↑/E 傳送點・交談　J 攻擊　Shift/X 閃避　1-4 選擇　T 地圖　M 打坐　B 突破"
-	help.theme_type_variation = "HudSmall"
-	help.position = Vector2(16, 694)
-	help.modulate = Color(1, 1, 1, 0.6)
-	hud.add_child(help)
+	help_label = Label.new()
+	help_label.text = Keys.help_line()
+	help_label.theme_type_variation = "HudSmall"
+	help_label.position = Vector2(16, 694)
+	help_label.modulate = Color(1, 1, 1, 0.6)
+	hud.add_child(help_label)
 	prompt_label = Label.new()
 	prompt_label.visible = false
 	prompt_label.size = Vector2(400, 0)
