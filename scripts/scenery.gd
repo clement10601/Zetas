@@ -131,8 +131,9 @@ static func add_layers(level: Node, floor_y: float, tags: Array, seed_value: int
 static func hanging_kind(tags: Array) -> String:
 	if tags.has("illusion") or tags.has("den"):
 		return ""
+	# 宗門有真的山門、殿柱（場景物件，main.gd _add_landmark）；再垂一根假殿柱會從殿中間穿過去，像穿模
 	if tags.has("sect") or tags.has("hall"):
-		return "pillar"
+		return ""
 	if tags.has("cave"):
 		return "stalactite"
 	return "willow"
