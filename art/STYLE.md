@@ -47,6 +47,7 @@
   - 古畫上方空白的天是透明的（`python -m tools.inkpaint.skyline`，天色寫進 `content/sky.json`；`paint_art.py` 畫完區塊會自動重跑），遠山從那裡露出來。
   - 古畫本身也分遠近（`scripts/parallax_painting.gd`）：畫頂只跟鏡頭走 6%、畫的下段走 24%，下段 38% 不拉斜（房子、牌坊不會歪）；越上面越淡、越偏天色（空氣透視）。
   - 古畫依地區上色（青綠山水式：深墨 → 地區主色 → 紙色）：山腳青綠、宗門藍青、黑風嶺赭石、村落土黃；洞窟、幻境保持原樣。
+- 角色比例偏遊戲：頭放大 1.25 倍（`figures.py` 的 `HEAD_SCALE`，下巴不動往上長）；玩家與部分師兄姊身後有飄帶（`F.ribbon`），宗門服色偏青。
 - 角色（`scripts/ink_halo.gdshader`）：外圈一道墨色描邊、描邊外依身分上色的光暈（玩家青玉、敵人朱砂、其他人淡金），立繪彩度提高。
 - 景深（`scripts/scenery.gd`）：底圖上一條極慢的遠霧；山嵐在角色後面；近景草石在最下面；上方垂下半透明的柳枝（戶外）、殿柱（宗門）、鐘乳石（洞窟），比地面快，偶爾擋到角色。打鬥地圖（illusion、den）不放垂掛物。
 - 拍畫面對照：`xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/screenshot.gd -- /tmp/shots`。

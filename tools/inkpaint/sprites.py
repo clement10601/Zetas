@@ -5,20 +5,22 @@ from . import beasts as B
 from . import figures as F
 from .ink import Canvas, seed_of
 
-QING = (176, 196, 204)      # 青雲宗服色：月白帶青
-QING_TRIM = (54, 86, 112)
+QING = (160, 196, 214)      # 青雲宗服色：月白帶青（2026-11-01 調得更青，畫面上才有顏色）
+QING_TRIM = (36, 92, 130)
+JADE_RIBBON = (104, 178, 178)
 
 
-def disciple(robe=QING, trim=QING_TRIM, hair="bun", **kw):
-    return dict(robe=robe, inner=(238, 236, 228), sash=trim, trim=trim, hair=hair, back_items=[F.sword_back], **kw)
+def disciple(robe=QING, trim=QING_TRIM, hair="bun", ribbon=None, **kw):
+    behind = [F.ribbon(ribbon)] if ribbon else []
+    return dict(robe=robe, inner=(238, 236, 228), sash=trim, trim=trim, hair=hair, back_items=[F.sword_back], behind=behind, **kw)
 
 
 SPECS = {
     # 玩家本人：月白袍的青雲宗弟子，心魔是他的墨色鏡像
-    "player.disciple": [disciple(robe=(232, 230, 220), hair="long_bun")],
+    "player.disciple": [disciple(robe=(240, 238, 230), trim=(30, 110, 120), hair="long_bun", ribbon=JADE_RIBBON)],
     "npc.fellow_disciple": [
         disciple(),
-        disciple(hair="long_bun", pin=(150, 40, 40)),
+        disciple(hair="long_bun", pin=(150, 40, 40), ribbon=(150, 190, 214)),
         disciple(robe=(200, 210, 212), hair="ponytail", height=410, pose="clasp"),
     ],
     "npc.sect_master": [

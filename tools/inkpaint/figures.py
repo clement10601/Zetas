@@ -13,6 +13,7 @@ W, H = 360, 480
 FEET = 474
 SKIN = (236, 214, 188)
 GOLD = (196, 160, 80)
+HEAD_SCALE = 1.25
 
 
 def hramp(mask, x0, x1, a0, a1):
@@ -142,6 +143,10 @@ def head(f, s, alpha, ink):
     cv = f.cv
     hx, hy = f.P(4, .935)
     rx, ry = f.h * 0.052, f.h * 0.064
+    # 頭放大（遊戲角色的比例，臉在小畫面上也看得清）：下巴留在原位，頭往上長
+    k = s.get("head_scale", HEAD_SCALE)
+    hy += ry * 0.98 * (1 - k)
+    rx, ry = rx * k, ry * k
     hair, hc = s.get("hair", "bun"), s.get("hair_color", INK)
     skin = s.get("skin", SKIN)
     # 頭髮底：比臉大、往後上偏
@@ -238,6 +243,19 @@ def beard(f, hx, hy, rx, ry, color=(236, 236, 230)):
 
 def white_brows(f, hx, hy, rx, ry):
     f.cv.stroke([(hx + rx * 0.3, hy - ry * 0.18), (hx + rx * 0.95, hy - ry * 0.12), (hx + rx * 1.3, hy + ry * 0.1)], 3, (240, 240, 236), 1.0, taper=(0.1, 0.8))
+
+
+def ribbon(color=(120, 170, 180), alpha=0.85):
+    """飄帶：從肩後拉出一條往後飄的長綢，仙俠角色的招牌剪影。"""
+    def draw(f):
+        # 中線：肩後 → 往後上揚 → 甩出去再往下飄；兩側各偏半個帶寬
+        mid = [(-14, .82), (-50, .8), (-90, .76), (-122, .66), (-128, .52), (-112, .4), (-124, .26), (-140, .17)]
+        wid = [0.016, 0.026, 0.032, 0.034, 0.032, 0.028, 0.024, 0.012]
+        top = [(x, y + w) for (x, y), w in zip(mid, wid)]
+        bot = [(x + 4, y - w) for (x, y), w in reversed(list(zip(mid, wid)))]
+        f.fill(top + bot, color, 1.6, 0.3, alpha)
+        f.line([(-40, .8), (-96, .75), (-122, .62)], 1.0, mix(color, INK, 0.5), 0.5 * alpha, dry=0.5)
+    return draw
 
 
 def sword_back(f, scab=(50, 40, 36), hilt=(70, 50, 30)):
