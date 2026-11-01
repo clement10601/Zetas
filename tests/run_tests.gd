@@ -775,6 +775,16 @@ func test_scrolling_camera_and_parallax() -> void:
 	# 受傷鏡頭震一下
 	main.damage_player(1)
 	expect(player._shake > 0.0, "getting hit shakes the camera")
+	# 山門是場景物件：柱子下段在角色前面、其餘在後面，主簷可以站
+	main.build_map([{"chunk": "chunk.sect_gate", "order": 0}], "pt.sect_gate")
+	var gate_front: Node2D = main.level.get_node_or_null("Landmark_sect_gate_paifang_front")
+	var gate_back: Node2D = main.level.get_node_or_null("Landmark_sect_gate_paifang_back")
+	expect(gate_front != null and gate_back != null, "the sect gate is a scene object with front and back parts")
+	if gate_front and gate_back:
+		expect(gate_front.z_index > player.z_index and gate_back.z_index < player.z_index, "gate pillars pass in front of the player, the rest behind")
+		var gate_x: float = main.chunk_x["chunk.sect_gate"] + 560.0
+		var on_roof: Array = main.level.get_children().filter(func(n): return n.is_in_group("platform") and n.get_child(0).position.y < main.FLOOR_Y - 250.0 and absf(n.get_child(0).position.x - gate_x) < 40.0)
+		expect(not on_roof.is_empty(), "the gate's main roof is a platform")
 	main.free()
 
 
