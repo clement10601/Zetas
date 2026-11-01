@@ -71,6 +71,8 @@ def hall(lid, text, w=520, h=420, wall=(196, 184, 160), pillar=(120, 40, 30), ro
         cv.stroke([(px + pw, top + 4), (px + pw, gy - base_h)], 1.2, INK, 0.35, smooth=0)
         cv.paint(cv.rect(px - pw - 4, gy - base_h - 10, px + pw + 4, gy - base_h), (140, 132, 120), 0.95)
         front.append((px - pw - 5, top + h * 0.12, px + pw + 5, gy - base_h))
+    if text:                               # 匾額重畫在加粗的柱子上面，不被中柱穿過
+        S.plaque(cv, cx, top + h * 0.03, text, size=max(14, h * 0.07))
     # 屋面下段（簷口上方一點）：從殿裡 h200 的平台跳得上去
     platforms = [{"dx": round(-w * 0.26), "h": round(h * 0.62 + h * 0.32 * 0.3), "w": round(w * 0.52)}] if stand else []
     return cv, front, platforms
@@ -103,7 +105,6 @@ def terrace_hall(lid, text, w=545, h=330, terrace=100, tw=600, balcony=(-100, 10
     for xx in np.arange(b0 + 4, b1, 22):
         cv.stroke([(xx, bh), (xx, bh - 22)], 2.2, wood, 0.95, smooth=0)
     cv.stroke([(b0, bh - 22), (b1, bh - 22)], 3, wood, 0.95, smooth=0)
-    S.cauldron(cv, cx, gy - terrace, 22)
     front = []
     pw = max(6.0, w * 0.013)
     for k in range(7):
@@ -113,6 +114,11 @@ def terrace_hall(lid, text, w=545, h=330, terrace=100, tw=600, balcony=(-100, 10
         cv.stroke([(px + pw, top + 4), (px + pw, ty - base_h)], 1.2, INK, 0.35, smooth=0)
         cv.paint(cv.rect(px - pw - 4, ty - base_h - 10, px + pw + 4, ty - base_h), (140, 132, 120), 0.95)
         front.append((px - pw - 5, top + h * 0.12, px + pw + 5, ty - base_h))
+    S.plaque(cv, cx, top + h * 0.03, text, size=max(14, h * 0.07))   # 匾額不被中柱穿過
+    # 香爐擺在殿前（柱子前面）：畫在柱子之後、整個放進前層，不會被柱子擋住
+    cs = 22
+    S.cauldron(cv, cx, gy - terrace, cs)
+    front.append((cx - cs * 1.3, gy - terrace - cs * 5.2, cx + cs * 1.3, gy - terrace + 2))
     # 屋面下段：從迴廊（h200）跳得上去
     platforms = [{"dx": round(-w * 0.26), "h": round(terrace - base_h + h * 0.62 + 8), "w": round(w * 0.52)}]
     return cv, front, platforms
