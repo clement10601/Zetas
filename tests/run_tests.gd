@@ -49,6 +49,8 @@ func _run() -> void:
 	await test_glide()
 	await test_earth_escape_and_flight()
 	await test_audio()
+	await test_wild_mobs()
+	await test_errand_board()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -120,7 +122,7 @@ func test_fox_repays_kindness() -> void:
 	expect(main.hud_objective.text == "目標：擊退獵妖人", "objective switches to fighting the hunter")
 	main.advance_dialogue()
 	expect(not main.dialogue_panel.visible, "dialogue closes")
-	main.damage_actor("hunter", 10)
+	main.damage_actor("hunter", 100)
 	expect(main.runner == null, "event ends after hunter defeated")
 	expect(main.state.relations.get("npc.baiheng") == 25, "白蘅 relation +25")
 	expect(main.state.items.has("中品妖丹"), "rare loot from game loot table")
@@ -145,13 +147,20 @@ func test_heart_demon_trial() -> void:
 	main._process(0.016)
 	expect(main.runner.reached_points.has("pt.memory_square"), "walking to the square is noticed")
 	expect(main.actor_views.has("demon"), "heart demon spawns")
+	expect(main.dialogue_name.text.contains("舊日的你") and not main.dialogue_label.text.contains("白蘅"), "without the director the echo is your younger self, not someone you never met")
 	for i in 2:
 		main.advance_dialogue()
 	expect(main.current_choices.size() == 2, "face or fight choice")
 	main.choose_visible(0)
 	expect(main.state.flags.get("heart_demon_faced") == true, "choice recorded")
 	main.advance_dialogue()
-	main.damage_actor("demon", 10)
+	expect(main.actor_hp["demon"] == 16, "the heart demon is a boss: about 8 hits for a fresh 築基")
+	var Cultivation = load("res://scripts/cultivation.gd")
+	var windup_calm: float = Cultivation.enemy_windup(main.pack_tier()) * main._enemy_speed("demon")
+	main.damage_actor("demon", 8)
+	expect(main.actor_boss["demon"] == true and main.log_lines.any(func(l): return l.contains("怒了")), "at half hp the boss enrages")
+	expect(main._enemy_speed("demon") < 1.0 and Cultivation.enemy_windup(main.pack_tier()) * main._enemy_speed("demon") < windup_calm, "an enraged boss winds up faster")
+	main.damage_actor("demon", 8)
 	expect(main.runner == null, "trial ends")
 	expect(main.state.flags.get("zhuji_heart_demon_cleared") == true, "trial cleared")
 	expect(main.state.tier_name() == "築基", "player is now 築基")
@@ -172,7 +181,7 @@ func test_director_followup_event() -> void:
 		main.advance_dialogue()
 	main.choose_visible(0)
 	main.advance_dialogue()
-	main.damage_actor("hunter", 10)
+	main.damage_actor("hunter", 100)
 	var f: Dictionary = main.state.followups[0]
 	expect(f["flag"] == "followup:pack.fox_repays_kindness.s001", "fox followup carries its flag")
 	var pack = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/generated_zhenyao.json"))
@@ -324,7 +333,7 @@ func test_personal_heart_demon() -> void:
 		main.advance_dialogue()
 	main.choose_visible(0)
 	main.advance_dialogue()
-	main.damage_actor("demon", 10)
+	main.damage_actor("demon", 100)
 	expect(main.runner == null, "築基 trial finished")
 	expect(main.heart_demon_pending == "", "no heart demon request while cultivation is far from full")
 	main.gain_cultivation(300)
@@ -420,12 +429,12 @@ func test_combat() -> void:
 		main.advance_dialogue()
 	main.choose_visible(0)
 	main.advance_dialogue()
-	expect(main.actor_hp["hunter"] == 4, "hunter hp from power 1.2 at 煉氣")
+	expect(main.actor_hp["hunter"] == 5, "hunter takes about 5 hits at 煉氣 (power 1.2)")
 	var hunter: Node2D = main.actor_views["hunter"]
 	hunter.position.x = main.player.position.x + 30
 	main.attack()
 	main.attack()
-	expect(main.actor_hp["hunter"] == 3, "attack has a cooldown")
+	expect(main.actor_hp["hunter"] == 4, "attack has a cooldown")
 	main.player_invuln = 0.0
 	hunter.position.x = main.player.position.x + 30  # 擊退過了，拉回眼前
 	main._process(0.1)
@@ -814,9 +823,15 @@ func test_platforms_and_ropes() -> void:
 	var main: Node = await new_game()
 	var player: CharacterBody2D = main.player
 	var road: Dictionary = main.chunks["chunk.qingyun_road"]
-	expect(main.level.get_children().filter(func(n): return n.is_in_group("platform")).size() ==
-		road["platforms"].size() + main.chunks["chunk.qingyun_woods"]["platforms"].size(), "home map builds its platforms")
-	expect(player.ropes.size() == road["ropes"].size() + main.chunks["chunk.qingyun_woods"]["ropes"].size(), "player knows the ropes")
+	var home: Array = main.regions["region.qingyun_foothills"]["home"]
+	expect(home.size() >= 4, "the foothills home map strings several chunks together")
+	var plats := 0
+	var rope_count := 0
+	for c in home:
+		plats += main.chunks[c].get("platforms", []).size()
+		rope_count += main.chunks[c].get("ropes", []).size()
+	expect(main.level.get_children().filter(func(n): return n.is_in_group("platform")).size() == plats, "home map builds its platforms")
+	expect(player.ropes.size() == rope_count, "player knows the ropes")
 	expect(player.camera.limit_left == -int(main.EDGE_MARGIN) and player.camera.limit_right == int(main.map_width + main.EDGE_MARGIN), "camera stays near the map, with a little misty margin at the ends")
 	# 跳上第一層平台（x 260~440，高 100）
 	player.position = Vector2(350, main.FLOOR_Y - 40)
@@ -841,6 +856,15 @@ func test_platforms_and_ropes() -> void:
 	expect(not player.climbing and player.velocity.x > 0.0, "side jump lets go of the vine")
 	await step(main, {}, 60)
 	expect(player.is_on_floor(), "falls back down")
+	main.build_map([{"chunk": "chunk.heifeng_pass", "order": 0}, {"chunk": "chunk.demon_den", "order": 1}], "pt.pass_start")
+	main._process(0.016)
+	var outside: Color = main.ambience.color
+	main.player.position.x = main.chunk_x["chunk.demon_den"] + 100.0
+	main._process(0.016)
+	expect(main.ambience.color != outside, "walking into the den switches the ambient particles")
+	main.player.position.x = main.chunk_x["chunk.heifeng_pass"] + 100.0
+	main._process(0.016)
+	expect(main.ambience.color == outside, "and back outside switches them back")
 	main.free()
 
 
@@ -900,7 +924,7 @@ func test_melee_height() -> void:
 	var hp_before: int = main.hp()
 	main._process(1.0)
 	main.attack()
-	expect(main.hp() == hp_before and main.actor_hp["hunter"] == 4, "on a platform out of melee reach both ways")
+	expect(main.hp() == hp_before and main.actor_hp["hunter"] == 5, "on a platform out of melee reach both ways")
 	main.free()
 
 
@@ -1106,4 +1130,173 @@ func test_audio() -> void:
 	var piece: String = audio.current_music
 	expect(not audio.toggle_music() and not audio.music_on, "N turns the music off")
 	expect(audio.toggle_music() and audio.current_music == piece, "and back on with the same piece (%s)" % piece)
+	main.free()
+
+
+## 野怪：依時辰出現、打倒給修為與掉落、當天不再出現、隔天重生；事件開始時退場；被打倒醒在落腳點。
+func test_wild_mobs() -> void:
+	var main: Node = await new_game()
+	main.wild_drop_chance = 1.0
+	await at_region(main, "region.qingyun_sect", 0)
+	expect(main.wild.is_empty(), "no wild mobs inside the sect")
+	main.state.time_of_day = "晨"
+	await at_region(main, "region.qingyun_foothills", 0)
+	var monkeys: Array = main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.shengsheng")
+	expect(monkeys.size() == 2, "two 狌狌 roam the woods in the morning")
+	expect(main.wild.keys().all(func(id): return main.wild[id]["template"] != "mob.wandering_ghost"), "no ghosts by day")
+	var first_end: float = main.chunk_x["chunk.qingyun_woods"]
+	expect(main.wild.keys().all(func(id): return main.actor_views[id].position.x >= first_end), "no mobs in the first chunk where the player arrives")
+	for id in main.wild:
+		expect(main.actor_views[id].get_meta("hostile"), "wild mobs are hostile")
+	# 時辰到夜：狌狌回巢、遊魂出來
+	main.state.time_of_day = "暮"
+	main.next_time()
+	expect(main.state.time_of_day == "夜", "night falls")
+	expect(main.wild.keys().all(func(id): return main.wild[id]["template"] != "mob.shengsheng"), "狌狌 are gone at night")
+	var ghosts: Array = main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.wandering_ghost")
+	expect(ghosts.size() == 2, "ghosts haunt the shrine at night")
+	# 野怪也會出招
+	var g: String = ghosts[0]
+	var gv: Node2D = main.actor_views[g]
+	main.player.position = Vector2(gv.position.x - 30, main.FLOOR_Y - 40)
+	await step(main, {}, 5)
+	main.player.position.x = gv.position.x - 30
+	main.player_invuln = 0.0
+	main._process(0.1)
+	expect(main.enemy_windup.has(g), "wild mobs wind up and strike even with no event running")
+	# 打倒：修為、掉落、當天不再出現
+	var exp_before: int = main.cultivation()
+	var hits := 0
+	while main.wild.has(g) and hits < 20:
+		main.attack_cooldown = 0.0
+		main.actor_views[g].position.x = main.player.position.x + 30
+		main.attack()
+		hits += 1
+	expect(hits == 4, "a 煉氣 ghost (power 0.8) takes about 4 hits")
+	expect(main.cultivation() - exp_before == 4, "killing a wild mob gives a little cultivation (about half a meditation)")
+	expect(main.state.items.has("陰魂殘絲"), "wild mobs drop common loot")
+	expect(g in main.wild_defeated(), "the defeat is remembered")
+	main.go_home()
+	expect(not main.wild.has(g) and main.wild.size() == 1, "a defeated mob stays gone for the day")
+	main.pass_day()
+	expect(main.wild_defeated().is_empty() and main.wild.has(g), "mobs respawn the next day")
+	expect(int(main.state.kills.get("mob.wandering_ghost", 0)) == 1, "wild kills are recorded in the engine by template")
+	# 黑風嶺：強度跟著地區門檻（築基），夜裡狼妖加倍
+	main.state.time_of_day = "夜"
+	await at_region(main, "region.heifeng_ridge", 1)
+	var wolves: Array = main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.wolf_demon")
+	expect(wolves.size() == 4, "the den has twice the wolves at night")
+	expect(main.actor_hp[wolves[0]] == 8 and main.enemy_tier(wolves[0]) == 1, "heifeng mobs are as tough as a 築基 event")
+	main.state.time_of_day = "晨"
+	main.go_home()
+	expect(main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.wolf_demon").size() == 2, "two wolves by day")
+	expect(main.wild.keys().all(func(id): return main.wild[id]["template"] != "mob.gudiao"), "蠱雕 only come out at dusk and night")
+	# 被野怪打倒：醒在落腳點，時辰往前
+	main.state.tier_index = 0
+	main.state.game_data["hp"] = 1
+	var w: String = wolves[0]
+	var wv: Node2D = main.actor_views[w]
+	main.player.position = Vector2(wv.position.x - 30, main.FLOOR_Y - 40)
+	main.player_invuln = 0.0
+	for i in 20:
+		main.player.position.x = wv.position.x - 30
+		main._process(0.3)
+		if main.hp() != 1:
+			break
+	expect(main.hp() == main.Cultivation.max_hp(0) / 2, "knocked out by a wild mob, wake with half hp")
+	expect(absf(main.player.position.x - main.points["pt.pass_start"]) < 1.0, "wake up at the region's spawn point")
+	expect(main.state.time_of_day == "午", "an hour passed")
+	# 事件開始時野怪退場，結束後回來
+	main.state.region = "region.qingyun_foothills"
+	main.state.time_of_day = "晨"
+	main.go_home()
+	expect(not main.wild.is_empty(), "foothills has mobs in the morning")
+	main.spare_fox()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	expect(main.runner != null and main.wild.is_empty(), "wild mobs leave when an event starts")
+	main.runner.abort("abandon")
+	expect(main.runner == null and not main.wild.is_empty(), "wild mobs come back after the event")
+	main.free()
+
+
+## 宗門差事榜：每天最多 3 件、接了是「打倒 N 隻」的事件（只算接了之後的），進行中照樣能趕路、打野怪，
+## 完成給修為與掉落；同一件今天不能再接。導演寫的打怪事件（沒有地圖）也一樣不綁住玩家。
+func test_errand_board() -> void:
+	var main: Node = await new_game()
+	main.wild_drop_chance = 0.0
+	main.state.time_of_day = "晨"
+	await at_region(main, "region.qingyun_sect", 0)
+	expect(main.board_view != null, "the sect plaza has an errand board")
+	var list: Array = main.todays_errands()
+	expect(list.size() == 3 and list.all(func(e): return int(e["tier_min"]) == 0), "three 煉氣 errands on the board")
+	main.player.position.x = main.board_view.position.x
+	await step(main, {}, 5)
+	expect(main.nearby_board() and main.prompt_label.text == "↑ 看差事榜", "standing at the board shows a prompt")
+	main.state.record_kill("mob.shengsheng")
+	main.state.record_kill("mob.shengsheng")
+	main.interact()
+	expect(main.dialogue_panel.visible and main.errand_options.size() == 3, "↑ opens the board with three errands")
+	var pick := -1
+	for i in main.errand_options.size():
+		if main.errand_options[i]["errand"]["id"] == "monkey_fruit":
+			pick = i
+	if pick < 0:
+		# 今天不在榜上就直接接
+		main.close_errand_board()
+		main.start_pack(main.errand_pack(main.errands["errands"][0]))
+	else:
+		main.choose_errand(pick)
+	expect(main.runner != null and main.runner.pack["meta"]["request_tag"] == "errand", "choosing an errand starts it")
+	expect(not main.dialogue_panel.visible and main.errand_options.is_empty(), "the board closes")
+	expect(main.hud_objective.text == "目標：打倒2隻狌狌（0／2）", "kills before accepting do not count")
+	expect(not main.blocking(), "an errand does not tie the player down")
+	expect(main.travel_to("region.qingyun_foothills", true), "can travel with an errand in hand")
+	var monkeys: Array = main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.shengsheng")
+	expect(monkeys.size() == 2 and main.runner != null, "wild mobs stay out during an errand")
+	main.meditate()
+	expect(main.runner != null and main.state.time_of_day == "暮", "can meditate during an errand")
+	var exp_before: int = main.cultivation()
+	for m in monkeys:
+		while main.wild.has(m):
+			main.attack_cooldown = 0.0
+			main.actor_views[m].position.x = main.player.position.x + 30
+			main.attack()
+		if main.runner != null:
+			expect(main.hud_objective.text == "目標：打倒2隻狌狌（1／2）", "objective shows progress")
+	expect(main.runner == null, "the errand completes after two kills")
+	expect(main.cultivation() - exp_before == 3 + 3 + main.Cultivation.EXP_REWARD["small"], "kills plus the errand reward")
+	expect(main.state.items.has("凝氣草"), "the errand gives its loot")
+	main.state.region = "region.qingyun_sect"
+	main.go_home()
+	expect(main.todays_errands().all(func(e): return e["id"] != "monkey_fruit"), "a finished errand is off the board for the day")
+	main.pass_day()
+	expect(main.todays_errands().size() >= 2, "new errands the next day")
+	# 放棄
+	if main.runner != null:  # 第二天在宗門會觸發師父的第一課，先略過
+		main.runner.abort("abandon")
+	main._hide_dialogue()
+	var e2: Dictionary = main.todays_errands()[0]
+	main.start_pack(main.errand_pack(e2))
+	main.player.position.x = main.board_view.position.x
+	main.open_errand_board()
+	expect(main.errand_options[0]["kind"] == "abandon", "the board offers to drop the current errand")
+	main.choose_errand(0)
+	expect(main.runner == null and not main.todays_errands().has(e2), "dropping an errand ends it for today")
+	# 築基才看得到黑風嶺的差事
+	main.state.tier_index = 1
+	var all_ok: Array = main.errands["errands"].filter(func(e): return int(e["tier_min"]) <= 1)
+	expect(all_ok.size() == 5, "築基 can take the heifeng errands too")
+	# 一般事件仍然綁住玩家
+	main.state.tier_index = 0
+	main.spare_fox()
+	main.state.region = "region.qingyun_foothills"
+	main.go_home()
+	for i in 3:
+		main.pass_day()
+	main.next_time()
+	main.next_time()
+	expect(main.runner != null and main.blocking() and main.wild.is_empty(), "a story event still keeps the player in the scene")
 	main.free()

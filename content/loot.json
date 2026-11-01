@@ -66,5 +66,49 @@
     "epic": [
       "青雲傳承玉簡"
     ]
+  },
+  "loot.wild_foothills": {
+    "common": [
+      "凝氣草"
+    ],
+    "rare": [
+      "狌狌白耳"
+    ],
+    "epic": [
+      "百年靈芝"
+    ]
+  },
+  "loot.wild_bandit": {
+    "common": [
+      "碎銀 10 兩"
+    ],
+    "rare": [
+      "山賊藏寶圖"
+    ],
+    "epic": [
+      "鎮妖令"
+    ]
+  },
+  "loot.wild_ghost": {
+    "common": [
+      "陰魂殘絲"
+    ],
+    "rare": [
+      "安魂香"
+    ],
+    "epic": [
+      "定魂珠"
+    ]
+  },
+  "loot.wild_gudiao": {
+    "common": [
+      "蠱雕翎羽"
+    ],
+    "rare": [
+      "蠱雕角"
+    ],
+    "epic": [
+      "上品妖丹"
+    ]
   }
 }
