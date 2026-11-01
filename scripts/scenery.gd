@@ -9,6 +9,9 @@ extends RefCounted
 
 const SKY_Z := -13
 const RANGES_Z := -12
+const HILLS_Z := -11            # 丘陵、水面／雲海：在遠山前、古畫（-10）後
+const NEAR_Z := -9              # 近景山石：古畫前、角色後
+const Painting = preload("res://scripts/parallax_painting.gd")
 const HAZE_Z := -9
 const MIST_Z := -8              # 底圖 -10、接縫霧 -9，山嵐在其上、平台與角色之下
 const FRONT_Z := 10
@@ -74,6 +77,41 @@ static func add_sky(level: Node, floor_y: float, spans: Array) -> void:
 		sprite.centered = false
 		sprite.position = Vector2(0, spec[3])
 		sprite.modulate = Color(spec[4], spec[2])
+		layer.add_child(sprite)
+		level.add_child(layer)
+	var first_outdoor: Dictionary = spans.filter(func(s): return not (s.get("tags", []).has("cave") or s.get("tags", []).has("illusion")))[0]
+	add_depth_layers(level, floor_y, first_outdoor.get("tags", []), first_outdoor["color"])
+
+
+## 遠山和古畫之間、古畫和角色之間的景深圖層（tools/inkpaint/layers.py 畫的，左右無縫重複）。
+## 由遠到近、捲動越來越快：丘陵 0.2 → 水面或雲海 0.34 →（古畫約 0.6）→ 近景山石 0.82 →（地面 1）
+static func add_depth_layers(level: Node, floor_y: float, tags: Array, sky: Color) -> void:
+	var region := Painting.region_of(tags)
+	if region == "":
+		region = "forest"
+	# 宗門在山上看雲海，黑風嶺看雲海翻過山脊；山村、林間是山腳下一條河
+	var flow := "cloudsea" if region == "sect" or region == "mountain" else "water"
+	var water_tint := Color(sky.lerp(Color(0.62, 0.74, 0.8), 0.6), 0.8) if flow == "water" else Color(sky.lerp(Color.WHITE, 0.7), 0.9)
+	for spec in [
+			["Hills", "hills_" + region, 0.2, floor_y - 570.0, HILLS_Z, Color(1, 1, 1, 0.92), 0.0],
+			["Flow", flow, 0.34, floor_y - (330.0 if flow == "cloudsea" else 312.0), HILLS_Z, water_tint, -6.0],
+			# 宗門的古畫上有山門、殿宇：近景石壓低，只露出石頂，不擋建築
+			["Near", "near_" + region, 0.82, floor_y - (200.0 if region == "sect" else 318.0), NEAR_Z, Color(1, 1, 1, 0.94), 0.0]]:
+		var tex: Texture2D = load("res://art/bg/%s.png" % spec[1])
+		if tex == null:
+			continue
+		var layer := Parallax2D.new()
+		layer.name = spec[0]
+		layer.z_index = spec[4]
+		layer.scroll_scale = Vector2(spec[2], 1.0)
+		layer.repeat_size = Vector2(tex.get_width(), 0)
+		layer.repeat_times = 3
+		layer.autoscroll = Vector2(spec[6], 0)      # 水流、雲飄
+		var sprite := Sprite2D.new()
+		sprite.texture = tex
+		sprite.centered = false
+		sprite.position = Vector2(0, spec[3])
+		sprite.modulate = spec[5]
 		layer.add_child(sprite)
 		level.add_child(layer)
 

@@ -1,13 +1,15 @@
-## 區塊背景畫（古畫中景）的視差。框固定在區塊範圍（左右各多出半個接縫寬，再多留畫能移動的距離），
-## 鏡頭移動時著色器在框裡把畫往回取樣，畫只跟著走一部分；框裡畫移開的地方是透明的。
-## 相鄰兩塊的畫只會越移越疊在一起（右邊那塊移得比左邊那塊少），接縫不會露出縫。
-## 而且越往上走得越少：畫的上半（遠山）幾乎不動、下半（近處坡腳）跟得多，同一張畫裡也拉出遠近。
-## 上半另外往天色淡化（空氣透視），下半稍微加強對比；畫上方空白的天是透明的（tools/inkpaint/skyline.py），
-## 後面露出 scenery.gd 的天色與遠山層。和左邊的區塊在接縫處交疊淡入，不會有硬邊。
+## 區塊古畫在多層背景裡只當其中一層（中近景，建築與坡腳）：上半段（畫裡的遠山與天）淡掉，
+## 讓後面的天色、遠峰、遠山、丘陵、水面／雲海（scenery.gd，tools/inkpaint/layers.py）各自一層露出來。
+## 框固定在區塊範圍（左右各多出半個接縫寬，再多留畫能移動的距離），鏡頭移動時著色器在框裡把畫往回取樣：
+## 畫跟著鏡頭走 DEPTH 那麼多，所以在螢幕上只移動 1 - DEPTH，比地面慢、比後面的丘陵快。
+## 畫裡越上面的跟得越多（螢幕上走得越少），同一張畫裡也有一點遠近。
+## 相鄰兩塊的畫只會越移越疊在一起，接縫處和左邊的區塊交疊淡入，不會有硬邊。
 extends TextureRect
 
-const DEPTH := 0.24             # 畫的下半（近處）：鏡頭走 100，畫跟著走 24
-const DEPTH_FAR := 0.06         # 畫頂（遠山）
+const DEPTH := 0.36             # 畫的下半（近處）：鏡頭走 100，畫跟著走 36（螢幕上走 64）
+const DEPTH_FAR := 0.44         # 畫留下來的最上緣：跟得多一點，螢幕上走得少
+const CUT_FROM := 0.4           # 戶外區塊：畫高這個比例以上（畫裡的遠山與天）淡掉，交給後面的圖層
+const CUT_TO := 0.56
 const RIGID_FROM := 0.62        # 畫高這個比例以下都用 DEPTH，房子、牌坊不會被拉斜
 const FEATHER := 140.0          # 接縫交疊的寬度
 const HEIGHT := 600.0           # 美術規格的畫高（art/STYLE.md）
@@ -23,6 +25,8 @@ uniform float depth_far = 0.06;
 uniform float depth_near = 0.24;
 uniform float rigid_from = 0.62;
 uniform float feather = 0.05;     // 以畫寬為 1
+uniform float cut_from = 0.0;     // 畫頂淡掉的範圍（0 表示不淡，洞窟、幻境）
+uniform float cut_to = 0.07;
 uniform bool fade_left = true;
 uniform vec4 haze : source_color = vec4(0.9, 0.88, 0.82, 0.35);
 // 青綠山水式的上色：依明度把墨色映到「深墨 → 地區主色 → 紙色」，再和原畫混合 tone_mix
@@ -52,7 +56,7 @@ void fragment() {
 		: mix(tone_mid.rgb, tone_light.rgb, smoothstep(0.55, 0.9, l));
 	c.rgb = mix(c.rgb, toned, tone_mix);
 	// 空氣透視：越上面越淡、越偏天色
-	float far = 1.0 - smoothstep(0.05, 0.7, UV.y);
+	float far = 1.0 - smoothstep(0.4, 0.8, UV.y);
 	c.rgb = mix(c.rgb, haze.rgb, far * haze.a);
 	// 近處墨色重一點
 	float near = smoothstep(0.55, 1.0, UV.y);
@@ -61,7 +65,7 @@ void fragment() {
 	if (fade_left) {
 		a *= smoothstep(0.0, feather, u);
 	}
-	a *= smoothstep(0.0, 0.07, UV.y);    // 畫頂不留硬邊
+	a *= smoothstep(cut_from, cut_to, UV.y);    // 畫頂不留硬邊；戶外整段遠景淡掉
 	COLOR = vec4(c.rgb, c.a * a) * tint;   // fragment 裡的 COLOR 已乘過原 UV 的貼圖色，不能直接乘
 }
 """
@@ -86,10 +90,16 @@ const TONES := {
 
 
 static func tone_for(tags: Array) -> Array:
+	var r := region_of(tags)
+	return TONES[r] if r != "" else []
+
+
+## 標籤對應的地區（決定上色與景深圖層 art/bg/*_<地區>.png）；沒有對應就是空字串
+static func region_of(tags: Array) -> String:
 	for t in ["sect", "village", "mountain", "forest"]:
 		if tags.has(t) or (t == "sect" and tags.has("hall")) or (t == "mountain" and tags.has("ravine")) or (t == "village" and tags.has("shrine")):
-			return TONES[t]
-	return []
+			return t
+	return ""
 
 
 func setup(tex: Texture2D, left: float, width: float, floor_y: float, first: bool, _last: bool, haze := Color(0.9, 0.88, 0.82), tags: Array = []) -> void:
@@ -99,7 +109,7 @@ func setup(tex: Texture2D, left: float, width: float, floor_y: float, first: boo
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	win_left = left
 	win_width = width
-	extra = DEPTH * width / 2
+	extra = maxf(DEPTH, DEPTH_FAR) * width / 2
 	var margin := FEATHER / 2
 	paint_w = width + 2 * margin
 	var rect_w := paint_w + 2 * extra
@@ -120,6 +130,9 @@ func setup(tex: Texture2D, left: float, width: float, floor_y: float, first: boo
 	material.set_shader_parameter("feather", FEATHER / paint_w)
 	material.set_shader_parameter("fade_left", not first)
 	material.set_shader_parameter("haze", Color(haze.lerp(Color.WHITE, 0.45), 0.35))
+	if not (tags.has("illusion") or tags.has("cave") or tags.has("den")):
+		material.set_shader_parameter("cut_from", CUT_FROM)
+		material.set_shader_parameter("cut_to", CUT_TO)
 	var tone := tone_for(tags)
 	if not tone.is_empty() and not (tags.has("illusion") or tags.has("cave")):
 		material.set_shader_parameter("tone_dark", tone[0])
@@ -142,7 +155,7 @@ func _apply(camera_x: float) -> void:
 	material.set_shader_parameter("rel", rel)
 
 
-## 畫高比例 v（0 頂、1 底）那一列目前跟著鏡頭移了多少（px），和著色器同一個算法
+## 畫高比例 v（0 頂、1 底）那一列目前跟著鏡頭移了多少（px），和著色器同一個算法；螢幕上的移動是鏡頭移動減掉它
 func shift_at(v: float) -> float:
 	var d := lerpf(DEPTH_FAR, DEPTH, smoothstep(0.0, RIGID_FROM, v))
 	return clampf(rel * d, -extra, extra)
