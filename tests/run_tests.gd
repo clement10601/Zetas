@@ -530,6 +530,7 @@ func test_event_dressing() -> void:
 	main.next_time()
 	expect(main.hud_layer.has_node("ScrollCard"), "event opens with a scroll title card")
 	expect(main.actor_views["fox"].get_children().any(func(n): return n.is_in_group("event_mark")), "event NPC wears a seal mark")
+	expect(not main.actor_views.has("hunter") and main._speaker_texture("hunter") != null, "a speaker not yet on screen still gets a portrait")
 	main.runner.abort("abandon")
 	main.advance_dialogue()
 	main.breakthrough()
@@ -572,7 +573,7 @@ func test_art_and_placeholders() -> void:
 	# 正式素材：平台、繩梯、地面用貼圖，玩家換上立繪
 	var game: Node = await new_game()
 	var plats: Array = game.level.get_children().filter(func(n): return n.is_in_group("platform"))
-	expect(not plats.is_empty() and plats.all(func(p): return p.get_children().any(func(n): return n is TextureRect)), "platforms use the ink texture")
+	expect(not plats.is_empty() and plats.all(func(p): return p.has_node("InkLedge")), "platforms are drawn as ink brush ledges")
 	var ropes: Array = game.level.get_children().filter(func(n): return n.is_in_group("rope"))
 	expect(not ropes.is_empty() and ropes.all(func(r): return r.get_child(0) is TextureRect), "ropes and vines use textures")
 	expect(game.player.sprite != null and not game.player.get_node("Body").visible, "player wears the disciple sprite")

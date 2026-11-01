@@ -184,7 +184,7 @@ static func time_tint(time_of_day: String) -> Color:
 		"晨": Color("#f4efe6"),
 		"午": Color("#ffffff"),
 		"暮": Color("#e9b088"),
-		"夜": Color("#6f7ca8"),
+		"夜": Color("#93a0c8"),
 	}.get(time_of_day, Color.WHITE)
 
 

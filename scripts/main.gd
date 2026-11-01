@@ -722,15 +722,68 @@ func _add_platform(left: float, top: float, width: float, skill := "") -> void:
 	shape.position = Vector2(left + width / 2, top + 6)
 	shape.one_way_collision = true
 	body.add_child(shape)
-	var slab := _tiled("prop.platform", Vector2(left, top - 2), Vector2(width, 18), Color("#2a2620", 0.85))
-	body.add_child(slab)
-	if skill != "" or not slab is TextureRect:
-		var edge := ColorRect.new()
-		edge.color = Color("#9fc4c9") if skill != "" else Color("#0e0d0b")
-		edge.position = Vector2(left, top)
-		edge.size = Vector2(width, 3)
-		body.add_child(edge)
+	body.add_child(_ink_ledge(left, top, width, skill, hash(Vector2(left, top))))
 	level.add_child(body)
+
+
+static var _wash_tex: Texture2D
+
+
+## 平台底下那抹淡墨：上緣最濃，往下二次方淡出；左右兩端各留一段漸收，四邊都不會有硬邊
+static func _ledge_wash() -> Texture2D:
+	if _wash_tex == null:
+		var img := Image.create(64, 32, false, Image.FORMAT_RGBA8)
+		for y in 32:
+			var v := pow(1.0 - y / 31.0, 1.4)
+			for x in 64:
+				var u := x / 63.0
+				var side := smoothstep(0.0, 0.18, u) * smoothstep(1.0, 0.82, u)
+				img.set_pixel(x, y, Color(0.106, 0.094, 0.078, v * side))
+		_wash_tex = ImageTexture.create_from_image(img)
+	return _wash_tex
+
+
+## 平台的樣子：一筆乾濕不均的墨線（站的地方），底下一抹往下淡出的淡墨，像畫裡的石台。
+## 筆觸兩端收尖、中段粗細起伏；要身法的平台在墨線上再加一道淡青。
+func _ink_ledge(left: float, top: float, width: float, skill: String, seed_value: int) -> Node2D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var node := Node2D.new()
+	node.name = "InkLedge"
+	node.position = Vector2(left, top)
+	var n := maxi(6, int(width / 14.0))
+	# 淡墨：以墨線中央為心，往下、往兩端淡出的半橢圓
+	var ink := Color("#1b1814")
+	var wash := TextureRect.new()
+	wash.texture = _ledge_wash()
+	wash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wash.position = Vector2(-6, 0)
+	wash.size = Vector2(width + 12, 30 + rng.randf_range(0, 14))
+	wash.modulate = Color(1, 1, 1, 0.8)
+	node.add_child(wash)
+	# 墨線
+	var stroke := Polygon2D.new()
+	var top_pts := PackedVector2Array()
+	var bottom_pts := PackedVector2Array()
+	for i in n + 1:
+		var t := float(i) / n
+		var taper := clampf(minf(t, 1.0 - t) * width / 28.0, 0.2, 1.0)
+		var thick := (8.0 + rng.randf_range(-1.5, 2.5)) * taper
+		var x := t * width
+		top_pts.append(Vector2(x, rng.randf_range(-0.6, 0.6) - thick * 0.35))
+		bottom_pts.append(Vector2(x, thick * 0.65 + rng.randf_range(0, 1.2)))
+	bottom_pts.reverse()
+	stroke.polygon = top_pts + bottom_pts
+	stroke.color = ink
+	node.add_child(stroke)
+	if skill != "":
+		var jade := Line2D.new()
+		jade.points = PackedVector2Array([Vector2(6, -3), Vector2(width - 6, -3)])
+		jade.width = 2.0
+		jade.default_color = Color("#9fc4c9", 0.9)
+		node.add_child(jade)
+	return node
 
 
 func _add_wall(left: float, width: float, bottom: float, top: float, kind: String) -> void:
@@ -2350,6 +2403,13 @@ func _speaker_texture(speaker: String) -> Texture2D:
 		for n in view.get_children():
 			if n is Sprite2D:
 				return n.texture
+	# 還沒出場（例如在畫面外喊話）：照內容包的角色表找出場時會用的同一張立繪
+	if runner != null:
+		for actor in runner.pack.get("actors", []):
+			if actor.get("id", "") == speaker:
+				var key: String = actor.get("memory_key", actor.get("name", ""))
+				var hostile: bool = actor.get("disposition", "") == "hostile"
+				return art.texture(actor.get("template", ""), key, "mob.generic" if hostile else "npc.generic")
 	return null
 
 
