@@ -44,7 +44,7 @@ const START_REGION := "region.qingyun_foothills"
 const REGION_MIN_TIER := {"region.heifeng_ridge": 1}
 ## 補貨排程：每個地區、目前境界至少備著幾個沒玩過的事件
 const RESTOCK_TARGET := 3
-const HEART_DEMON_HINT := "突破到%s時的心魔幻境。心魔是玩家的鏡像，拿玩家經歷裡最難面對的事（history 裡的選擇、NPC 的記憶、karma 傾向）來質問玩家，每個玩家的心魔都該不同。地圖只用心魔幻境區塊（地圖標籤 illusion），心魔用模板 boss.heart_demon_mirror。tier_range 從%s到%s，不要設定 meta.region。通過時設旗標 %s_heart_demon_cleared。"
+const HEART_DEMON_HINT := "突破到%s時的心魔幻境。心魔是玩家的鏡像，拿玩家經歷裡最難面對的事（history 裡的選擇、NPC 的記憶、karma 傾向）來質問玩家，每個玩家的心魔都該不同。地圖只用心魔幻境區塊（地圖標籤 illusion），心魔用模板 boss.heart_demon_mirror。tier_range 從%s到%s，不要設定 meta.region。突破那一刻就要觸發：遊戲會自己加 tier_up 條件，trigger.all 不要再加任何條件（例如上一關的旗標），否則條件不成立心魔就永遠錯過。通過時設旗標 %s_heart_demon_cleared。"
 const ENCOUNTER_HINT := "今日奇遇：發生在玩家目前所在地區的小小偶遇，幾分鐘就能玩完，可以呼應玩家最近的經歷。今天就要能觸發：觸發條件只用這個地區區塊有的地圖標籤，可加時辰，不要用天數或其他事件才會立的旗標。獎勵要小。"
 const ATTACK_RANGE := 90.0
 ## 敵人在這個距離內，配樂的鼓聲層進來
