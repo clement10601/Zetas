@@ -52,6 +52,7 @@ func _run() -> void:
 	await test_music_by_map_and_event()
 	await test_wild_mobs()
 	await test_errand_board()
+	await test_keyboard_layout()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -73,6 +74,7 @@ func new_game(director := false, save := "", assets := "", playlog := "") -> Nod
 	main.generated_dir = ""
 	main.use_director = director
 	main.audio_settings_path = ""
+	main.keys_path = ""
 	root.add_child(main)
 	await process_frame
 	return main
@@ -883,7 +885,7 @@ func test_portals_and_residents() -> void:
 	expect(main.interact() and main.state.region == "region.qingyun_foothills", "煉氣 is turned back at the 黑風嶺 portal")
 	main.state.tier_index = 1
 	main._process(0.016)
-	expect(main.prompt_label.text.begins_with("↑ 前往"), "an open portal shows the up-arrow prompt")
+	expect(main.prompt_label.text.begins_with("↑/E 前往"), "an open portal shows the up-arrow prompt")
 	expect(main.interact() and main.state.region == "region.heifeng_ridge", "築基 walks through the portal")
 	var back: Dictionary = main.portals.filter(func(p): return p["to"] == "region.qingyun_foothills")[0]
 	expect(absf(main.player.position.x - back["x"]) <= main.PORTAL_INSET + 1.0, "arrive at the 黑風嶺 end that leads back")
@@ -1239,7 +1241,7 @@ func test_errand_board() -> void:
 	expect(list.size() == 3 and list.all(func(e): return int(e["tier_min"]) == 0), "three 煉氣 errands on the board")
 	main.player.position.x = main.board_view.position.x
 	await step(main, {}, 5)
-	expect(main.nearby_board() and main.prompt_label.text == "↑ 看差事榜", "standing at the board shows a prompt")
+	expect(main.nearby_board() and main.prompt_label.text == "↑/E 看差事榜", "standing at the board shows a prompt")
 	main.state.record_kill("mob.shengsheng")
 	main.state.record_kill("mob.shengsheng")
 	main.interact()
@@ -1306,6 +1308,82 @@ func test_errand_board() -> void:
 	expect(main.runner != null and main.blocking() and main.wild.is_empty(), "a story event still keeps the player in the scene")
 	main.free()
 
+
+func press_key(kc: int) -> InputEventKey:
+	var ev := InputEventKey.new()
+	ev.physical_keycode = kc
+	ev.pressed = true
+	return ev
+
+
+## 兩組預設鍵盤配置（方向鍵＋ZXCV、WASD＋KJLI）不互搶，按鍵提示跟著設定走，可以改鍵。
+func test_keyboard_layout() -> void:
+	const Keys = preload("res://scripts/keys.gd")
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	# 預設：除了「上」和「交談」共用，一個鍵只做一件事
+	var owner := {}
+	var clash := []
+	for a in Keys.ACTIONS:
+		for kc in Keys.bindings[a["id"]]:
+			if kc == 0:
+				continue
+			if owner.has(kc) and not Keys._shared(owner[kc], a["id"]):
+				clash.append(Keys.key_name(kc))
+			owner[kc] = a["id"]
+	expect(clash.is_empty(), "default keys never do two things at once %s" % [clash])
+	expect(not owner.has(KEY_ALT), "Alt is gone (browsers grab it)")
+	for pair in [["jump", [KEY_Z, KEY_K, KEY_SPACE]], ["attack", [KEY_X, KEY_J]], ["dash", [KEY_C, KEY_L, KEY_SHIFT]], ["fly", [KEY_V, KEY_I]]]:
+		for kc in pair[1]:
+			expect(press_key(kc).is_action_pressed(pair[0]), "%s is on %s" % [Keys.key_name(kc), pair[0]])
+	var pad := InputEventJoypadButton.new()
+	pad.button_index = JOY_BUTTON_A
+	pad.pressed = true
+	expect(pad.is_action_pressed("jump"), "gamepad A jumps")
+	expect(main.help_label.text.contains("Z/K/空白 跳") and main.help_label.text.contains("X/J 攻擊"), "help bar lists both layouts")
+	# 真的從 InputMap 讀：按住「右」會往右走
+	player.test_input = null
+	var x0: float = player.position.x
+	Input.action_press("move_right")
+	for i in 20:
+		await physics_frame
+	Input.action_release("move_right")
+	expect(player.position.x > x0 + 20, "holding the right key walks right")
+	# X 攻擊
+	main.attack_cooldown = 0.0
+	main.handle_input(press_key(KEY_X))
+	expect(main.attack_cooldown > 0.0, "X attacks")
+	main.attack_cooldown = 0.0
+	main.handle_input(press_key(KEY_J))
+	expect(main.attack_cooldown > 0.0, "J attacks too")
+	# 地圖選單：↓ 移游標、Esc 關
+	main.handle_input(press_key(KEY_T))
+	expect(main.travel_options.size() >= 2 and main.dialogue_label.text.contains("◆ 1."), "the map opens with a cursor on the first place")
+	main.handle_input(press_key(KEY_DOWN))
+	expect(main.menu_cursor == 1 and main.dialogue_label.text.contains("◆ 2."), "down moves the cursor")
+	main.handle_input(press_key(KEY_W))
+	expect(main.menu_cursor == 0, "W moves it back up")
+	main.handle_input(press_key(KEY_ESCAPE))
+	expect(main.travel_options.is_empty() and not main.dialogue_panel.visible, "Esc closes the map")
+	# NPC 說話：K（跳）關掉
+	var npc: String = main.residents.keys()[0]
+	main.talk_to(npc)
+	expect(main.dialogue_label.text.contains("Z/空白 繼續"), "dialogue names the real continue keys")
+	main.handle_input(press_key(KEY_K))
+	expect(not main.dialogue_panel.visible, "the jump key closes the line")
+	# 改鍵：把 K 給攻擊，跳就不再用 K
+	main.handle_input(press_key(KEY_ESCAPE))
+	expect(main.key_panel != null and main.key_panel.visible and player.input_blocked, "Esc opens key settings and the player stops listening")
+	main.key_panel._start_capture("attack", 0)
+	main.key_panel.assign(KEY_K)
+	expect(press_key(KEY_K).is_action_pressed("attack") and not press_key(KEY_K).is_action_pressed("jump"), "K moves from jump to attack")
+	expect(Keys.bindings["jump"][1] == 0 and main.key_panel.status.text.contains("跳"), "the panel says jump lost K")
+	expect(main.help_label.text.contains("K/J 攻擊"), "help bar follows the new keys")
+	main.key_panel.close()
+	expect(not player.input_blocked, "closing settings gives control back")
+	Keys.reset("")
+	expect(press_key(KEY_K).is_action_pressed("jump"), "reset brings the defaults back")
+	main.free()
 
 ## 依地圖與事件切換配樂：走進村落換村落曲、事件裡換劇情曲、事件裡有敵人換戰鬥曲、心魔事件換心魔對決曲。
 func test_music_by_map_and_event() -> void:

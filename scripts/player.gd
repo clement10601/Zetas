@@ -1,11 +1,12 @@
 ## 玩家：橫向卷軸操作，手感參考 2D 橫軸 MMO。
-## ←→ 走（有一點加減速）、Alt／C／空白 跳、站在單向平台上 ↓＋跳 往下跳、
+## 按鍵走 InputMap（scripts/keys.gd，預設方向鍵＋Z/X/C/V 與 WASD＋K/J/L/I 兩組同時有效）。
+## ←→ 走（有一點加減速）、跳鍵 跳、站在單向平台上 ↓＋跳 往下跳、
 ## 靠近繩子或梯子按 ↑↓ 爬，爬的時候 ←→＋跳 可以跳開。
 ## 身法（main 依學會的身法開關，見 scripts/cultivation.gd）：
 ## 輕身術 double_jump 空中再按跳；踏葉 wall_jump 空中貼牆按跳往反方向蹬；
-## 御風 glide 下落時按住跳滑翔；土遁 earth_escape 穿過薄牆；御劍 sword_flight 空中按 K 飛一小段。
+## 御風 glide 下落時按住跳滑翔；土遁 earth_escape 穿過薄牆；御劍 sword_flight 空中按御劍鍵飛一小段。
 ## 鏡頭往面向的方向多看一點、小跳不晃，站著按住 ↑／↓ 可以往上下看；受傷時輕震。
-## Shift／X 墨影步：往面向方向閃 120，期間無敵，留下墨色殘影；冷卻 0.6 秒，空中一次。
+## 閃避鍵 墨影步：往面向方向閃 120，期間無敵，留下墨色殘影；冷卻 0.6 秒，空中一次。
 ## main 設 camera_zone（chunks.json 的 camera）時，鏡頭鎖在戰場上並稍微拉遠。
 ## 美術未到前用色塊。
 extends CharacterBody2D
@@ -74,6 +75,7 @@ var climbing := false
 var rope := {}                  # 正在爬的繩子
 var ropes: Array = []           # main 建地圖時填：{x, top, bottom}，top/bottom 是腳的 y（世界座標）
 var floor_y := 560.0            # 地面高度，用來分辨站在地上還是平台上
+var input_blocked := false      # 按鍵設定畫面開著時不讀鍵盤
 var test_input = null           # 測試用：{"left", "right", "up", "down", "jump"} 布林值，設了就不讀鍵盤
 var camera: Camera2D
 var _cam_ahead := 0.0
@@ -437,14 +439,16 @@ func snap_camera() -> void:
 func _read_input() -> Dictionary:
 	if test_input != null:
 		return test_input
+	if input_blocked:
+		return {}
 	return {
-		"left": Input.is_physical_key_pressed(KEY_LEFT) or Input.is_physical_key_pressed(KEY_A),
-		"right": Input.is_physical_key_pressed(KEY_RIGHT) or Input.is_physical_key_pressed(KEY_D),
-		"up": Input.is_physical_key_pressed(KEY_UP) or Input.is_physical_key_pressed(KEY_W),
-		"down": Input.is_physical_key_pressed(KEY_DOWN) or Input.is_physical_key_pressed(KEY_S),
-		"jump": Input.is_physical_key_pressed(KEY_ALT) or Input.is_physical_key_pressed(KEY_C) or Input.is_physical_key_pressed(KEY_SPACE),
-		"fly": Input.is_physical_key_pressed(KEY_K),
-		"dash": Input.is_physical_key_pressed(KEY_SHIFT) or Input.is_physical_key_pressed(KEY_X),
+		"left": Input.is_action_pressed("move_left"),
+		"right": Input.is_action_pressed("move_right"),
+		"up": Input.is_action_pressed("move_up"),
+		"down": Input.is_action_pressed("move_down"),
+		"jump": Input.is_action_pressed("jump"),
+		"fly": Input.is_action_pressed("fly"),
+		"dash": Input.is_action_pressed("dash"),
 	}
 
 

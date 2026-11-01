@@ -16,7 +16,7 @@ const MOVEMENT_SKILLS := {
 	"wall_jump": {"name": "踏葉", "note": "空中貼牆往牆按，再按跳往反方向蹬", "tier": 1},
 	"glide": {"name": "御風", "note": "下落時按住跳滑翔", "tier": 1, "exp_ratio": 0.5, "flag": "movement.glide"},
 	"earth_escape": {"name": "土遁", "note": "穿過土色薄牆", "tier": 2},
-	"sword_flight": {"name": "御劍", "note": "空中按 K 飛一小段", "tier": 3},
+	"sword_flight": {"name": "御劍", "note": "空中按御劍鍵（預設 V 或 I）飛一小段", "tier": 3},
 }
 
 
