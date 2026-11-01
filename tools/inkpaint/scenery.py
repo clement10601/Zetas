@@ -264,6 +264,10 @@ def plaque(cv, cx, cy, text, w=None, size=22, board=(60, 34, 24), ink=(214, 178,
     cv.text(text, cx - size * len(text) / 2 * 1.0, cy - size * 0.62, size, ink, 0.95, FONT)
 
 
+# 殿堂開間數：傳統殿宇是單數開間（正中是明間、沒有中柱），柱子是雙數
+HALL_BAYS = 5
+
+
 def hall(cv, cx, gy, w, h, wall=(196, 184, 160), pillar=(120, 40, 30), roof_c=(52, 58, 66), text=None, alpha=1.0, tiers=1):
     """殿堂：台基、柱、牆、飛簷，可加匾額。"""
     base_h = h * 0.1
@@ -271,13 +275,15 @@ def hall(cv, cx, gy, w, h, wall=(196, 184, 160), pillar=(120, 40, 30), roof_c=(5
     cv.stroke([(cx - w * 0.55, gy - base_h), (cx + w * 0.55, gy - base_h)], 2, INK, 0.7 * alpha, smooth=0)
     top = gy - h * 0.62
     cv.paint(cv.textured(cv.rect(cx - w * 0.42, top, cx + w * 0.42, gy - base_h, blur=0.6), 0.3, "cloud"), wall, 0.92 * alpha)
-    n = 6
+    n = HALL_BAYS
     for k in range(n + 1):
         px = cx - w * 0.4 + w * 0.8 * k / n
         cv.paint(cv.rect(px - 4, top, px + 4, gy - base_h), pillar, 0.9 * alpha)
         cv.stroke([(px - 4, top), (px - 4, gy - base_h)], 1.4, INK, 0.5 * alpha, smooth=0)
     # 門窗格
     for k in range(1, n - 1):
+        if k == n // 2:
+            continue                       # 正中明間是敞開的殿門
         px = cx - w * 0.4 + w * 0.8 * (k + 0.5) / n
         for yy in np.arange(top + 14, gy - base_h - 8, 9):
             cv.stroke([(px - w * 0.04, yy), (px + w * 0.04, yy)], 1, INK, 0.25 * alpha, smooth=0, dry=0.3)

@@ -64,8 +64,8 @@ def hall(lid, text, w=520, h=420, wall=(196, 184, 160), pillar=(120, 40, 30), ro
     base_h, top = h * 0.1, gy - h * 0.62
     front = []
     pw = max(6.0, w * 0.013)               # 簷柱加粗（S.hall 的柱子只有 8px，穿過時看不出被擋）
-    for k in range(7):
-        px = cx - w * 0.4 + w * 0.8 * k / 6
+    for k in range(S.HALL_BAYS + 1):         # 單數開間：正中沒有柱子，香爐、匾額不會被擋
+        px = cx - w * 0.4 + w * 0.8 * k / S.HALL_BAYS
         cv.paint(cv.rect(px - pw, top + 4, px + pw, gy - base_h), pillar, 0.95)
         cv.stroke([(px - pw, top + 4), (px - pw, gy - base_h)], 1.6, INK, 0.6, smooth=0)
         cv.stroke([(px + pw, top + 4), (px + pw, gy - base_h)], 1.2, INK, 0.35, smooth=0)
@@ -107,8 +107,8 @@ def terrace_hall(lid, text, w=545, h=330, terrace=100, tw=600, balcony=(-100, 10
     cv.stroke([(b0, bh - 22), (b1, bh - 22)], 3, wood, 0.95, smooth=0)
     front = []
     pw = max(6.0, w * 0.013)
-    for k in range(7):
-        px = cx - w * 0.4 + w * 0.8 * k / 6
+    for k in range(S.HALL_BAYS + 1):         # 單數開間：正中沒有柱子，香爐、匾額不會被擋
+        px = cx - w * 0.4 + w * 0.8 * k / S.HALL_BAYS
         cv.paint(cv.rect(px - pw, top + 4, px + pw, ty - base_h), (120, 40, 30), 0.95)
         cv.stroke([(px - pw, top + 4), (px - pw, ty - base_h)], 1.6, INK, 0.6, smooth=0)
         cv.stroke([(px + pw, top + 4), (px + pw, ty - base_h)], 1.2, INK, 0.35, smooth=0)
