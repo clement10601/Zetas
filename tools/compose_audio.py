@@ -368,12 +368,12 @@ def inverted(motif):
     return [(-step, length) for step, length in motif]
 
 
-def layered_track(spec: dict, seconds: float, motif) -> dict:
+def layered_track(spec: dict, seconds: float, motif, gap: float = GAP_SECONDS) -> dict:
     """回傳三層 stem：melody（旋律＋伴奏）、rhythm（鼓、鑼、磬），長度一樣、同步播放；base 另外算。"""
     rng = np.random.default_rng(spec["seed"])
     beat_s = 60 / spec["bpm"]
     tonic, mode = spec["tonic"], spec["mode"]
-    music_s = seconds - GAP_SECONDS
+    music_s = seconds - gap
     bars = int(music_s / (beat_s * 4))
     total = int(seconds * SR)
     hi_scale = pentatonic(tonic, mode, tonic - 5, tonic + 17)
@@ -638,17 +638,61 @@ def make_sfx() -> None:
         print(f"  {name} ×{count}")
 
 
+## 地圖與事件的整首曲（不分層）：依玩家所在區塊的標籤或事件狀態切換（scripts/main.gd music_choice）。
+## 之後換成 ElevenLabs 版本時保留檔名。
+SCENES = {
+    "map_cave": dict(name="山洞", seed=61, bpm=58, tonic=62, mode=4, lead="pluck", rhythm="SLOW", drone=38,
+                     accompany="sparse", bells=False, drums=False, reverb_s=6.0, wet=0.55, ambience="illusion",
+                     motif=[(0, 2), (-1, 1), (1, 1)]),
+    "map_village": dict(name="村落", seed=67, bpm=96, tonic=67, mode=0, lead="flute", rhythm="FLOWING", drone=None,
+                        accompany="arpeggio", bells=False, drums=False, reverb_s=2.5, wet=0.25, ambience="foothills",
+                        motif=[(0, 0.5), (2, 0.5), (4, 1), (2, 1), (1, 1)]),
+    "map_shrine": dict(name="山神廟", seed=71, bpm=54, tonic=64, mode=4, lead="flute", rhythm="SLOW", drone=40,
+                       accompany="sparse", bells=True, drums=False, reverb_s=5.0, wet=0.5, ambience="heifeng",
+                       motif=[(0, 2), (-2, 2)]),
+    "map_den": dict(name="妖窟", seed=73, bpm=76, tonic=57, mode=4, lead="pluck", rhythm="TENSE", drone=33,
+                    accompany="pulse", bells=False, drums=True, reverb_s=3.5, wet=0.4, ambience="heifeng",
+                    motif=[(0, 1), (-1, 1), (-2, 2)]),
+    "map_hall": dict(name="傳功殿", seed=79, bpm=60, tonic=62, mode=0, lead="pluck", rhythm="SLOW", drone=38,
+                     accompany="sparse", bells=True, drums=False, reverb_s=5.0, wet=0.45, ambience="sect",
+                     motif=[(0, 1), (2, 1), (3, 2), (5, 2)]),
+    "event_story": dict(name="劇情", seed=83, bpm=80, tonic=64, mode=4, lead="pluck", rhythm="FLOWING", drone=40,
+                        accompany="pulse", bells=True, drums=False, reverb_s=3.5, wet=0.35, ambience="sect",
+                        motif=[(0, 1), (1, 1), (-1, 2)]),
+    "event_combat": dict(name="戰鬥", seed=89, bpm=132, tonic=57, mode=4, lead="flute", rhythm="TENSE", drone=33,
+                         accompany="pulse", bells=False, drums=True, reverb_s=2.0, wet=0.2, ambience="heifeng",
+                         motif=[(0, 0.5), (1, 0.5), (2, 1), (1, 0.5), (0, 0.5)]),
+    "event_heart_demon": dict(name="心魔對決", seed=97, bpm=100, tonic=64, mode=4, lead="flute", rhythm="TENSE", drone=40,
+                              accompany="pulse", bells=True, drums=True, reverb_s=5.0, wet=0.45, ambience="illusion",
+                              motif=[(0, 1), (-1, 0.5), (1, 0.5), (-3, 2)]),
+}
+
+
+def make_scenes(seconds: float = 48.0) -> None:
+    print("地圖與事件曲：")
+    out = OUT / "music" / "scene"
+    for key, spec in SCENES.items():
+        stems = layered_track(spec, seconds, spec["motif"], gap=0.0)
+        base = base_layer(spec, seconds / 2)
+        base = np.concatenate([base, base])[: len(stems["melody"])]
+        mix = base * 0.8 + stems["melody"] + stems["rhythm"]
+        write_ogg(out / f"{key}.ogg", limit(mix * mix_level({"m": mix})), quality=2)
+        print(f"  {spec['name']}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", choices=["music", "sfx", "stingers"])
+    ap.add_argument("--only", choices=["music", "sfx", "stingers", "scenes"])
     ap.add_argument("--seconds", type=float, default=96)
     args = ap.parse_args()
     if args.only in (None, "music"):
         make_music(args.seconds)
     if args.only in (None, "sfx"):
         make_sfx()
-    if args.only is None or args.only == "stingers":
+    if args.only in (None, "stingers"):
         make_stingers()
+    if args.only in (None, "scenes"):
+        make_scenes()
 
 
 if __name__ == "__main__":

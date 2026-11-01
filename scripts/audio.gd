@@ -7,6 +7,9 @@
 ## - 對話框開著時 melody、rhythm 降 6 dB，base 不降。
 ## melody 和 rhythm 長度一樣、同時開始，所以一直對齊。換地區時整組交叉淡入淡出。
 ##
+## 整首曲（清單裡寫 file 而不是 layers）：地圖標籤與事件用，當成一直開著的 base 層播，對話時一樣壓低。
+## 要放哪一首由 main 的 music_choice() 依玩家所在區塊與事件狀態決定。
+##
 ## 短樂句（M3）：事件開始／完成、突破、心魔現身用目前曲子調性的短句，等到下一拍才播。
 ## 地區動機（M4）：傳送時奏目的地的動機，和 NPC 說話時奏當地動機。
 ## 心魔幻境的旋律層用「玩家所在地區」動機的倒影，每區一版。
@@ -87,6 +90,8 @@ func music_key(region: String, tags: Array) -> String:
 ## 某首曲子某一層的檔案；心魔幻境的旋律層依所在地區挑。
 func layer_file(key: String, layer: String, region := "") -> String:
 	var entry: Dictionary = music.get(key, {})
+	if entry.has("file"):
+		return str(entry["file"]) if layer == "base" else ""
 	if layer == "melody" and entry.has("melody_by_region"):
 		var by: Dictionary = entry["melody_by_region"]
 		return str(by.get(region, by.values()[0] if not by.is_empty() else ""))
@@ -146,7 +151,8 @@ func _process(delta: float) -> void:
 		var base_db := float(s["entry"].get("volume_db", 0.0))
 		for layer in s["players"]:
 			var amp: float = s["fade"] * layer_gain[layer]
-			var db := base_db + linear_to_db(maxf(amp, 0.001)) + (0.0 if layer == "base" else duck_db)
+			var ducked: bool = layer != "base" or s["entry"].has("file")
+			var db := base_db + linear_to_db(maxf(amp, 0.001)) + (duck_db if ducked else 0.0)
 			s["players"][layer].volume_db = maxf(db, SILENT_DB)
 
 
@@ -168,9 +174,10 @@ func time_to_next_beat() -> float:
 	var bpm := 0.0
 	var pos := -1.0
 	for s in _sets:
-		if s["target"] > 0.0 and s["players"].has("melody"):
+		var clock: String = "melody" if s["players"].has("melody") else ("base" if s["entry"].has("file") else "")
+		if s["target"] > 0.0 and clock != "":
 			bpm = float(s["entry"].get("bpm", 0))
-			pos = s["players"]["melody"].get_playback_position() + AudioServer.get_time_since_last_mix()
+			pos = s["players"][clock].get_playback_position() + AudioServer.get_time_since_last_mix()
 	if bpm <= 0.0 or pos < 0.0:
 		return 0.0
 	var beat := 60.0 / bpm
@@ -178,9 +185,12 @@ func time_to_next_beat() -> float:
 	return 0.0 if wait < 0.05 or wait > beat - 0.02 else wait
 
 
-## 短樂句：先找目前曲子的版本，再找共用的；都沒有就播 fallback 音效。等到下一拍才出聲。
+## 短樂句：先找目前曲子的版本，再找所在地區的、共用的；都沒有就播 fallback 音效。等到下一拍才出聲。
 func stinger(name: String, fallback := "") -> void:
-	var path := str(music.get(current_music, {}).get("stingers", {}).get(name, stingers.get(name, "")))
+	# 目前曲子沒有自己的短樂句（地圖或事件的整首曲）就用所在地區的
+	var own: Dictionary = music.get(current_music, {}).get("stingers", {})
+	var regional: Dictionary = music.get(current_region, {}).get("stingers", {})
+	var path := str(own.get(name, regional.get(name, stingers.get(name, ""))))
 	var stream := _stream(path)
 	if stream == null:
 		if fallback != "":

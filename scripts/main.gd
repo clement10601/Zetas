@@ -45,6 +45,8 @@ const ENCOUNTER_HINT := "今日奇遇：發生在玩家目前所在地區的小�
 const ATTACK_RANGE := 90.0
 ## 敵人在這個距離內，配樂的鼓聲層進來
 const DANGER_RANGE := 700.0
+## 事件裡的敵人都離開後，戰鬥曲再多留幾秒才換回去
+const COMBAT_MUSIC_HOLD := 4.0
 ## 敵人走在地面上：玩家腳離地面超過這個高度就打不到、也不會被打到
 const MELEE_HEIGHT := 90.0
 const PROMPT_HEIGHT := 110.0       # 互動提示在角色腳上方多高
@@ -93,6 +95,8 @@ var director
 ## 配樂與音效；測試時 audio_settings_path 設空字串，不寫設定檔
 var audio
 var audio_settings_path := "user://audio.cfg"
+var _combat_hold := 0.0           # 戰鬥曲還要留幾秒
+var _heart_demon_event := false   # 目前（或剛結束）的事件是心魔
 
 var state
 var pool: Array = []
@@ -424,12 +428,12 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	_set_ambience(look_tags)
 	Scenery.add_layers(level, FLOOR_Y, look_tags, hash(ordered.map(func(e): return e["chunk"])))
 	state.map_tags = tags
-	if audio != null:
-		audio.play_music(audio.music_key(state.region, tags), state.region)
 	player.ropes = ropes
 	player.floor_y = FLOOR_Y
 	player.set_camera_limits(-EDGE_MARGIN, x + EDGE_MARGIN, FLOOR_Y - 640.0, FLOOR_Y + CAMERA_BOTTOM)
 	place_player(spawn_point)
+	if audio != null:
+		audio.play_music(music_choice(), state.region)
 
 
 ## 地面：一條貼著 prop.ground 的長條，每個區塊依它畫面底部的顏色染色，
@@ -1336,7 +1340,9 @@ func start_pack(pack: Dictionary) -> void:
 	# summary 是寫給導演與設計者看的（會劇透），玩家只看標題
 	add_log("【%s】" % pack["meta"]["title"])
 	_scroll_card(pack["meta"]["title"], event_seal(pack), true)
-	if pack["meta"].get("request_tag", "") == "heart_demon" or _pack_has_tag(pack, "illusion"):
+	_heart_demon_event = pack["meta"].get("request_tag", "") == "heart_demon" or _pack_has_tag(pack, "illusion")
+	_combat_hold = 0.0
+	if _heart_demon_event:
 		audio.stinger("heart_demon", "event_start")
 	else:
 		audio.stinger("event_start", "event_start")
@@ -1902,6 +1908,8 @@ func _process(delta: float) -> void:
 	_update_ambience()
 	# 受傷後無敵時閃爍
 	player.modulate.a = 0.35 if player_invuln > 0.0 and fmod(player_invuln, 0.14) < 0.07 else 1.0
+	_combat_hold = COMBAT_MUSIC_HOLD if (blocking() and _hostile_near()) else maxf(0.0, _combat_hold - delta)
+	audio.play_music(music_choice(), state.region)
 	audio.set_mood(absf(player.velocity.x) > 10.0 or player.climbing, in_danger(), dialogue_panel.visible, delta)
 	_update_prompt()
 	if runner != null:
@@ -1975,12 +1983,41 @@ func active_camera_zone() -> Dictionary:
 
 
 func in_danger() -> bool:
-	if blocking():
-		return true
+	return blocking() or _hostile_near()
+
+
+func _hostile_near() -> bool:
 	for view in actor_views.values():
 		if view.get_meta("hostile") and absf(view.position.x - player.position.x) < DANGER_RANGE:
 			return true
 	return false
+
+
+## 該放哪一首配樂（每格呼叫，曲子沒變就不會重播）：
+## 1. 事件裡有敵人在附近（剛打完也多留幾秒）→ 戰鬥曲；心魔事件 → 心魔對決曲。
+## 2. 事件進行中（會擋住移動的那種）→ 地圖本身有專屬曲（心魔幻境）就用它，否則劇情曲。
+## 3. 平常 → 玩家所在區塊的標籤有專屬曲（山洞、村落、山神廟、妖窟、傳功殿）就用它，否則地區的分層配樂。
+## 野怪不換曲，只讓分層配樂的鼓聲層進來。
+func music_choice() -> String:
+	var tags := current_span_tags()
+	var place: String = audio.music_key(state.region, tags)
+	if blocking():
+		if _combat_hold > 0.0:
+			var fight := "event.heart_demon" if _heart_demon_event else "event.combat"
+			if audio.music.has(fight):
+				return fight
+		if place.begins_with("tag.") and audio.music.get(place, {}).has("layers"):
+			return place
+		if audio.music.has("event.story"):
+			return "event.story"
+	return place
+
+
+func current_span_tags() -> Array:
+	for span in chunk_spans:
+		if player.position.x >= span["x0"] and player.position.x < span["x1"]:
+			return span["tags"]
+	return state.map_tags
 
 
 func _pack_has_tag(pack: Dictionary, tag: String) -> bool:
