@@ -109,6 +109,7 @@ var _heart_demon_event := false   # 目前（或剛結束）的事件是心魔
 var state
 var pool: Array = []
 var chunks: Dictionary = {}
+var sky_colors: Dictionary = {}     # 區塊圖透明的天後面要補的天色（content/sky.json）
 var loot: Dictionary = {}
 var regions: Dictionary = {}
 var runner = null
@@ -319,6 +320,7 @@ func load_content() -> void:
 	if generated_dir != "":
 		pool += PackPool.for_save(PackPool.load_dir(generated_dir), SAVE_ID)
 	chunks = _read_json("res://content/chunks.json")
+	sky_colors = _read_json("res://content/sky.json")
 	loot = _read_json("res://content/loot.json")
 	art = AssetLibrary.from_file(assets_path)
 	regions = _read_json("res://content/regions.json")
@@ -369,7 +371,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 		if tex:
 			# 背景畫走得比地面慢（視差），接縫和前一張交疊淡入
 			bg = ParallaxPainting.new()
-			bg.setup(tex, x, width, FLOOR_Y, entry == ordered[0], entry == ordered[-1])
+			bg.setup(tex, x, width, FLOOR_Y, entry == ordered[0], entry == ordered[-1], sky_color(entry["chunk"]), info.get("tags", []))
 		else:
 			bg = ColorRect.new()
 			bg.color = Color(info["color"])
@@ -435,6 +437,7 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	# 落腳地圖會串起不同區塊（林間、石洞、獸穴）：景深層照第一個區塊的樣子，氛圍粒子跟著玩家所在的區塊換
 	var look_tags: Array = chunk_spans[0]["tags"] if not chunk_spans.is_empty() else tags
 	_set_ambience(look_tags)
+	Scenery.add_sky(level, FLOOR_Y, backgrounds.map(func(b): return {"x": b["x"], "width": b["width"], "color": sky_color(b["id"]), "tags": b["tags"]}))
 	Scenery.add_layers(level, FLOOR_Y, look_tags, hash(ordered.map(func(e): return e["chunk"])))
 	state.map_tags = tags
 	player.ropes = ropes
@@ -447,6 +450,20 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 
 ## 地面：一條貼著 prop.ground 的長條，每個區塊依它畫面底部的顏色染色，
 ## 接縫處顏色漸變（Polygon2D 的頂點色），地面就像古畫坡腳延伸下來，不再是一塊黑泥板。
+## 區塊的天色；沒有記錄（洞窟、幻境、程式畫的區塊）用通用的紙色
+func sky_color(chunk_id: String) -> Color:
+	var c = sky_colors.get(chunk_id)
+	# 天和古畫一樣壓暗（BACKDROP_DIM），兩者才接得起來
+	if c is String:
+		return Color(c) * BACKDROP_DIM
+	var tags: Array = chunks.get(chunk_id, {}).get("tags", [])
+	if tags.has("illusion"):
+		return Color("#2a0a0c")
+	if tags.has("cave") or tags.has("den"):
+		return Color("#1c1b19")
+	return Color(0.86, 0.83, 0.76) * BACKDROP_DIM
+
+
 func _ground_strip(backgrounds: Array, total: float) -> CanvasItem:
 	var tex: Texture2D = art.texture("prop.ground")
 	if tex == null:
@@ -1643,7 +1660,7 @@ func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
 		sprite.scale = Vector2.ONE * height / tex.get_height()
 		sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, -height)
 		sprite.flip_h = hostile  # 立繪面朝右；敵人預設面向玩家來的方向
-		sprite.material = InkUI.halo_material()
+		sprite.material = InkUI.halo_material("hostile" if hostile else "npc")
 		size = Vector2(tex.get_width() * sprite.scale.x, height)
 		view.add_child(sprite)
 	else:

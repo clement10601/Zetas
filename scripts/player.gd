@@ -156,7 +156,7 @@ func set_look(tex: Texture2D, height: float) -> void:
 	if sprite == null:
 		sprite = Sprite2D.new()
 		sprite.centered = false
-		sprite.material = preload("res://scripts/ink_ui.gd").halo_material()
+		sprite.material = preload("res://scripts/ink_ui.gd").halo_material("player")
 		rig.add_child(sprite)
 	sprite.texture = tex
 	sprite.scale = Vector2.ONE * height / tex.get_height()
