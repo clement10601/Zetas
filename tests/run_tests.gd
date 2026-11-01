@@ -49,6 +49,7 @@ func _run() -> void:
 	await test_glide()
 	await test_earth_escape_and_flight()
 	await test_audio()
+	await test_music_by_map_and_event()
 	await test_wild_mobs()
 	await test_errand_board()
 	print("%d checks, %d failed" % [checks, failures])
@@ -1086,6 +1087,9 @@ func test_audio() -> void:
 	for key in audio.music:
 		var entry: Dictionary = audio.music[key]
 		expect(float(entry.get("bpm", 0)) > 0.0, "%s has a tempo for stingers" % key)
+		if entry.has("file"):
+			expect(ResourceLoader.exists(entry["file"]), "%s track exists" % key)
+			continue
 		for layer in ["base", "melody", "rhythm"]:
 			var f: String = audio.layer_file(key, layer, "region.qingyun_sect")
 			expect(ResourceLoader.exists(f), "%s %s layer exists (%s)" % [key, layer, f])
@@ -1123,7 +1127,7 @@ func test_audio() -> void:
 	audio.played.clear()
 	expect(main.travel_to("region.qingyun_sect"), "travel to the sect")
 	expect(audio.played.has("motif:region.qingyun_sect"), "travelling plays the destination's motif")
-	expect(audio.current_music == "region.qingyun_sect", "and switches the music")
+	expect(audio.current_music == main.music_choice() and audio.current_region == "region.qingyun_sect", "and switches the music (%s)" % audio.current_music)
 	audio.played.clear()
 	main.breakthrough()
 	expect(audio.played.has("stinger:breakthrough"), "breakthrough plays the regional stinger")
@@ -1300,3 +1304,36 @@ func test_errand_board() -> void:
 	main.next_time()
 	expect(main.runner != null and main.blocking() and main.wild.is_empty(), "a story event still keeps the player in the scene")
 	main.free()
+
+
+## 依地圖與事件切換配樂：走進村落換村落曲、事件裡換劇情曲、事件裡有敵人換戰鬥曲、心魔事件換心魔對決曲。
+func test_music_by_map_and_event() -> void:
+	var main: Node = await new_game()
+	var audio: Node = main.audio
+	for key in ["tag.cave", "tag.village", "tag.shrine", "tag.den", "tag.hall", "event.story", "event.combat", "event.heart_demon"]:
+		expect(audio.music.has(key), "%s has music" % key)
+	expect(main.state.region == "region.qingyun_foothills", "start in the foothills")
+	var village: Dictionary = {}
+	for span in main.chunk_spans:
+		if "village" in span["tags"]:
+			village = span
+	expect(not village.is_empty(), "the foothills map has a village")
+	main.player.position.x = (village["x0"] + village["x1"]) / 2.0
+	main._process(0.016)
+	expect(audio.current_music == "tag.village", "walking into the village switches to the village music")
+	main.player.position.x = main.chunk_spans[0]["x0"] + 50.0
+	main._process(0.016)
+	expect(audio.current_music == "region.qingyun_foothills", "and back to the foothills music outside")
+	var pack: Dictionary = {}
+	for p in main.pool:
+		if p.has("map") and not main._pack_has_tag(p, "illusion"):
+			pack = p
+	main.start_pack(pack)
+	main._process(0.016)
+	expect(audio.current_music == "event.story", "a story event plays the story music")
+	main._combat_hold = 1.0
+	expect(main.music_choice() == "event.combat", "enemies in an event switch to the battle music")
+	main._heart_demon_event = true
+	expect(main.music_choice() == "event.heart_demon", "the heart demon gets its own battle music")
+	main.free()
+

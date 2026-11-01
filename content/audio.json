@@ -1,5 +1,5 @@
 {
-  "_comment": "配樂與音效清單。music：地區或 tag.<地圖標籤> → 三層（base 環境、melody 琴笛、rhythm 鼓鑼）、bpm（短樂句對拍用）、stingers（事件短句與地區動機）；心魔幻境的旋律依所在地區挑 melody_by_region。sfx：音效名 → 版本（隨機輪播）。檔案缺了就靜音。換素材時檔名不變就不用改這裡。來源見 audio/CREDITS.md。",
+  "_comment": "配樂與音效清單。music：地區、tag.<地圖標籤>（依玩家所在區塊）或 event.<事件>（劇情、戰鬥、心魔） → 三層（base 環境、melody 琴笛、rhythm 鼓鑼）、bpm（短樂句對拍用）、stingers（事件短句與地區動機）；心魔幻境的旋律依所在地區挑 melody_by_region。sfx：音效名 → 版本（隨機輪播）。檔案缺了就靜音。換素材時檔名不變就不用改這裡。來源見 audio/CREDITS.md。 整首曲（不分層）用 file。",
   "music": {
     "region.qingyun_sect": {
       "bpm": 62,
@@ -64,6 +64,46 @@
         "breakthrough": "res://audio/stingers/illusion_breakthrough.ogg",
         "motif": "res://audio/stingers/illusion_motif.ogg"
       }
+    },
+    "tag.cave": {
+      "file": "res://audio/music/scene/map_cave.ogg",
+      "bpm": 58,
+      "volume_db": -5.0
+    },
+    "tag.village": {
+      "file": "res://audio/music/scene/map_village.ogg",
+      "bpm": 96,
+      "volume_db": -5.0
+    },
+    "tag.shrine": {
+      "file": "res://audio/music/scene/map_shrine.ogg",
+      "bpm": 54,
+      "volume_db": -5.0
+    },
+    "tag.den": {
+      "file": "res://audio/music/scene/map_den.ogg",
+      "bpm": 76,
+      "volume_db": -5.0
+    },
+    "tag.hall": {
+      "file": "res://audio/music/scene/map_hall.ogg",
+      "bpm": 60,
+      "volume_db": -5.0
+    },
+    "event.story": {
+      "file": "res://audio/music/scene/event_story.ogg",
+      "bpm": 80,
+      "volume_db": -5.0
+    },
+    "event.combat": {
+      "file": "res://audio/music/scene/event_combat.ogg",
+      "bpm": 132,
+      "volume_db": -5.0
+    },
+    "event.heart_demon": {
+      "file": "res://audio/music/scene/event_heart_demon.ogg",
+      "bpm": 100,
+      "volume_db": -5.0
     }
   },
   "stingers": {

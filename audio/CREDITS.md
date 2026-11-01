@@ -15,6 +15,19 @@
 | 黑風嶺 heifeng_ridge | A 羽調，低音持續、手鼓、鑼、強風 | 下行四音 |
 | 心魔幻境 illusion | E 羽調，笛、長殘響 | 所在地區動機的倒影（`illusion_melody_<區>.ogg`） |
 
+## 地圖與事件曲（audio/music/scene）
+
+整首曲，不分層，48 秒循環。玩家走進有這些標籤的區塊、或事件進行中時切換（`scripts/main.gd` 的 `music_choice()`）：
+
+| 檔案 | 用在 |
+|---|---|
+| map_cave / map_village / map_shrine / map_den / map_hall | 山洞、村落、山神廟、妖窟、傳功殿區塊 |
+| event_story | 事件進行中（會擋住移動的那種） |
+| event_combat | 事件裡有敵人在附近 |
+| event_heart_demon | 心魔事件裡的對決 |
+
+目前是合成版；預定換成 ElevenLabs Music 生成的版本（2026-11-01 帳號點數用完，等補點），換的時候保留檔名。
+
 ## 短樂句（audio/stingers）
 
 每區 `event_start`、`event_end`、`breakthrough`、`motif`，另有共用的 `heart_demon`。遊戲裡等到配樂下一拍才播。
