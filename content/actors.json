@@ -47,5 +47,17 @@
   "npc.fellow_disciple": {
     "name": "同門弟子",
     "description": "青雲宗的師兄姊、師弟妹，可親近可較勁。"
+  },
+  "mob.shengsheng": {
+    "name": "狌狌",
+    "description": "像猴而耳白，時而伏地爬、時而像人一樣走，跑得飛快的山中精怪。出自《山海經·南山經》。"
+  },
+  "mob.gudiao": {
+    "name": "蠱雕",
+    "description": "像鵰而頭上生角的水澤凶禽，鳴聲像嬰兒啼哭，會吃人。出自《山海經·南山經》。"
+  },
+  "mob.wandering_ghost": {
+    "name": "遊魂",
+    "description": "荒廟夜裡飄出的孤魂，只在夜裡出現。"
   }
 }

@@ -14,24 +14,33 @@ python tools/sync_engine.py   # 把引擎 addon 複製到 addons/zeworld
 
 用 Godot 開啟這個資料夾，執行主場景。
 
-| 按鍵 | 動作 |
+按鍵走 Godot InputMap（`scripts/keys.gd`），預設兩組同時有效，玩家可以按 Esc 在遊戲裡改（`scripts/key_panel.gd`，存在 `user://keys.json`）。畫面上的提示（下方說明列、「↑/E 交談」、「Z/空白 繼續」）都跟著實際按鍵產生。
+
+| 動作 | 方向鍵組 | WASD 組 | 其他 | 手把 |
+| --- | --- | --- | --- | --- |
+| 移動 | ← → | A D | | 十字鍵／左搖桿 |
+| 跳 | Z | K | 空白 | A |
+| 攻擊（近身，有冷卻）。敵人貼身會傷人，氣血歸零就重傷倒地，事件以失敗結算 | X | J | | X |
+| 閃避（墨影步） | C | L | Shift | B／RB |
+| 御劍：空中按，方向鍵往四方飛 1.5 秒，落地前只能飛一次（元嬰） | V | I | | Y |
+| 上下：靠近繩子、藤蔓、梯子時爬上爬下；爬的時候 ←→＋跳 跳開 | ↑ ↓ | W S | | 十字鍵 |
+| 交談・傳送・拿取：站在傳送點上走到相鄰地區；NPC 旁交談；寶物旁拿取 | ↑ | W | E | 十字↑ |
+| 打坐一個時辰：修為增加（宗門內較快）、氣血回滿 | M | | | LB |
+| 修為圓滿時突破境界（突破時可能遇上心魔） | B | | | L3 |
+| 地圖：直接在青雲宗、青雲山腳、黑風嶺（築基以上）之間移動，花 1–2 個時辰 | T | | | Back |
+| 衣櫃與容貌：換衣著、頭飾、背飾、腰飾，改髮型、髮色、臉型、眼、眉；沒解鎖的可以試穿（見 [docs/design/attire.md](docs/design/attire.md)） | Y | | | R3 |
+| 開關背景音樂（音效照常；設定存在 `user://audio.cfg`） | N | | | |
+| 按鍵設定 | Esc | F10 | | Start |
+
+| 其他操作 | 說明 |
 | --- | --- |
-| ← → / A D | 移動 |
-| Alt / C / 空白 | 跳 |
-| ↑ ↓ / W S | 靠近繩子、藤蔓、梯子時爬上爬下；爬的時候 ←→＋跳 跳開 |
 | ↓ ＋ 跳 | 從平台上往下跳 |
 | 空中再按跳 | 二段跳（身法「輕身術」，煉氣修為圓滿時領悟）。邊緣淡青色的平台要身法才上得去，上面藏著寶物 |
 | 空中貼牆往牆按＋跳 | 踏葉：往反方向蹬，兩面石壁之間可以一路往上（築基） |
 | 下落時按住跳 | 御風：慢慢滑翔，跨過遠處的崖（築基修為過半，或事件傳授） |
 | 走向土色薄牆 | 土遁：穿牆進地圖盡頭的暗室（金丹） |
-| 空中按 K | 御劍：方向鍵往四方飛 1.5 秒，落地前只能飛一次（元嬰） |
-| ↑ / W / E | 站在地圖兩端的傳送點上：走到相鄰地區；站在 NPC 旁邊：交談；站在寶物旁：拿取 |
-| J | 攻擊（近身，有冷卻）。敵人貼身會傷人，氣血歸零就重傷倒地，事件以失敗結算 |
-| M | 打坐一個時辰：修為增加（宗門內較快）、氣血回滿 |
-| B | 修為圓滿時突破境界（突破時可能遇上心魔） |
-| 空白 / Enter | 下一句對話 |
-| 1–4 | 選擇對話選項 |
-| T | 地圖：直接在青雲宗、青雲山腳、黑風嶺（築基以上）之間移動，花 1–2 個時辰 |
+| 跳 / 攻擊 / Enter | 下一句對話 |
+| 1–4，或 ↑↓ 移動游標再按跳 / Enter | 選擇對話選項、差事榜、地圖 |
 | F1 | 除錯：放走受傷的白狐 |
 | F2 | 除錯：過一天 |
 | F3 | 除錯：換時辰（晨、午、暮、夜） |
@@ -108,6 +117,6 @@ godot --headless --path . -s res://tests/run_tests.gd
 ## 封閉測試
 
 - 遊玩紀錄寫在 `user://playlog.jsonl`（Windows 是 `%APPDATA%\Zetas\playlog.jsonl`），內容只有事件開始與結束、結果、翻頁速度、導演成功或失敗。彙整方式：`python tools/playlog_report.py A.jsonl B.jsonl > report.md`，會算出每個事件的完成率與台詞跳過率。
-- Windows 測試版：到 GitHub Actions 手動執行 `build` workflow（勾選「匯出 Windows 測試版」），下載 artifact。也可以在本機跑 `python tools/fetch_export_template.py 4.4.1 windows_release_x86_64.exe`，再執行 `godot --headless --export-release "Windows Desktop" build/windows/Zetas.exe`。
+- Windows 測試版：到 GitHub Actions 手動執行 `build` workflow（勾選「匯出 Windows 測試版」），下載 artifact；填 `release_tag` 會直接發佈成 GitHub Release，`director_url` 預填導演網址。也可以在本機跑 `python tools/fetch_export_template.py 4.4.1 windows_release_x86_64.exe`，再執行 `godot --headless --export-release "Windows Desktop" build/windows/Zetas.exe`。
 - 測試者連導演：在 `Zetas.exe` 旁邊放 `director_url.txt`（導演網址）和 `director_code.txt`（這位測試者的存取碼）。沒放就只有手寫事件。架設導演、發存取碼的步驟見 [playtest/HOSTING.md](playtest/HOSTING.md)。
 - 給測試者的說明在 [playtest/README.md](playtest/README.md)，匯出時會一起打包。

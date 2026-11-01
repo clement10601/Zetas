@@ -1,0 +1,27 @@
+{
+  "_comment": "宗門差事榜。每天從境界夠的差事裡挑最多 3 件，接了就是一個「打倒 N 隻某怪」的小事件（只算接了之後打倒的），進行中照常可以趕路、打坐、打野怪。template 要是 regions.json wild 裡有的怪；reward.exp 是 small/medium/large，reward.loot 給普通檔。每件差事一天只能接一次。",
+  "board": {"region": "region.qingyun_sect", "chunk": "chunk.sect_plaza", "x": 380},
+  "per_day": 3,
+  "errands": [
+    {"id": "monkey_fruit", "title": "狌狌偷果", "giver": "伙房", "tier_min": 0,
+     "text": "山腳林子裡的狌狌又溜進果園偷果子，伙房的師兄追不上，請你去把牠們趕回山裡。",
+     "template": "mob.shengsheng", "count": 2, "where": "青雲山腳林間，白天",
+     "reward": {"exp": "small", "loot": "loot.wild_foothills"}},
+    {"id": "bandit_road", "title": "山道剪徑", "giver": "執事堂", "tier_min": 0,
+     "text": "上山進香的香客在林中空地被山賊攔路搶了盤纏，執事堂要你去教訓教訓他們。",
+     "template": "mob.bandit", "count": 2, "where": "青雲山腳林中空地，午後到黃昏",
+     "reward": {"exp": "small", "loot": "loot.wild_bandit"}},
+    {"id": "shrine_ghosts", "title": "破廟遊魂", "giver": "藥堂", "tier_min": 0,
+     "text": "山村的人說破廟夜裡有遊魂飄出來，不敢上山採藥。藥堂請你去把遊魂打散。",
+     "template": "mob.wandering_ghost", "count": 2, "where": "青雲山腳破廟，黃昏與夜裡",
+     "reward": {"exp": "small", "loot": "loot.wild_ghost"}},
+    {"id": "wolf_den", "title": "清剿狼妖", "giver": "執事堂", "tier_min": 1,
+     "text": "黑風嶺的狼妖越來越大膽，前幾天叼走了山村的羊。執事堂要築基弟子去巢穴清掉一些。",
+     "template": "mob.wolf_demon", "count": 3, "where": "黑風嶺狼妖巢穴，夜裡更多",
+     "reward": {"exp": "medium", "loot": "loot.yao_dan_cave"}},
+    {"id": "gudiao_feather", "title": "蠱雕翎羽", "giver": "藥堂", "tier_min": 1,
+     "text": "藥堂煉安神丹缺一味蠱雕翎羽。蠱雕在斷魂谷，叫聲像嬰兒哭，別被騙了。",
+     "template": "mob.gudiao", "count": 1, "where": "黑風嶺斷魂谷，黃昏與夜裡",
+     "reward": {"exp": "medium", "loot": "loot.wild_gudiao"}}
+  ]
+}

@@ -2,6 +2,8 @@
 
 這份是給架設者的說明，不會打包給測試者。導演跑在你的電腦上，用的是你的 Claude API 額度。測試者靠存取碼連進來，每個人每天的生成次數都有上限。
 
+要長時間開著給測試者用，建議改架在 VM 上的 k0s：見 [deploy/k8s/README.md](../deploy/k8s/README.md)。存取碼和上限的觀念跟這份一樣。
+
 ## 1. 準備
 
 需要 Python 3.10 以上。
@@ -55,12 +57,18 @@ cloudflared tunnel --url http://127.0.0.1:8765
 
 ## 5. 給測試者
 
-在 Windows 測試版（GitHub Actions 的 `build` workflow 產出）的 `Zetas.exe` 旁邊放兩個文字檔：
+到 GitHub Actions 手動執行 `build` workflow：`director_url` 預設是 https://zetas-director.fezone.tw，會寫進 `director_url.txt`；`release_tag` 填了（例如 `playtest-0.2.0`）就會把 `Zetas-windows.zip` 發佈成 GitHub Release，不填就只產出 artifact。
 
-- `director_url.txt`：第 4 步的網址。所有人共用。
+**網頁版**（勾 `web`）會發佈到 https://zetas.fezone.tw/ ，導演網址用 `project.godot` 的 `zetas/web_director_url`。給測試者 `https://zetas.fezone.tw/?code=<存取碼>` 就能直接玩，遊戲會記住存取碼並把它從網址列拿掉；不帶的話第一次開啟會請他輸入。導演要是 ZeWorld#17 以後的版本（支援 CORS）。
+
+網域設定（只做一次）：Cloudflare 的 fezone.tw 加 CNAME `zetas` → `clement10601.github.io`（先設「僅 DNS」灰雲，等 GitHub 簽好憑證再看要不要開橘雲）；GitHub repo Settings → Pages：Source 選 GitHub Actions，Custom domain 填 `zetas.fezone.tw`，勾 Enforce HTTPS。
+
+**Windows 版**的 `Zetas.exe` 旁邊要有兩個文字檔：
+
+- `director_url.txt`：第 4 步的網址。所有人共用，workflow 會預填。
 - `director_code.txt`：這位測試者自己的存取碼。
 
-壓縮後分別寄給每個人。
+把 Release 連結給大家，存取碼則私下分別給每個人，請他們自己建 `director_code.txt`。
 
 ## 6. 測試期間
 

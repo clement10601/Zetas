@@ -5,9 +5,13 @@
 | 文件 | 內容 |
 | --- | --- |
 | [仙緣、魔緣與佛緣](design/fate-monetization.md) | 月卡收費、緣分值與事件觸發頻率、免費玩家體驗、生成成本 |
+| [月卡在 Steam 上怎麼收](design/steam-subscription.md) | Steam 定期扣款規則、分成、各收費方式比較、成本試算與建議 |
 | [世界地圖與地區](design/world-map.md) | 九州八大區、地圖層次與身法門檻、天象與秘境、洞府 |
 | [功法與技能樹](design/skill-tree.md) | 功法、術法、身法、仙魔佛心法、機緣專屬的緣法 |
 | [任務與對話](design/quests-dialogue.md) | 任務種類、主線大綱、對話文風、角色聲音、差事模板 |
 | [美術風格指南](design/art-direction.md) | 水墨卷軸、字訣、三道三色等特色；交付規格見 [art/STYLE.md](../art/STYLE.md) |
+| [人物外觀](design/attire.md) | 容貌（臉型、眼、眉、髮型、髮色）、衣著與時裝、配件、門派服、外觀與緣卡的關係 |
+| [類似作品參考](design/reference-study.md) | 九日、斬妖行、朧村正、GRIS、空洞騎士等在美術、音樂、鏡頭、戰鬥回饋上的手法，對照 Zetas 的改進清單與順序 |
+| [類似作品的商業表現](design/reference-business.md) | 各作品銷量、營收與收費模式（附出處與可信度），對照緣卡方案的借鏡 |
 
 這些都是 v0.1 提案，數字是起始值，靠試玩調整。

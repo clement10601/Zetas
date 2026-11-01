@@ -16,7 +16,7 @@ const MOVEMENT_SKILLS := {
 	"wall_jump": {"name": "踏葉", "note": "空中貼牆往牆按，再按跳往反方向蹬", "tier": 1},
 	"glide": {"name": "御風", "note": "下落時按住跳滑翔", "tier": 1, "exp_ratio": 0.5, "flag": "movement.glide"},
 	"earth_escape": {"name": "土遁", "note": "穿過土色薄牆", "tier": 2},
-	"sword_flight": {"name": "御劍", "note": "空中按 K 飛一小段", "tier": 3},
+	"sword_flight": {"name": "御劍", "note": "空中按御劍鍵（預設 V 或 I）飛一小段", "tier": 3},
 }
 
 
@@ -44,13 +44,32 @@ static func player_damage(tier: int) -> int:
 	return 1 + tier
 
 
-## 敵人強度跟著內容包的最低境界走
-static func enemy_hp(power: float, pack_tier: int) -> int:
-	return maxi(1, ceili(3.0 * power * (1 + pack_tier)))
+## 敵人要挨幾刀：power 1 的小怪約 4 刀；Boss（boss.* 模板）再乘 BOSS_HP，突破心魔這種高潮至少要打一陣子。
+const HITS_PER_POWER := 4.0
+const BOSS_HP := 4.0
+## Boss 血量剩這個比例以下就發狠：前搖、收招都變短
+const BOSS_ENRAGE_AT := 0.5
+const BOSS_ENRAGE_SPEED := 0.65
+
+
+## 敵人強度跟著內容包的最低境界走：以那個境界的出劍傷害換算成刀數
+static func enemy_hp(power: float, pack_tier: int, boss := false) -> int:
+	var hits := HITS_PER_POWER * power * (BOSS_HP if boss else 1.0)
+	return maxi(1, ceili(hits * player_damage(pack_tier)))
 
 
 static func enemy_damage(power: float, pack_tier: int) -> int:
 	return maxi(1, roundi(4.0 * power * (1 + pack_tier)))
+
+
+## 敵人出招：靠近 → 前搖（朱紅預兆）→ 判定 → 收招破綻。境界越高的內容包，前搖越短。
+const ENEMY_WINDUP := 0.45
+const ENEMY_WINDUP_MIN := 0.28
+const ENEMY_RECOVER := 0.6
+
+
+static func enemy_windup(pack_tier: int) -> float:
+	return maxf(ENEMY_WINDUP_MIN, ENEMY_WINDUP - 0.04 * pack_tier)
 
 
 static func kill_exp(power: float) -> int:

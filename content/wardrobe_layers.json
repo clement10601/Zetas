@@ -1,0 +1,828 @@
+{
+ "layers": {
+  "back/ink_cape": {
+   "file": "wardrobe/back__ink_cape.png",
+   "x": 57,
+   "y": 103
+  },
+  "back/ribbon_cloud": {
+   "file": "wardrobe/back__ribbon_cloud.png",
+   "x": 0,
+   "y": 113
+  },
+  "back/ribbon_jade": {
+   "file": "wardrobe/back__ribbon_jade.png",
+   "x": 30,
+   "y": 113
+  },
+  "body/cloud_daoist": {
+   "file": "wardrobe/body__cloud_daoist.png",
+   "x": 102,
+   "y": 105
+  },
+  "body/disciple": {
+   "file": "wardrobe/body__disciple.png",
+   "x": 108,
+   "y": 105
+  },
+  "body/inner": {
+   "file": "wardrobe/body__inner.png",
+   "x": 107,
+   "y": 105
+  },
+  "body/mirror": {
+   "file": "wardrobe/body__mirror.png",
+   "x": 108,
+   "y": 105
+  },
+  "body/mo": {
+   "file": "wardrobe/body__mo.png",
+   "x": 100,
+   "y": 105
+  },
+  "body/outer": {
+   "file": "wardrobe/body__outer.png",
+   "x": 120,
+   "y": 104
+  },
+  "body/wanderer": {
+   "file": "wardrobe/body__wanderer.png",
+   "x": 108,
+   "y": 105
+  },
+  "body/xian": {
+   "file": "wardrobe/body__xian.png",
+   "x": 95,
+   "y": 105
+  },
+  "brows/straight/chestnut": {
+   "file": "wardrobe/brows__straight__chestnut.png",
+   "x": 183,
+   "y": 58
+  },
+  "brows/straight/crimson": {
+   "file": "wardrobe/brows__straight__crimson.png",
+   "x": 183,
+   "y": 58
+  },
+  "brows/straight/frost": {
+   "file": "wardrobe/brows__straight__frost.png",
+   "x": 183,
+   "y": 58
+  },
+  "brows/straight/indigo": {
+   "file": "wardrobe/brows__straight__indigo.png",
+   "x": 183,
+   "y": 58
+  },
+  "brows/straight/ink": {
+   "file": "wardrobe/brows__straight__ink.png",
+   "x": 183,
+   "y": 58
+  },
+  "brows/sword/chestnut": {
+   "file": "wardrobe/brows__sword__chestnut.png",
+   "x": 181,
+   "y": 56
+  },
+  "brows/sword/crimson": {
+   "file": "wardrobe/brows__sword__crimson.png",
+   "x": 181,
+   "y": 56
+  },
+  "brows/sword/frost": {
+   "file": "wardrobe/brows__sword__frost.png",
+   "x": 181,
+   "y": 56
+  },
+  "brows/sword/indigo": {
+   "file": "wardrobe/brows__sword__indigo.png",
+   "x": 181,
+   "y": 56
+  },
+  "brows/sword/ink": {
+   "file": "wardrobe/brows__sword__ink.png",
+   "x": 181,
+   "y": 56
+  },
+  "brows/willow/chestnut": {
+   "file": "wardrobe/brows__willow__chestnut.png",
+   "x": 183,
+   "y": 58
+  },
+  "brows/willow/crimson": {
+   "file": "wardrobe/brows__willow__crimson.png",
+   "x": 183,
+   "y": 58
+  },
+  "brows/willow/frost": {
+   "file": "wardrobe/brows__willow__frost.png",
+   "x": 183,
+   "y": 58
+  },
+  "brows/willow/indigo": {
+   "file": "wardrobe/brows__willow__indigo.png",
+   "x": 183,
+   "y": 58
+  },
+  "brows/willow/ink": {
+   "file": "wardrobe/brows__willow__ink.png",
+   "x": 183,
+   "y": 58
+  },
+  "eyes/almond": {
+   "file": "wardrobe/eyes__almond.png",
+   "x": 184,
+   "y": 62
+  },
+  "eyes/gentle": {
+   "file": "wardrobe/eyes__gentle.png",
+   "x": 184,
+   "y": 61
+  },
+  "eyes/phoenix": {
+   "file": "wardrobe/eyes__phoenix.png",
+   "x": 183,
+   "y": 61
+  },
+  "face/oval": {
+   "file": "wardrobe/face__oval.png",
+   "x": 157,
+   "y": 41
+  },
+  "face/round": {
+   "file": "wardrobe/face__round.png",
+   "x": 155,
+   "y": 41
+  },
+  "face/slender": {
+   "file": "wardrobe/face__slender.png",
+   "x": 159,
+   "y": 41
+  },
+  "face/square": {
+   "file": "wardrobe/face__square.png",
+   "x": 157,
+   "y": 41
+  },
+  "gear": {
+   "file": "wardrobe/gear.png",
+   "x": 120,
+   "y": 43
+  },
+  "hair_back/high_tail/chestnut": {
+   "file": "wardrobe/hair_back__high_tail__chestnut.png",
+   "x": 94,
+   "y": 10
+  },
+  "hair_back/high_tail/crimson": {
+   "file": "wardrobe/hair_back__high_tail__crimson.png",
+   "x": 94,
+   "y": 11
+  },
+  "hair_back/high_tail/frost": {
+   "file": "wardrobe/hair_back__high_tail__frost.png",
+   "x": 94,
+   "y": 10
+  },
+  "hair_back/high_tail/indigo": {
+   "file": "wardrobe/hair_back__high_tail__indigo.png",
+   "x": 94,
+   "y": 10
+  },
+  "hair_back/high_tail/ink": {
+   "file": "wardrobe/hair_back__high_tail__ink.png",
+   "x": 93,
+   "y": 10
+  },
+  "hair_back/long/chestnut": {
+   "file": "wardrobe/hair_back__long__chestnut.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/long/crimson": {
+   "file": "wardrobe/hair_back__long__crimson.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/long/frost": {
+   "file": "wardrobe/hair_back__long__frost.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/long/indigo": {
+   "file": "wardrobe/hair_back__long__indigo.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/long/ink": {
+   "file": "wardrobe/hair_back__long__ink.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/long_bun/chestnut": {
+   "file": "wardrobe/hair_back__long_bun__chestnut.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/long_bun/crimson": {
+   "file": "wardrobe/hair_back__long_bun__crimson.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/long_bun/frost": {
+   "file": "wardrobe/hair_back__long_bun__frost.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/long_bun/indigo": {
+   "file": "wardrobe/hair_back__long_bun__indigo.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/long_bun/ink": {
+   "file": "wardrobe/hair_back__long_bun__ink.png",
+   "x": 130,
+   "y": 56
+  },
+  "hair_back/ponytail/chestnut": {
+   "file": "wardrobe/hair_back__ponytail__chestnut.png",
+   "x": 116,
+   "y": 54
+  },
+  "hair_back/ponytail/crimson": {
+   "file": "wardrobe/hair_back__ponytail__crimson.png",
+   "x": 116,
+   "y": 54
+  },
+  "hair_back/ponytail/frost": {
+   "file": "wardrobe/hair_back__ponytail__frost.png",
+   "x": 116,
+   "y": 54
+  },
+  "hair_back/ponytail/indigo": {
+   "file": "wardrobe/hair_back__ponytail__indigo.png",
+   "x": 116,
+   "y": 54
+  },
+  "hair_back/ponytail/ink": {
+   "file": "wardrobe/hair_back__ponytail__ink.png",
+   "x": 116,
+   "y": 54
+  },
+  "hair_back/wild/chestnut": {
+   "file": "wardrobe/hair_back__wild__chestnut.png",
+   "x": 113,
+   "y": 47
+  },
+  "hair_back/wild/crimson": {
+   "file": "wardrobe/hair_back__wild__crimson.png",
+   "x": 113,
+   "y": 47
+  },
+  "hair_back/wild/frost": {
+   "file": "wardrobe/hair_back__wild__frost.png",
+   "x": 113,
+   "y": 47
+  },
+  "hair_back/wild/indigo": {
+   "file": "wardrobe/hair_back__wild__indigo.png",
+   "x": 113,
+   "y": 47
+  },
+  "hair_back/wild/ink": {
+   "file": "wardrobe/hair_back__wild__ink.png",
+   "x": 113,
+   "y": 47
+  },
+  "hair_over/bun/chestnut": {
+   "file": "wardrobe/hair_over__bun__chestnut.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/bun/crimson": {
+   "file": "wardrobe/hair_over__bun__crimson.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/bun/frost": {
+   "file": "wardrobe/hair_over__bun__frost.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/bun/indigo": {
+   "file": "wardrobe/hair_over__bun__indigo.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/bun/ink": {
+   "file": "wardrobe/hair_over__bun__ink.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/high_tail/chestnut": {
+   "file": "wardrobe/hair_over__high_tail__chestnut.png",
+   "x": 142,
+   "y": 20
+  },
+  "hair_over/high_tail/crimson": {
+   "file": "wardrobe/hair_over__high_tail__crimson.png",
+   "x": 142,
+   "y": 20
+  },
+  "hair_over/high_tail/frost": {
+   "file": "wardrobe/hair_over__high_tail__frost.png",
+   "x": 142,
+   "y": 20
+  },
+  "hair_over/high_tail/indigo": {
+   "file": "wardrobe/hair_over__high_tail__indigo.png",
+   "x": 142,
+   "y": 20
+  },
+  "hair_over/high_tail/ink": {
+   "file": "wardrobe/hair_over__high_tail__ink.png",
+   "x": 142,
+   "y": 20
+  },
+  "hair_over/long/chestnut": {
+   "file": "wardrobe/hair_over__long__chestnut.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/long/crimson": {
+   "file": "wardrobe/hair_over__long__crimson.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/long/frost": {
+   "file": "wardrobe/hair_over__long__frost.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/long/indigo": {
+   "file": "wardrobe/hair_over__long__indigo.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/long/ink": {
+   "file": "wardrobe/hair_over__long__ink.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/long_bun/chestnut": {
+   "file": "wardrobe/hair_over__long_bun__chestnut.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/long_bun/crimson": {
+   "file": "wardrobe/hair_over__long_bun__crimson.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/long_bun/frost": {
+   "file": "wardrobe/hair_over__long_bun__frost.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/long_bun/indigo": {
+   "file": "wardrobe/hair_over__long_bun__indigo.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/long_bun/ink": {
+   "file": "wardrobe/hair_over__long_bun__ink.png",
+   "x": 142,
+   "y": 15
+  },
+  "hair_over/ponytail/chestnut": {
+   "file": "wardrobe/hair_over__ponytail__chestnut.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/ponytail/crimson": {
+   "file": "wardrobe/hair_over__ponytail__crimson.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/ponytail/frost": {
+   "file": "wardrobe/hair_over__ponytail__frost.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/ponytail/indigo": {
+   "file": "wardrobe/hair_over__ponytail__indigo.png",
+   "x": 142,
+   "y": 26
+  },
+  "hair_over/ponytail/ink": {
+   "file": "wardrobe/hair_over__ponytail__ink.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/topknot/chestnut": {
+   "file": "wardrobe/hair_over__topknot__chestnut.png",
+   "x": 142,
+   "y": 16
+  },
+  "hair_over/topknot/crimson": {
+   "file": "wardrobe/hair_over__topknot__crimson.png",
+   "x": 142,
+   "y": 16
+  },
+  "hair_over/topknot/frost": {
+   "file": "wardrobe/hair_over__topknot__frost.png",
+   "x": 142,
+   "y": 16
+  },
+  "hair_over/topknot/indigo": {
+   "file": "wardrobe/hair_over__topknot__indigo.png",
+   "x": 142,
+   "y": 16
+  },
+  "hair_over/topknot/ink": {
+   "file": "wardrobe/hair_over__topknot__ink.png",
+   "x": 142,
+   "y": 16
+  },
+  "hair_over/twin/chestnut": {
+   "file": "wardrobe/hair_over__twin__chestnut.png",
+   "x": 142,
+   "y": 21
+  },
+  "hair_over/twin/crimson": {
+   "file": "wardrobe/hair_over__twin__crimson.png",
+   "x": 142,
+   "y": 21
+  },
+  "hair_over/twin/frost": {
+   "file": "wardrobe/hair_over__twin__frost.png",
+   "x": 142,
+   "y": 21
+  },
+  "hair_over/twin/indigo": {
+   "file": "wardrobe/hair_over__twin__indigo.png",
+   "x": 142,
+   "y": 21
+  },
+  "hair_over/twin/ink": {
+   "file": "wardrobe/hair_over__twin__ink.png",
+   "x": 142,
+   "y": 21
+  },
+  "hair_over/wild/chestnut": {
+   "file": "wardrobe/hair_over__wild__chestnut.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/wild/crimson": {
+   "file": "wardrobe/hair_over__wild__crimson.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/wild/frost": {
+   "file": "wardrobe/hair_over__wild__frost.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/wild/indigo": {
+   "file": "wardrobe/hair_over__wild__indigo.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_over/wild/ink": {
+   "file": "wardrobe/hair_over__wild__ink.png",
+   "x": 142,
+   "y": 27
+  },
+  "hair_under/bun/chestnut": {
+   "file": "wardrobe/hair_under__bun__chestnut.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/bun/crimson": {
+   "file": "wardrobe/hair_under__bun__crimson.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/bun/frost": {
+   "file": "wardrobe/hair_under__bun__frost.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/bun/indigo": {
+   "file": "wardrobe/hair_under__bun__indigo.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/bun/ink": {
+   "file": "wardrobe/hair_under__bun__ink.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/high_tail/chestnut": {
+   "file": "wardrobe/hair_under__high_tail__chestnut.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/high_tail/crimson": {
+   "file": "wardrobe/hair_under__high_tail__crimson.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/high_tail/frost": {
+   "file": "wardrobe/hair_under__high_tail__frost.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/high_tail/indigo": {
+   "file": "wardrobe/hair_under__high_tail__indigo.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/high_tail/ink": {
+   "file": "wardrobe/hair_under__high_tail__ink.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long/chestnut": {
+   "file": "wardrobe/hair_under__long__chestnut.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long/crimson": {
+   "file": "wardrobe/hair_under__long__crimson.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long/frost": {
+   "file": "wardrobe/hair_under__long__frost.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long/indigo": {
+   "file": "wardrobe/hair_under__long__indigo.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long/ink": {
+   "file": "wardrobe/hair_under__long__ink.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long_bun/chestnut": {
+   "file": "wardrobe/hair_under__long_bun__chestnut.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long_bun/crimson": {
+   "file": "wardrobe/hair_under__long_bun__crimson.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long_bun/frost": {
+   "file": "wardrobe/hair_under__long_bun__frost.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long_bun/indigo": {
+   "file": "wardrobe/hair_under__long_bun__indigo.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/long_bun/ink": {
+   "file": "wardrobe/hair_under__long_bun__ink.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/ponytail/chestnut": {
+   "file": "wardrobe/hair_under__ponytail__chestnut.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/ponytail/crimson": {
+   "file": "wardrobe/hair_under__ponytail__crimson.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/ponytail/frost": {
+   "file": "wardrobe/hair_under__ponytail__frost.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/ponytail/indigo": {
+   "file": "wardrobe/hair_under__ponytail__indigo.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/ponytail/ink": {
+   "file": "wardrobe/hair_under__ponytail__ink.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/topknot/chestnut": {
+   "file": "wardrobe/hair_under__topknot__chestnut.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/topknot/crimson": {
+   "file": "wardrobe/hair_under__topknot__crimson.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/topknot/frost": {
+   "file": "wardrobe/hair_under__topknot__frost.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/topknot/indigo": {
+   "file": "wardrobe/hair_under__topknot__indigo.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/topknot/ink": {
+   "file": "wardrobe/hair_under__topknot__ink.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/twin/chestnut": {
+   "file": "wardrobe/hair_under__twin__chestnut.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/twin/crimson": {
+   "file": "wardrobe/hair_under__twin__crimson.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/twin/frost": {
+   "file": "wardrobe/hair_under__twin__frost.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/twin/indigo": {
+   "file": "wardrobe/hair_under__twin__indigo.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/twin/ink": {
+   "file": "wardrobe/hair_under__twin__ink.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/wild/chestnut": {
+   "file": "wardrobe/hair_under__wild__chestnut.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/wild/crimson": {
+   "file": "wardrobe/hair_under__wild__crimson.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/wild/frost": {
+   "file": "wardrobe/hair_under__wild__frost.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/wild/indigo": {
+   "file": "wardrobe/hair_under__wild__indigo.png",
+   "x": 134,
+   "y": 23
+  },
+  "hair_under/wild/ink": {
+   "file": "wardrobe/hair_under__wild__ink.png",
+   "x": 134,
+   "y": 23
+  },
+  "head/crown": {
+   "file": "wardrobe/head__crown.png",
+   "x": 139,
+   "y": 13
+  },
+  "head/demon_mask": {
+   "file": "wardrobe/head__demon_mask.png",
+   "x": 173,
+   "y": 43
+  },
+  "head/headband": {
+   "file": "wardrobe/head__headband.png",
+   "x": 111,
+   "y": 41
+  },
+  "head/lotus_crown": {
+   "file": "wardrobe/head__lotus_crown.png",
+   "x": 149,
+   "y": 5
+  },
+  "head/weimao": {
+   "file": "wardrobe/head__weimao.png",
+   "x": 100,
+   "y": 12
+  },
+  "sleeve_back/cloud_daoist": {
+   "file": "wardrobe/sleeve_back__cloud_daoist.png",
+   "x": 97,
+   "y": 125
+  },
+  "sleeve_back/disciple": {
+   "file": "wardrobe/sleeve_back__disciple.png",
+   "x": 97,
+   "y": 125
+  },
+  "sleeve_back/inner": {
+   "file": "wardrobe/sleeve_back__inner.png",
+   "x": 97,
+   "y": 125
+  },
+  "sleeve_back/mirror": {
+   "file": "wardrobe/sleeve_back__mirror.png",
+   "x": 119,
+   "y": 125
+  },
+  "sleeve_back/mo": {
+   "file": "wardrobe/sleeve_back__mo.png",
+   "x": 97,
+   "y": 125
+  },
+  "sleeve_back/outer": {
+   "file": "wardrobe/sleeve_back__outer.png",
+   "x": 119,
+   "y": 125
+  },
+  "sleeve_back/wanderer": {
+   "file": "wardrobe/sleeve_back__wanderer.png",
+   "x": 118,
+   "y": 125
+  },
+  "sleeve_back/xian": {
+   "file": "wardrobe/sleeve_back__xian.png",
+   "x": 97,
+   "y": 125
+  },
+  "sleeve_front/cloud_daoist": {
+   "file": "wardrobe/sleeve_front__cloud_daoist.png",
+   "x": 196,
+   "y": 120
+  },
+  "sleeve_front/disciple": {
+   "file": "wardrobe/sleeve_front__disciple.png",
+   "x": 196,
+   "y": 120
+  },
+  "sleeve_front/inner": {
+   "file": "wardrobe/sleeve_front__inner.png",
+   "x": 196,
+   "y": 120
+  },
+  "sleeve_front/mirror": {
+   "file": "wardrobe/sleeve_front__mirror.png",
+   "x": 198,
+   "y": 120
+  },
+  "sleeve_front/mo": {
+   "file": "wardrobe/sleeve_front__mo.png",
+   "x": 196,
+   "y": 120
+  },
+  "sleeve_front/outer": {
+   "file": "wardrobe/sleeve_front__outer.png",
+   "x": 198,
+   "y": 120
+  },
+  "sleeve_front/wanderer": {
+   "file": "wardrobe/sleeve_front__wanderer.png",
+   "x": 198,
+   "y": 120
+  },
+  "sleeve_front/xian": {
+   "file": "wardrobe/sleeve_front__xian.png",
+   "x": 196,
+   "y": 120
+  },
+  "waist/fox_sachet": {
+   "file": "wardrobe/waist__fox_sachet.png",
+   "x": 172,
+   "y": 225
+  },
+  "waist/gourd": {
+   "file": "wardrobe/waist__gourd.png",
+   "x": 129,
+   "y": 221
+  },
+  "waist/jade_pendant": {
+   "file": "wardrobe/waist__jade_pendant.png",
+   "x": 179,
+   "y": 221
+  },
+  "waist/talismans": {
+   "file": "wardrobe/waist__talismans.png",
+   "x": 144,
+   "y": 224
+  }
+ },
+ "size": [
+  360,
+  480
+ ]
+}

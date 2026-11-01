@@ -10,7 +10,7 @@
 
 ## 角色立繪（sprites/）
 - 單張 PNG、透明背景、全身、面朝右（遊戲需要時再水平翻轉）。
-- 畫布高 480px，角色腳底貼齊畫布底邊。遊戲會依 assets.json 的 `height` 縮放（一般 120、boss 150）。
+- 畫布高 480px，角色腳底貼齊畫布底邊。遊戲會依 assets.json 的 `height` 縮放：一般 96、boss 120、玩家 88（2026-10-31 依實機畫面從 120／150 調小，配合玩家碰撞框 28×52 與平台間距）。
 - 同一個模板可以畫多張變體（服色、髮型、年紀不同），檔名用 `模板 id_a.png`、`模板 id_b.png`，再加進 assets.json 的 `files`。導演生成的 NPC 會依 memory_key 固定分到其中一張。
 - 敵對角色在剪影上就要看得出威脅：前傾、持械、外輪廓尖銳。
 
@@ -19,6 +19,38 @@
 - 左右兩端要能和其他區塊接起來：邊緣 40px 以內不要放主體，天空和遠山的色階要能自然過渡。
 - 遠景、中景、近景分開構圖，近景留出角色活動的空間，不要擋住地平線附近。
 - 心魔幻境（illusion 標籤）用暗紅與墨黑，構圖可以傾斜、帶有錯位感。
+
+## 平台與機關（props/）
+- 平台、地面、繩、藤、梯、斷崖、薄牆都是會重複鋪開的貼圖：橫的左右要無縫，直的上下要無縫。
+- 平台不用貼圖，遊戲直接畫成一筆兩端收尖的墨線，底下一抹往下淡出的淡墨（main.gd `_ink_ledge`），和古畫底圖同一個語彙；要身法才上得去的平台，墨線上再加一道淡青。`prop.platform` 圖檔目前沒有用到。
+- 薄牆（土遁穿得過）用夯土色，和斷崖的黑岩分得開。
+
+## 程式畫的版本
+- `python tools/paint_art.py` 用筆觸程式（`tools/inkpaint/`）畫出清單上每個素材的水墨版本，同一個 id 每次畫出同一張。
+- 這是先讓遊戲有統一畫風的底稿，不是定稿。手繪或其他來源的圖直接覆蓋同名檔即可；覆蓋之後不要再跑 `--all`。
+- 新增角色模板：在 `tools/inkpaint/sprites.py` 加一組 spec（服色、髮型、帽子、兵器、姿勢），變體就是多加幾組，`content/assets.json` 的 `files` 依序用 `_a`、`_b`…。新增區塊：在 `tools/inkpaint/chunks.py` 加一個構圖函式。
+- 區塊圖保留原本的左右邊緣，不再漸變到統一的紙色（暗的區塊旁邊會變成一條白帶）。接縫由視差背景（`scripts/parallax_painting.gd`）在交界處交叉淡化處理。
+- 地面（prop.ground）是偏亮的中性淡墨土，遊戲依每個區塊畫面底部的顏色染色，接縫處漸變，所以換了區塊圖地面會自動跟著變色。
+- 戶外區塊的底圖是古畫：克里夫蘭美術館開放典藏的 CC0 山水手卷（`tools/inkpaint/paintings.py` 管每塊取哪一卷哪一段，裁好的圖在 `tools/inkpaint/paintings/`），程式只在上面加遊戲要的東西（牌坊、殿宇、石碑、木人、橋、心魔陣紋）並調色。洞窟類區塊還是全程式畫。出處列在 `art/CREDITS.md`。
+- 要換古畫：只能用明確標 CC0／公有領域的來源，改 `SOURCES` 後跑 `python tools/inkpaint/paintings.py fetch <區塊>`，再補 CREDITS。
+- 題字用霞鶩文楷 TC 的子集（`tools/inkpaint/fonts/`，OFL 授權）；新名稱有子集沒有的字時照該資料夾的 README 重做子集。
+
+## 介面與動作（程式做，不用圖檔）
+- 介面是水墨卷軸風：對話框是紙卷加軸頭、朱砂名牌、說話者頭像（從立繪上方自動裁頭肩，所以立繪的頭要在不透明範圍頂端；說話者還沒出場時照內容包角色表找同一張立繪）；狀態列、紀錄是墨底半透明。樣式在 `scripts/ink_ui.gd`。
+- 角色只有一張立繪，動作用程式做：呼吸、走路起伏前傾、跳起拉長、落地壓扁揚塵、出劍墨痕、受擊閃紅後仰、倒下墨散（`scripts/player.gd`、`scripts/actor_view.gd`、`scripts/ink_fx.gd`）。
+- 依地圖標籤飄落葉、花瓣、洞裡浮塵、幻境餘燼；時辰改變整體色調（晨、午、暮、夜）；畫面四周一圈淡墨暗角。
+- 角色立繪後面有一圈淡紙色光暈（`scripts/ink_halo.gdshader`），背景整體壓暗約 13%（main.gd 的 `BACKDROP_DIM`）：轉灰階角色仍要一眼看得到。全畫面乘法疊一層宣紙纖維（`art/ui/paper_grain.png`，`python tools/paper_grain.py` 產生），暗角用偏暖的墨色。
+- 出劍寫一個「斬」字：照筆順一筆筆寫出，命中時從後寫的筆畫開始碎成墨點散掉（`scripts/ink_glyph.gd`、`scripts/ink_glyph.gdshader`）。字圖 `art/fx/zhan.png` 由 `python tools/glyph_fx.py <霞鶩文楷 TTF>` 產生：R 是字形、G 是每一點被寫到的時間、B 是第幾筆；筆順是在 `GLYPHS` 裡手標的折線，要加別的字（如「破」「封」）照同樣格式加。
+- 事件包裝：事件開始時卷軸展開、朱印蓋下（心魔／奇遇／機緣／事件），結束時收一張小卷，印文了／敗／罷；這次事件的 NPC 頭上有一個小朱印。
+- 正邪色調：偏正世界略冷略清、偏邪略暖紅且暗角加深，幅度小到感覺得到、不太看得出來（`InkUI.karma_tint`）。突破時以角色為心染開一圈顏色：偏正青玉、偏邪朱砂、居中金。
+- 背景是多張獨立圖層疊起來，由遠到近捲得越來越快（不是一張畫）：天色 → 遠峰、遠山（`art/bg/ranges_*.png`，`python -m tools.inkpaint.far_ranges`）→ 丘陵 `hills_<地區>` → 水面 `water`（山村、林間）或雲海 `cloudsea`（宗門、黑風嶺）→ 古畫（戶外只留下半段的建築與坡腳）→ 近景山石松樹 `near_<地區>` → 山嵐 → 角色 → 前景草石與垂掛。地區圖層由 `python -m tools.inkpaint.layers` 產生（地區色在 `PALETTES`），越遠越淡越藍、越近越深越濃。
+  - 古畫上方空白的天是透明的（`python -m tools.inkpaint.skyline`，天色寫進 `content/sky.json`；`paint_art.py` 畫完區塊會自動重跑），遠山從那裡露出來。
+  - 古畫本身也分遠近（`scripts/parallax_painting.gd`）：畫頂只跟鏡頭走 6%、畫的下段走 24%，下段 38% 不拉斜（房子、牌坊不會歪）；越上面越淡、越偏天色（空氣透視）。
+  - 古畫依地區上色（青綠山水式：深墨 → 地區主色 → 紙色）：山腳青綠、宗門藍青、黑風嶺赭石、村落土黃；洞窟、幻境保持原樣。
+- 角色比例偏遊戲：頭放大 1.25 倍（`figures.py` 的 `HEAD_SCALE`，下巴不動往上長）；玩家與部分師兄姊身後有飄帶（`F.ribbon`），宗門服色偏青。
+- 角色（`scripts/ink_halo.gdshader`）：外圈一道墨色描邊、描邊外依身分上色的光暈（玩家青玉、敵人朱砂、其他人淡金），立繪彩度提高。
+- 景深（`scripts/scenery.gd`）：底圖上一條極慢的遠霧；山嵐在角色後面；近景草石在最下面；上方垂下半透明的柳枝（戶外）、殿柱（宗門）、鐘乳石（洞窟），比地面快，偶爾擋到角色。打鬥地圖（illusion、den）不放垂掛物。
+- 拍畫面對照：`xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/screenshot.gd -- /tmp/shots`。
 
 ## 交付
 - 檔名照 `content/assets.json` 的 `files`；放進 `art/` 以後重開 Godot 就會自動匯入。

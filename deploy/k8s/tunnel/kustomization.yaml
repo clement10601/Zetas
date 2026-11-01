@@ -1,0 +1,7 @@
+# 建議：導演＋Cloudflare 具名通道（和 Re:Fantasy 一樣走 Cloudflare tunnel）
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: zetas
+resources:
+  - ../base
+  - cloudflared.yaml

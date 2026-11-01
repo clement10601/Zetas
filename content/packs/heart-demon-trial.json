@@ -85,11 +85,11 @@
     {
       "id": "echo",
       "template": "npc.memory_echo",
-      "name": "白蘅",
+      "name": "舊日的你",
       "title": "回憶",
       "disposition": "neutral",
       "spawn_at": "pt.memory_square",
-      "persona": "玩家記憶中被辜負或錯過的人的幻影。若玩家曾護住白蘅，則改為玩家最常失手的一場戰鬥中的對手。"
+      "persona": "玩家記憶裡的幻影。預設是剛上青雲山時的玩家自己，問他這些年守住了初心沒有。即時改寫時可以換成玩家真正辜負或錯過的人（例如沒護住的白蘅、被他斬殺的對手）來說話，但只能引用世界狀態裡確實發生過的事；玩家沒經歷過的人與事一律不提。"
     }
   ],
   "dialogue": {
@@ -97,12 +97,11 @@
     "nodes": {
       "h1": {
         "speaker": "narrator",
-        "text": "靈氣逆流，眼前一黑。再睜眼時，你站在熟悉的青雲鎮，天上卻掛著血月。",
-        "next": "h2"
+        "text": "靈氣逆流，眼前一黑。再睜眼時，你站在山腳下熟悉的小鎮，天上卻掛著血月。遠處的廣場上，站著一個你記得的身影。"
       },
       "h2": {
         "speaker": "echo",
-        "text": "你還記得我嗎？那一天，你轉身走了。",
+        "text": "還記得剛上山那天嗎？你說，修仙是為了護住想護的人。……這些年，你護住了誰？",
         "live_rewrite": true,
         "next": "h3"
       },
@@ -155,6 +154,12 @@
     {
       "id": "s1",
       "objective": "走到記憶中的廣場",
+      "on_enter": [
+        {
+          "type": "start_dialogue",
+          "node": "h1"
+        }
+      ],
       "complete_when": [
         {
           "type": "reach_point",
@@ -164,7 +169,7 @@
       "on_complete": [
         {
           "type": "start_dialogue",
-          "node": "h1"
+          "node": "h2"
         }
       ]
     },

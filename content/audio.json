@@ -1,0 +1,235 @@
+{
+  "_comment": "配樂與音效清單。music：地區、tag.<地圖標籤>（依玩家所在區塊）或 event.<事件>（劇情、戰鬥、心魔） → 三層（base 環境、melody 琴笛、rhythm 鼓鑼）、bpm（短樂句對拍用）、stingers（事件短句與地區動機）；心魔幻境的旋律依所在地區挑 melody_by_region。sfx：音效名 → 版本（隨機輪播）。檔案缺了就靜音。換素材時檔名不變就不用改這裡。來源見 audio/CREDITS.md。 整首曲（不分層）用 file。",
+  "music": {
+    "region.qingyun_sect": {
+      "bpm": 62,
+      "volume_db": -3.0,
+      "layers": {
+        "base": "res://audio/music/qingyun_sect_base.ogg",
+        "melody": "res://audio/music/qingyun_sect_melody.ogg",
+        "rhythm": "res://audio/music/qingyun_sect_rhythm.ogg"
+      },
+      "stingers": {
+        "event_start": "res://audio/stingers/qingyun_sect_event_start.ogg",
+        "event_end": "res://audio/stingers/qingyun_sect_event_end.ogg",
+        "breakthrough": "res://audio/stingers/qingyun_sect_breakthrough.ogg",
+        "motif": "res://audio/stingers/qingyun_sect_motif.ogg"
+      }
+    },
+    "region.qingyun_foothills": {
+      "bpm": 84,
+      "volume_db": -4.0,
+      "layers": {
+        "base": "res://audio/music/qingyun_foothills_base.ogg",
+        "melody": "res://audio/music/qingyun_foothills_melody.ogg",
+        "rhythm": "res://audio/music/qingyun_foothills_rhythm.ogg"
+      },
+      "stingers": {
+        "event_start": "res://audio/stingers/qingyun_foothills_event_start.ogg",
+        "event_end": "res://audio/stingers/qingyun_foothills_event_end.ogg",
+        "breakthrough": "res://audio/stingers/qingyun_foothills_breakthrough.ogg",
+        "motif": "res://audio/stingers/qingyun_foothills_motif.ogg"
+      }
+    },
+    "region.heifeng_ridge": {
+      "bpm": 72,
+      "volume_db": -3.0,
+      "layers": {
+        "base": "res://audio/music/heifeng_ridge_base.ogg",
+        "melody": "res://audio/music/heifeng_ridge_melody.ogg",
+        "rhythm": "res://audio/music/heifeng_ridge_rhythm.ogg"
+      },
+      "stingers": {
+        "event_start": "res://audio/stingers/heifeng_ridge_event_start.ogg",
+        "event_end": "res://audio/stingers/heifeng_ridge_event_end.ogg",
+        "breakthrough": "res://audio/stingers/heifeng_ridge_breakthrough.ogg",
+        "motif": "res://audio/stingers/heifeng_ridge_motif.ogg"
+      }
+    },
+    "tag.illusion": {
+      "bpm": 54,
+      "volume_db": -3.0,
+      "layers": {
+        "base": "res://audio/music/illusion_base.ogg",
+        "rhythm": "res://audio/music/illusion_rhythm.ogg"
+      },
+      "melody_by_region": {
+        "region.qingyun_sect": "res://audio/music/illusion_melody_qingyun_sect.ogg",
+        "region.qingyun_foothills": "res://audio/music/illusion_melody_qingyun_foothills.ogg",
+        "region.heifeng_ridge": "res://audio/music/illusion_melody_heifeng_ridge.ogg"
+      },
+      "stingers": {
+        "event_start": "res://audio/stingers/illusion_event_start.ogg",
+        "event_end": "res://audio/stingers/illusion_event_end.ogg",
+        "breakthrough": "res://audio/stingers/illusion_breakthrough.ogg",
+        "motif": "res://audio/stingers/illusion_motif.ogg"
+      }
+    },
+    "tag.cave": {
+      "file": "res://audio/music/scene/map_cave.ogg",
+      "bpm": 58,
+      "volume_db": -5.0
+    },
+    "tag.village": {
+      "file": "res://audio/music/scene/map_village.ogg",
+      "bpm": 96,
+      "volume_db": -5.0
+    },
+    "tag.shrine": {
+      "file": "res://audio/music/scene/map_shrine.ogg",
+      "bpm": 54,
+      "volume_db": -5.0
+    },
+    "tag.den": {
+      "file": "res://audio/music/scene/map_den.ogg",
+      "bpm": 76,
+      "volume_db": -5.0
+    },
+    "tag.hall": {
+      "file": "res://audio/music/scene/map_hall.ogg",
+      "bpm": 60,
+      "volume_db": -5.0
+    },
+    "event.story": {
+      "file": "res://audio/music/scene/event_story.ogg",
+      "bpm": 80,
+      "volume_db": -5.0
+    },
+    "event.combat": {
+      "file": "res://audio/music/scene/event_combat.ogg",
+      "bpm": 132,
+      "volume_db": -5.0
+    },
+    "event.heart_demon": {
+      "file": "res://audio/music/scene/event_heart_demon.ogg",
+      "bpm": 100,
+      "volume_db": -5.0
+    }
+  },
+  "stingers": {
+    "heart_demon": "res://audio/stingers/heart_demon.ogg"
+  },
+  "sfx": {
+    "jump": {
+      "files": [
+        "res://audio/sfx/jump_1.ogg",
+        "res://audio/sfx/jump_2.ogg"
+      ],
+      "volume_db": -14.0
+    },
+    "double_jump": {
+      "files": [
+        "res://audio/sfx/double_jump_1.ogg",
+        "res://audio/sfx/double_jump_2.ogg"
+      ],
+      "volume_db": -11.0
+    },
+    "wall_jump": {
+      "files": [
+        "res://audio/sfx/wall_jump_1.ogg",
+        "res://audio/sfx/wall_jump_2.ogg"
+      ],
+      "volume_db": -10.0
+    },
+    "flight": {
+      "files": [
+        "res://audio/sfx/flight_1.ogg",
+        "res://audio/sfx/flight_2.ogg"
+      ],
+      "volume_db": -9.0
+    },
+    "land": {
+      "files": [
+        "res://audio/sfx/land_1.ogg",
+        "res://audio/sfx/land_2.ogg"
+      ],
+      "volume_db": -16.0
+    },
+    "attack": {
+      "files": [
+        "res://audio/sfx/attack_1.ogg",
+        "res://audio/sfx/attack_2.ogg",
+        "res://audio/sfx/attack_3.ogg"
+      ],
+      "volume_db": -8.0
+    },
+    "hit": {
+      "files": [
+        "res://audio/sfx/hit_1.ogg",
+        "res://audio/sfx/hit_2.ogg",
+        "res://audio/sfx/hit_3.ogg"
+      ],
+      "volume_db": -6.0
+    },
+    "hurt": {
+      "files": [
+        "res://audio/sfx/hurt_1.ogg",
+        "res://audio/sfx/hurt_2.ogg"
+      ],
+      "volume_db": -6.0
+    },
+    "dash": {
+      "files": [
+        "res://audio/sfx/dash_1.ogg",
+        "res://audio/sfx/dash_2.ogg"
+      ],
+      "volume_db": -10.0
+    },
+    "enemy_windup": {
+      "files": [
+        "res://audio/sfx/enemy_windup_1.ogg"
+      ],
+      "volume_db": -8.0
+    },
+    "defeat": {
+      "files": [
+        "res://audio/sfx/defeat_1.ogg"
+      ],
+      "volume_db": -6.0
+    },
+    "event_start": {
+      "files": [
+        "res://audio/sfx/event_start_1.ogg"
+      ],
+      "volume_db": -5.0
+    },
+    "event_end": {
+      "files": [
+        "res://audio/sfx/event_end_1.ogg"
+      ],
+      "volume_db": -6.0
+    },
+    "reward": {
+      "files": [
+        "res://audio/sfx/reward_1.ogg",
+        "res://audio/sfx/reward_2.ogg"
+      ],
+      "volume_db": -7.0
+    },
+    "breakthrough": {
+      "files": [
+        "res://audio/sfx/breakthrough_1.ogg"
+      ],
+      "volume_db": -3.0
+    },
+    "meditate": {
+      "files": [
+        "res://audio/sfx/meditate_1.ogg"
+      ],
+      "volume_db": -8.0
+    },
+    "travel": {
+      "files": [
+        "res://audio/sfx/travel_1.ogg"
+      ],
+      "volume_db": -7.0
+    },
+    "ui_tick": {
+      "files": [
+        "res://audio/sfx/ui_tick_1.ogg",
+        "res://audio/sfx/ui_tick_2.ogg"
+      ],
+      "volume_db": -16.0
+    }
+  }
+}

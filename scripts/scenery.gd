@@ -1,0 +1,341 @@
+## 地圖的景深層：背景畫後面不動，前面再疊兩層視差。
+## - 山嵐：淡淡的霧帶，比地面慢一點、自己緩緩飄，在畫和角色之間。
+## - 近景：畫面最下方的墨色草葉與石塊，比地面快，蓋在角色前面但不擋到腳。
+## - 遠霧：一條極慢的水平霧帶，壓在底圖上，遠景退後一點（空氣透視）。
+## - 垂掛：從畫面上緣垂下的柳枝／殿柱／鐘乳石，半透明、比地面快，偶爾擋到角色（Hollow Knight 式前景）。
+##   打鬥地圖（幻境、獸穴）不放，免得擋視線。
+## 全部程式畫，不需要素材；顏色依地圖標籤換（洞窟、心魔幻境）。
+extends RefCounted
+
+const SKY_Z := -13
+const RANGES_Z := -12
+const HILLS_Z := -11            # 丘陵、水面／雲海：在遠山前、古畫（-10）後
+const NEAR_Z := -9              # 近景山石：古畫前、角色後
+const Painting = preload("res://scripts/parallax_painting.gd")
+const HAZE_Z := -9
+const MIST_Z := -8              # 底圖 -10、接縫霧 -9，山嵐在其上、平台與角色之下
+const FRONT_Z := 10
+const TILE := 1600.0
+
+
+static func mist_color(tags: Array) -> Color:
+	if tags.has("illusion"):
+		return Color(0.75, 0.32, 0.3, 0.24)
+	if tags.has("cave"):
+		return Color(0.7, 0.74, 0.78, 0.18)
+	return Color(0.97, 0.96, 0.92, 0.38)
+
+
+## 古畫後面：一條依區塊漸變的天色，上面兩層捲得很慢的遠山（art/bg/ranges_*.png）。
+## 只在古畫的天（透明處）露出來，洞窟、幻境不放。
+static func add_sky(level: Node, floor_y: float, spans: Array) -> void:
+	if spans.is_empty():
+		return
+	var total: float = spans[-1]["x"] + spans[-1]["width"]
+	var px := maxi(2, int(total / 16.0))
+	var img := Image.create(px, 1, false, Image.FORMAT_RGBA8)
+	for i in px:
+		var x := (i + 0.5) / px * total
+		var c: Color = spans[0]["color"]
+		for k in spans.size():
+			var s: Dictionary = spans[k]
+			if x >= s["x"]:
+				c = s["color"]
+				# 接縫兩邊 160px 漸變
+				if k + 1 < spans.size():
+					var edge: float = s["x"] + s["width"]
+					var t := clampf((x - (edge - 160.0)) / 320.0, 0.0, 1.0)
+					c = c.lerp(spans[k + 1]["color"], t * t * (3.0 - 2.0 * t))
+		img.set_pixel(i, 0, c)
+	var sky := TextureRect.new()
+	sky.name = "Sky"
+	sky.texture = ImageTexture.create_from_image(img)
+	sky.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sky.position = Vector2(-800, floor_y - 1400)
+	sky.size = Vector2(total + 1600, 1400)
+	sky.z_index = SKY_Z
+	level.add_child(sky)
+	var outdoor := spans.any(func(s): return not (s.get("tags", []).has("cave") or s.get("tags", []).has("illusion")))
+	if not outdoor:
+		return
+	# 遠山：最遠的幾乎不動、偏藍灰而淡；近一層稍快、濃一點。山腳沒入雲氣。
+	# 貼圖裡山脊平均高度：遠層 230、近層 320（tools/inkpaint/far_ranges.py）
+	for spec in [["ranges_far", 0.03, 0.5, floor_y - 540.0 - 230.0, Color(0.7, 0.76, 0.84)],
+			["ranges_mid", 0.09, 0.7, floor_y - 480.0 - 320.0, Color(0.55, 0.6, 0.62)]]:
+		var tex: Texture2D = load("res://art/bg/%s.png" % spec[0])
+		if tex == null:
+			continue
+		var layer := Parallax2D.new()
+		layer.name = "Ranges_" + spec[0].trim_prefix("ranges_")
+		layer.z_index = RANGES_Z
+		layer.scroll_scale = Vector2(spec[1], 1.0)
+		layer.repeat_size = Vector2(tex.get_width(), 0)
+		layer.repeat_times = 3
+		var sprite := Sprite2D.new()
+		sprite.texture = tex
+		sprite.centered = false
+		sprite.position = Vector2(0, spec[3])
+		sprite.modulate = Color(spec[4], spec[2])
+		layer.add_child(sprite)
+		level.add_child(layer)
+	var first_outdoor: Dictionary = spans.filter(func(s): return not (s.get("tags", []).has("cave") or s.get("tags", []).has("illusion")))[0]
+	add_depth_layers(level, floor_y, first_outdoor.get("tags", []), first_outdoor["color"])
+
+
+## 遠山和古畫之間、古畫和角色之間的景深圖層（tools/inkpaint/layers.py 畫的，左右無縫重複）。
+## 由遠到近、捲動越來越快：丘陵 0.2 → 水面或雲海 0.34 →（古畫約 0.6）→ 近景山石 0.82 →（地面 1）
+static func add_depth_layers(level: Node, floor_y: float, tags: Array, sky: Color) -> void:
+	var region := Painting.region_of(tags)
+	if region == "":
+		region = "forest"
+	# 宗門在山上看雲海，黑風嶺看雲海翻過山脊；山村、林間是山腳下一條河
+	var flow := "cloudsea" if region == "sect" or region == "mountain" else "water"
+	var water_tint := Color(sky.lerp(Color(0.62, 0.74, 0.8), 0.6), 0.8) if flow == "water" else Color(sky.lerp(Color.WHITE, 0.7), 0.9)
+	for spec in [
+			["Hills", "hills_" + region, 0.2, floor_y - 570.0, HILLS_Z, Color(1, 1, 1, 0.92), 0.0],
+			["Flow", flow, 0.34, floor_y - (330.0 if flow == "cloudsea" else 312.0), HILLS_Z, water_tint, -6.0],
+			# 宗門的古畫上有山門、殿宇：近景石壓低，只露出石頂，不擋建築
+			["Near", "near_" + region, 0.82, floor_y - (200.0 if region == "sect" else 318.0), NEAR_Z, Color(1, 1, 1, 0.94), 0.0]]:
+		var tex: Texture2D = load("res://art/bg/%s.png" % spec[1])
+		if tex == null:
+			continue
+		var layer := Parallax2D.new()
+		layer.name = spec[0]
+		layer.z_index = spec[4]
+		layer.scroll_scale = Vector2(spec[2], 1.0)
+		layer.repeat_size = Vector2(tex.get_width(), 0)
+		layer.repeat_times = 3
+		layer.autoscroll = Vector2(spec[6], 0)      # 水流、雲飄
+		var sprite := Sprite2D.new()
+		sprite.texture = tex
+		sprite.centered = false
+		sprite.position = Vector2(0, spec[3])
+		sprite.modulate = spec[5]
+		layer.add_child(sprite)
+		level.add_child(layer)
+
+
+static func add_layers(level: Node, floor_y: float, tags: Array, seed_value: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	level.add_child(_mist(floor_y, mist_color(tags), rng))
+	level.add_child(_front(floor_y, rng))
+	level.add_child(_haze(floor_y, mist_color(tags)))
+	var kind := hanging_kind(tags)
+	if kind != "":
+		level.add_child(_hanging(floor_y, kind, rng))
+
+
+## 垂掛前景的種類；空字串表示不放
+static func hanging_kind(tags: Array) -> String:
+	if tags.has("illusion") or tags.has("den"):
+		return ""
+	if tags.has("sect") or tags.has("hall"):
+		return "pillar"
+	if tags.has("cave"):
+		return "stalactite"
+	return "willow"
+
+
+static func _haze(floor_y: float, color: Color) -> Parallax2D:
+	var layer := Parallax2D.new()
+	layer.name = "Haze"
+	layer.z_index = HAZE_Z
+	layer.scroll_scale = Vector2(0.05, 1.0)
+	layer.repeat_size = Vector2(TILE, 0)
+	layer.repeat_times = 3
+	var g := GradientTexture2D.new()
+	g.fill_from = Vector2(0.5, 0.0)
+	g.fill_to = Vector2(0.5, 1.0)
+	g.width = 4
+	g.height = 64
+	g.gradient = Gradient.new()
+	g.gradient.set_color(0, Color(1, 1, 1, 0))
+	g.gradient.set_color(1, Color(1, 1, 1, 0))
+	g.gradient.add_point(0.55, Color(1, 1, 1, 1))
+	var band := Sprite2D.new()
+	band.texture = g
+	band.centered = false
+	band.modulate = Color(color, color.a * 0.45)
+	band.position = Vector2(0, floor_y - 420)
+	band.scale = Vector2(TILE / 4.0, 340.0 / 64.0)
+	layer.add_child(band)
+	return layer
+
+
+static func _hanging(floor_y: float, kind: String, rng: RandomNumberGenerator) -> Parallax2D:
+	var layer := Parallax2D.new()
+	layer.name = "Hanging"
+	layer.z_index = FRONT_Z
+	layer.scroll_scale = Vector2(1.25, 1.0)
+	layer.repeat_size = Vector2(TILE, 0)
+	layer.repeat_times = 3
+	# 整層一起淡，重疊處不會更黑；柱子整根擋住，再淡一些
+	layer.modulate = Color(1, 1, 1, 0.38 if kind == "pillar" else 0.55)
+	var ink := Color(0.07, 0.065, 0.06, 1.0)
+	var top := floor_y - 700.0      # 比鏡頭上緣（floor_y - 640）再高一點
+	var x := rng.randf_range(200, 500)
+	while x < TILE - 150:
+		match kind:
+			"pillar":
+				layer.add_child(_pillar(Vector2(x, top), floor_y, rng, ink))
+			"stalactite":
+				layer.add_child(_stalactites(Vector2(x, top), rng, ink))
+			_:
+				layer.add_child(_willow(Vector2(x, top), rng, ink))
+		x += rng.randf_range(900, 1300) if kind == "pillar" else rng.randf_range(650, 1000)
+	return layer
+
+
+## 柳枝：幾條細長的弧線垂下來，末端點幾片葉
+static func _willow(at: Vector2, rng: RandomNumberGenerator, ink: Color) -> Node2D:
+	var node := Node2D.new()
+	node.position = at
+	for i in rng.randi_range(4, 7):
+		var length := rng.randf_range(220, 360)
+		var sway := rng.randf_range(-40, 40)
+		var line := Line2D.new()
+		line.width = rng.randf_range(2.5, 4.0)
+		line.default_color = ink
+		line.width_curve = Curve.new()
+		line.width_curve.add_point(Vector2(0, 1))
+		line.width_curve.add_point(Vector2(1, 0.3))
+		var x0 := rng.randf_range(-70, 70)
+		for k in 9:
+			var t := k / 8.0
+			line.add_point(Vector2(x0 + sway * t * t, length * t))
+		node.add_child(line)
+		for k in rng.randi_range(5, 9):
+			var t := rng.randf_range(0.3, 1.0)
+			var leaf := Polygon2D.new()
+			var p := Vector2(x0 + sway * t * t, length * t)
+			var side := -1.0 if k % 2 == 0 else 1.0
+			leaf.polygon = PackedVector2Array([Vector2.ZERO, Vector2(side * 5, 9), Vector2(side * 2, 22), Vector2(-side * 2, 10)])
+			leaf.position = p
+			leaf.rotation = side * 0.35
+			leaf.color = ink
+			node.add_child(leaf)
+	return node
+
+
+## 殿柱：一根直到地面的柱子，上頭一截斗栱，左右邊緣筆觸略深
+static func _pillar(at: Vector2, floor_y: float, rng: RandomNumberGenerator, ink: Color) -> Node2D:
+	var node := Node2D.new()
+	node.position = at
+	var w := rng.randf_range(30, 40)
+	var h := floor_y + 140.0 - at.y
+	var body := Polygon2D.new()
+	body.polygon = PackedVector2Array([Vector2(-w / 2, 0), Vector2(w / 2, 0), Vector2(w / 2 + 3, h), Vector2(-w / 2 - 3, h)])
+	body.color = ink
+	node.add_child(body)
+	var cap := Polygon2D.new()
+	cap.polygon = PackedVector2Array([Vector2(-w * 1.6, 70), Vector2(w * 1.6, 70), Vector2(w, 100), Vector2(-w, 100)])
+	cap.color = ink
+	node.add_child(cap)
+	return node
+
+
+## 鐘乳石：一排長短不一的尖錐
+static func _stalactites(at: Vector2, rng: RandomNumberGenerator, ink: Color) -> Node2D:
+	var node := Node2D.new()
+	node.position = at
+	var x := -90.0
+	while x < 90.0:
+		var w := rng.randf_range(16, 34)
+		var length := rng.randf_range(110, 260)
+		var cone := Polygon2D.new()
+		cone.polygon = PackedVector2Array([Vector2(x, 0), Vector2(x + w, 0), Vector2(x + w * 0.55, length), Vector2(x + w * 0.4, length - 4)])
+		cone.color = ink
+		node.add_child(cone)
+		x += w + rng.randf_range(4, 22)
+	return node
+
+
+static func _mist(floor_y: float, color: Color, rng: RandomNumberGenerator) -> Parallax2D:
+	var layer := Parallax2D.new()
+	layer.name = "Mist"
+	layer.z_index = MIST_Z
+	layer.scroll_scale = Vector2(0.85, 1.0)
+	layer.repeat_size = Vector2(TILE, 0)
+	layer.repeat_times = 3
+	layer.autoscroll = Vector2(-9.0, 0)
+	var g := GradientTexture2D.new()
+	g.fill = GradientTexture2D.FILL_RADIAL
+	g.fill_from = Vector2(0.5, 0.5)
+	g.fill_to = Vector2(1.0, 0.5)
+	g.width = 128
+	g.height = 64
+	g.gradient = Gradient.new()
+	g.gradient.set_color(0, Color(1, 1, 1, 1))
+	g.gradient.set_color(1, Color(1, 1, 1, 0))
+	for i in 9:
+		var s := Sprite2D.new()
+		s.texture = g
+		s.modulate = color
+		s.modulate.a *= rng.randf_range(0.6, 1.0)
+		s.position = Vector2(i * TILE / 9 + rng.randf_range(-60, 60), floor_y - rng.randf_range(20, 360))
+		s.scale = Vector2(rng.randf_range(4.0, 7.0), rng.randf_range(0.9, 1.6))
+		layer.add_child(s)
+	return layer
+
+
+static func _front(floor_y: float, rng: RandomNumberGenerator) -> Parallax2D:
+	var layer := Parallax2D.new()
+	layer.name = "Foreground"
+	layer.z_index = FRONT_Z
+	layer.scroll_scale = Vector2(1.3, 1.0)
+	layer.repeat_size = Vector2(TILE, 0)
+	layer.repeat_times = 3
+	var ink := Color(0.07, 0.065, 0.06, 0.9)
+	var base := floor_y + 120.0     # 鏡頭下緣是 floor_y + 110（main.gd CAMERA_BOTTOM）
+	var x := rng.randf_range(40, 160)
+	while x < TILE - 120:
+		if rng.randf() < 0.35:
+			layer.add_child(_stone(Vector2(x, base), rng.randf_range(60, 120), rng, ink))
+		else:
+			layer.add_child(_tuft(Vector2(x, base), rng.randf_range(100, 170), rng, ink))
+		x += rng.randf_range(220, 520)
+	return layer
+
+
+## 一叢草：幾片彎的葉子，筆觸由粗到細。
+static func _tuft(at: Vector2, height: float, rng: RandomNumberGenerator, ink: Color) -> Node2D:
+	var tuft := Node2D.new()
+	tuft.position = at
+	for i in rng.randi_range(9, 15):
+		var lean := rng.randf_range(-0.9, 0.9)
+		var h := height * rng.randf_range(0.55, 1.0)
+		var w := rng.randf_range(7, 13)
+		var pts := PackedVector2Array()
+		var steps := 6
+		for k in steps + 1:
+			var t := float(k) / steps
+			var cx := lean * h * 0.6 * t * t + rng.randf_range(-1, 1)
+			pts.append(Vector2(cx - w * (1.0 - t) / 2, -h * t))
+		for k in range(steps, -1, -1):
+			var t := float(k) / steps
+			var cx := lean * h * 0.6 * t * t
+			pts.append(Vector2(cx + w * (1.0 - t) / 2, -h * t))
+		var blade := Polygon2D.new()
+		blade.polygon = pts
+		blade.color = ink
+		blade.position.x = rng.randf_range(-22, 22)
+		tuft.add_child(blade)
+	return tuft
+
+
+## 一塊石頭：不規則的墨塊，上緣淡一點。
+static func _stone(at: Vector2, width: float, rng: RandomNumberGenerator, ink: Color) -> Node2D:
+	var stone := Polygon2D.new()
+	stone.position = at
+	var pts := PackedVector2Array()
+	var n := 9
+	var h := width * rng.randf_range(0.45, 0.7)
+	for k in n + 1:
+		var a := PI * float(k) / n
+		var r := rng.randf_range(0.85, 1.1)
+		pts.append(Vector2(-cos(a) * width / 2 * r, -sin(a) * h * r))
+	stone.polygon = pts
+	stone.color = ink
+	return stone

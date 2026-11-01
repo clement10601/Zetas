@@ -1,0 +1,98 @@
+{
+  "_comment": "玩家外觀：捏臉（臉型、眼、眉、髮型、髮色）與衣櫃（衣著、頭飾、背飾、腰飾）。長相在 tools/inkpaint/wardrobe.py，分層圖在 art/wardrobe/。unlock 是引擎條件（全部成立才解鎖，空的＝一開始就有）；source 是還沒解鎖時給玩家看的取得方式。外觀不加任何數值。設計見 docs/design/attire.md。",
+  "slots": [
+    {"id": "outfit", "name": "衣著", "group": "衣櫃"},
+    {"id": "head", "name": "頭飾", "group": "衣櫃", "optional": true},
+    {"id": "back", "name": "背飾", "group": "衣櫃", "optional": true},
+    {"id": "waist", "name": "腰飾", "group": "衣櫃", "optional": true},
+    {"id": "hair", "name": "髮型", "group": "容貌"},
+    {"id": "hair_color", "name": "髮色", "group": "容貌"},
+    {"id": "face", "name": "臉型", "group": "容貌"},
+    {"id": "eyes", "name": "眼型", "group": "容貌"},
+    {"id": "brows", "name": "眉型", "group": "容貌"}
+  ],
+  "default": {
+    "outfit": "disciple", "head": "", "back": "ribbon_jade", "waist": "",
+    "hair": "long_bun", "hair_color": "ink", "face": "oval", "eyes": "almond", "brows": "straight"
+  },
+  "options": {
+    "outfit": [
+      {"id": "disciple", "name": "月白弟子袍", "line": "青雲", "desc": "青雲宗弟子的常服，月白袍、青色交領與腰帶。"},
+      {"id": "outer", "name": "外門短褐", "line": "青雲", "desc": "外門弟子幹活穿的短衣長褲，袖口收緊，跑山路方便。"},
+      {"id": "wanderer", "name": "散修布衣", "line": "散修", "desc": "褪色的赭布長衫，走過很多地方的人都這樣穿。"},
+      {"id": "inner", "name": "內門青衫", "line": "青雲", "desc": "築基才發的內門制服，天青衫子、白色鑲邊。",
+        "unlock": [{"type": "tier_at_least", "tier": "築基"}], "source": "突破築基，宗門發給"},
+      {"id": "cloud_daoist", "name": "雲紋道袍", "line": "青雲", "desc": "金丹真人的深青道袍，袍角繡金色捲雲。",
+        "unlock": [{"type": "tier_at_least", "tier": "金丹"}], "source": "結成金丹，師父賜下"},
+      {"id": "mirror", "name": "照影墨衣", "line": "心魔", "desc": "照著心魔的樣子縫的墨衣。看過自己最暗的一面，就不怕穿上它。",
+        "unlock": [{"type": "flag", "key": "zhuji_heart_demon_cleared", "equals": true}], "source": "通過築基心魔"},
+      {"id": "xian", "name": "流雲仙裳", "line": "仙", "desc": "月白仙裳，下襬一圈天青，走起來像踩著雲。",
+        "unlock": [{"type": "has_item", "item": "流雲仙裳"}], "source": "仙緣機緣事件"},
+      {"id": "mo", "name": "墨焰魔袍", "line": "魔", "desc": "墨黑長袍，下襬朱紅火舌往上燒。",
+        "unlock": [{"type": "has_item", "item": "墨焰魔袍"}], "source": "魔緣機緣事件"}
+    ],
+    "head": [
+      {"id": "", "name": "不戴"},
+      {"id": "headband", "name": "青雲抹額", "line": "青雲", "desc": "青色抹額，練劍時綁著擋汗。"},
+      {"id": "weimao", "name": "帷帽", "line": "散修", "desc": "竹笠垂一圈薄紗，行走江湖不想被認出來時戴。"},
+      {"id": "crown", "name": "束髮銀冠", "line": "青雲", "desc": "內門弟子束髮用的小銀冠。",
+        "unlock": [{"type": "tier_at_least", "tier": "築基"}], "source": "突破築基"},
+      {"id": "lotus_crown", "name": "蓮華冠", "line": "仙", "desc": "白玉蓮花冠，花瓣描金，冠心一點青光。",
+        "unlock": [{"type": "has_item", "item": "蓮華冠"}], "source": "仙緣機緣事件"},
+      {"id": "demon_mask", "name": "半面魔紋", "line": "魔", "desc": "遮住半張臉的墨色面具，眼角朱紋往上燒。",
+        "unlock": [{"type": "has_item", "item": "半面魔紋"}], "source": "魔緣機緣事件"}
+    ],
+    "back": [
+      {"id": "", "name": "不戴"},
+      {"id": "ribbon_jade", "name": "青玉飄帶", "line": "青雲", "desc": "肩後一條青綢，御風時拉得很長。"},
+      {"id": "ribbon_cloud", "name": "流雲披帛", "line": "仙", "desc": "兩條月白長綢，描淡金邊，比飄帶更長更飄。",
+        "unlock": [{"type": "has_item", "item": "流雲披帛"}], "source": "仙緣機緣事件"},
+      {"id": "ink_cape", "name": "墨焰披風", "line": "魔", "desc": "肩後一大片墨色披風，下緣燒成火舌。",
+        "unlock": [{"type": "has_item", "item": "墨焰披風"}], "source": "魔緣機緣事件"}
+    ],
+    "waist": [
+      {"id": "", "name": "不戴"},
+      {"id": "gourd", "name": "酒葫蘆", "line": "散修", "desc": "裝酒也裝丹藥的小葫蘆。"},
+      {"id": "jade_pendant", "name": "白玉佩", "line": "青雲", "desc": "一枚圓玉，垂著青色流蘇。"},
+      {"id": "talismans", "name": "符籙", "line": "青雲", "desc": "腰間掛兩張黃符，畫著朱砂符文。",
+        "unlock": [{"type": "tier_at_least", "tier": "築基"}], "source": "突破築基"},
+      {"id": "fox_sachet", "name": "狐毛香囊", "line": "因果", "desc": "白狐報恩時留下的香囊，白毛滾邊。",
+        "unlock": [{"type": "flag", "key": "spared_white_fox", "equals": true}], "source": "放走受傷的白狐"}
+    ],
+    "hair": [
+      {"id": "long_bun", "name": "垂髻長髮"},
+      {"id": "bun", "name": "單髻"},
+      {"id": "topknot", "name": "束髮"},
+      {"id": "ponytail", "name": "馬尾"},
+      {"id": "high_tail", "name": "高馬尾"},
+      {"id": "long", "name": "披髮"},
+      {"id": "twin", "name": "雙丫髻"},
+      {"id": "wild", "name": "散亂長髮"}
+    ],
+    "hair_color": [
+      {"id": "ink", "name": "墨黑"},
+      {"id": "chestnut", "name": "栗褐"},
+      {"id": "indigo", "name": "青黛"},
+      {"id": "frost", "name": "霜白", "desc": "修為到了，頭髮反而白了。",
+        "unlock": [{"type": "tier_at_least", "tier": "元嬰"}], "source": "修到元嬰"},
+      {"id": "crimson", "name": "赤霞", "desc": "殺伐重的人，髮梢會染上一點血色。",
+        "unlock": [{"type": "karma", "axis": "仁殺", "op": "<=", "value": -30}], "source": "心性偏向殺伐（仁殺 -30 以下）"}
+    ],
+    "face": [
+      {"id": "oval", "name": "鵝蛋臉"},
+      {"id": "slender", "name": "瓜子臉"},
+      {"id": "round", "name": "圓臉"},
+      {"id": "square", "name": "方臉"}
+    ],
+    "eyes": [
+      {"id": "almond", "name": "杏眼"},
+      {"id": "phoenix", "name": "鳳眼"},
+      {"id": "gentle", "name": "垂眼"}
+    ],
+    "brows": [
+      {"id": "straight", "name": "平眉"},
+      {"id": "sword", "name": "劍眉"},
+      {"id": "willow", "name": "柳葉眉"}
+    ]
+  }
+}
