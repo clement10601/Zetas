@@ -171,9 +171,7 @@ def ruined_shrine(cid, w, name):
     cv = base(cid, w, "forest")
     _mist(cv, 560, 50, (236, 232, 220), 0.55)
     S.dead_tree(cv, 140, 600, 260)
-    S.hall(cv, 560, 600, 280, 240, wall=(170, 160, 140), pillar=(110, 70, 50), roof_c=(60, 58, 52), text="山神")
-    cv.paint(cv.textured(cv.poly([(620, 380), (690, 362), (705, 400), (640, 414)], blur=2), 0.6), (200, 196, 180), 0.8)
-    cv.stroke([(620, 380), (660, 404), (692, 364)], 2, INK, 0.7, dry=0.6)
+    # 山神廟是場景物件（landmarks.py）
     for x in range(430, 700, 30):
         S.grass(cv, x, x + 20, 600, 0.6, INK, 0.7, 34)
     return finish(cv, name, "forest")
@@ -182,8 +180,7 @@ def ruined_shrine(cid, w, name):
 def mountain_village(cid, w, name):
     cv = base(cid, w, "forest")
     _mist(cv, 560, 50, (236, 232, 220), 0.55)
-    for cx, hw in [(240, 170), (520, 140), (850, 180)]:
-        S.house(cv, cx, 600, hw, hw * 0.9, lantern=cx == 520)
+    # 三間村屋是場景物件（landmarks.py）
     for x in range(640, 740, 14):
         cv.stroke([(x, 600), (x + 1, 570)], 3, (90, 70, 50), 0.9, smooth=0)
     cv.stroke([(636, 582), (744, 580)], 2.5, (90, 70, 50), 0.9)
@@ -193,13 +190,8 @@ def mountain_village(cid, w, name):
 
 
 def sect_gate(cid, w, name):
+    # 山門牌坊與石階是場景物件（landmarks.py），人能從柱間穿過；這裡只畫坡腳
     cv = base(cid, w, "sect")
-    _mist(cv, 580, 60, (234, 230, 214), 0.6)
-    for k in range(10):
-        y = 600 - k * 14
-        cv.paint(cv.rect(560 - 90 + k * 6, y - 14, 560 + 90 - k * 6, y, blur=0.5), (170, 168, 160), 0.9)
-        cv.stroke([(560 - 90 + k * 6, y - 14), (560 + 90 - k * 6, y - 14)], 1.5, INK, 0.5, smooth=0)
-    S.paifang(cv, 560, 600, 300, 340, "青雲")
     return finish(cv, name, "sect")
 
 
@@ -225,7 +217,7 @@ def sect_plaza(cid, w, name):
 def sect_hall(cid, w, name):
     cv = base(cid, w, "sect")
     _mist(cv, 590, 60, (234, 230, 214), 0.6)
-    S.hall(cv, w * 0.5, 600, 520, 420, roof_c=(56, 68, 80), text="傳功殿")
+    # 傳功殿是場景物件（landmarks.py）；殿前香爐留在底圖
     S.cauldron(cv, w * 0.5, 600, 28)
     return finish(cv, name, "sect")
 

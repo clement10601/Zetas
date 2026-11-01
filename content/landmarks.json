@@ -1,0 +1,62 @@
+{
+  "_comment": "地標場景物件（tools/inkpaint/landmarks.py 產生）：區塊內 x 是物件中心，platforms 的 dx 是平台左緣相對中心、h 是離地高",
+  "chunk.sect_gate": [
+    {
+      "id": "sect_gate.paifang",
+      "x": 560,
+      "back": "res://art/landmarks/sect_gate.paifang_back.png",
+      "platforms": [
+        {
+          "dx": -66,
+          "h": 270,
+          "w": 132
+        }
+      ],
+      "front": "res://art/landmarks/sect_gate.paifang_front.png"
+    }
+  ],
+  "chunk.sect_hall": [
+    {
+      "id": "sect_hall.hall",
+      "x": 450,
+      "back": "res://art/landmarks/sect_hall.hall_back.png",
+      "platforms": [
+        {
+          "dx": -135,
+          "h": 301,
+          "w": 270
+        }
+      ],
+      "front": "res://art/landmarks/sect_hall.hall_front.png"
+    }
+  ],
+  "chunk.ruined_shrine": [
+    {
+      "id": "ruined_shrine.hall",
+      "x": 500,
+      "back": "res://art/landmarks/ruined_shrine.hall_back.png",
+      "platforms": [],
+      "front": "res://art/landmarks/ruined_shrine.hall_front.png"
+    }
+  ],
+  "chunk.mountain_village": [
+    {
+      "id": "mountain_village.house_a",
+      "x": 240,
+      "back": "res://art/landmarks/mountain_village.house_a_back.png",
+      "platforms": []
+    },
+    {
+      "id": "mountain_village.house_b",
+      "x": 520,
+      "back": "res://art/landmarks/mountain_village.house_b_back.png",
+      "platforms": []
+    },
+    {
+      "id": "mountain_village.house_c",
+      "x": 850,
+      "back": "res://art/landmarks/mountain_village.house_c_back.png",
+      "platforms": []
+    }
+  ]
+}

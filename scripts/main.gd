@@ -115,6 +115,7 @@ var state
 var pool: Array = []
 var chunks: Dictionary = {}
 var sky_colors: Dictionary = {}     # 區塊圖透明的天後面要補的天色（content/sky.json）
+var landmarks: Dictionary = {}      # 山門、殿宇等場景物件（content/landmarks.json，tools/inkpaint/landmarks.py）
 var loot: Dictionary = {}
 var regions: Dictionary = {}
 var runner = null
@@ -340,6 +341,7 @@ func load_content() -> void:
 		pool += PackPool.for_save(PackPool.load_dir(generated_dir), SAVE_ID)
 	chunks = _read_json("res://content/chunks.json")
 	sky_colors = _read_json("res://content/sky.json")
+	landmarks = _read_json("res://content/landmarks.json")
 	loot = _read_json("res://content/loot.json")
 	art = AssetLibrary.from_file(assets_path)
 	regions = _read_json("res://content/regions.json")
@@ -416,6 +418,8 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 			points[p] = x + float(info["points"][p])
 		for plat in info.get("platforms", []):
 			_add_platform(x + float(plat["x"]), FLOOR_Y - float(plat["h"]), float(plat["w"]), plat.get("skill", ""))
+		for lm in landmarks.get(entry["chunk"], []):
+			_add_landmark(lm, x)
 		for c in info.get("caches", []):
 			if not found_caches().has(c["id"]):
 				_add_cache(c, x)
@@ -760,6 +764,34 @@ func _breakthrough_wash() -> void:
 
 ## 單向平台：從下面跳得上去，站在上面按 ↓＋跳 下來。邊緣一條墨線（art-direction.md）。
 ## skill 不是空的：要那個身法才上得去，邊緣用淡青色提示。
+## 場景物件（山門、殿宇、廟、村屋）：跟地面一起走，不是背景畫。
+## 後半（牆、屋頂、台基）在角色後面，柱子下段在角色前面——人走過門洞時被柱子擋住，像真的穿過去。
+## 屋簷可以站：平台照 landmarks.json。
+const LANDMARK_BACK_Z := -5
+const LANDMARK_FRONT_Z := 5
+
+
+func _add_landmark(lm: Dictionary, chunk_left: float) -> void:
+	var cx := chunk_left + float(lm["x"])
+	for part in ["back", "front"]:
+		if not lm.has(part):
+			continue
+		var tex: Texture2D = load(lm[part])
+		if tex == null:
+			continue
+		var sprite := Sprite2D.new()
+		sprite.name = "Landmark_%s_%s" % [lm["id"].replace(".", "_"), part]
+		sprite.texture = tex
+		sprite.centered = false
+		sprite.position = Vector2(cx - tex.get_width() / 2.0, FLOOR_Y - tex.get_height())
+		sprite.z_index = LANDMARK_BACK_Z if part == "back" else LANDMARK_FRONT_Z
+		sprite.modulate = BACKDROP_DIM
+		sprite.add_to_group("landmark")
+		level.add_child(sprite)
+	for plat in lm.get("platforms", []):
+		_add_platform(cx + float(plat["dx"]), FLOOR_Y - float(plat["h"]), float(plat["w"]))
+
+
 func _add_platform(left: float, top: float, width: float, skill := "") -> void:
 	var body := StaticBody2D.new()
 	body.collision_layer = Player.PLATFORM_LAYER

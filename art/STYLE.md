@@ -57,3 +57,4 @@
 - 缺哪些、哪些最常出場：`python tools/art_todo.py` 會產生 `art/TODO.md`。
 
 - 2026-11-01 起戶外區塊不再用古畫底圖（Kc：原底圖沒跟上設計）；古畫裁圖只剩幻境在用。
+- 地標是場景物件，不畫在底圖（2026-11-01，Kc：山門要能穿過）：`python -m tools.inkpaint.landmarks` 產生 `art/landmarks/<id>_{back,front}.png` 與 `content/landmarks.json`；back 在角色後、front（柱子下段）在角色前，屋簷平台寫在 json 的 platforms。新地標加在 `LANDMARKS`，並從 `chunks.py` 的區塊畫法拿掉。
