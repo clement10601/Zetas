@@ -47,6 +47,8 @@ const ENCOUNTER_HINT := "今日奇遇：發生在玩家目前所在地區的小�
 const ATTACK_RANGE := 90.0
 ## 敵人在這個距離內，配樂的鼓聲層進來
 const DANGER_RANGE := 700.0
+## 事件裡的敵人都離開後，戰鬥曲再多留幾秒才換回去
+const COMBAT_MUSIC_HOLD := 4.0
 ## 敵人走在地面上：玩家腳離地面超過這個高度就打不到、也不會被打到
 const MELEE_HEIGHT := 90.0
 const PROMPT_HEIGHT := 110.0       # 互動提示在角色腳上方多高
@@ -101,6 +103,8 @@ var help_label: Label
 var key_panel                      # 按鍵設定畫面（scripts/key_panel.gd）
 var menu_text := ""                # 有編號選項的對話框原文，menu_cursor 那一行加上「◆」
 var menu_cursor := 0
+var _combat_hold := 0.0           # 戰鬥曲還要留幾秒
+var _heart_demon_event := false   # 目前（或剛結束）的事件是心魔
 
 var state
 var pool: Array = []
@@ -433,12 +437,12 @@ func build_map(chunk_list: Array, spawn_point: String) -> void:
 	_set_ambience(look_tags)
 	Scenery.add_layers(level, FLOOR_Y, look_tags, hash(ordered.map(func(e): return e["chunk"])))
 	state.map_tags = tags
-	if audio != null:
-		audio.play_music(audio.music_key(state.region, tags), state.region)
 	player.ropes = ropes
 	player.floor_y = FLOOR_Y
 	player.set_camera_limits(-EDGE_MARGIN, x + EDGE_MARGIN, FLOOR_Y - 640.0, FLOOR_Y + CAMERA_BOTTOM)
 	place_player(spawn_point)
+	if audio != null:
+		audio.play_music(music_choice(), state.region)
 
 
 ## 地面：一條貼著 prop.ground 的長條，每個區塊依它畫面底部的顏色染色，
@@ -727,15 +731,68 @@ func _add_platform(left: float, top: float, width: float, skill := "") -> void:
 	shape.position = Vector2(left + width / 2, top + 6)
 	shape.one_way_collision = true
 	body.add_child(shape)
-	var slab := _tiled("prop.platform", Vector2(left, top - 2), Vector2(width, 18), Color("#2a2620", 0.85))
-	body.add_child(slab)
-	if skill != "" or not slab is TextureRect:
-		var edge := ColorRect.new()
-		edge.color = Color("#9fc4c9") if skill != "" else Color("#0e0d0b")
-		edge.position = Vector2(left, top)
-		edge.size = Vector2(width, 3)
-		body.add_child(edge)
+	body.add_child(_ink_ledge(left, top, width, skill, hash(Vector2(left, top))))
 	level.add_child(body)
+
+
+static var _wash_tex: Texture2D
+
+
+## 平台底下那抹淡墨：上緣最濃，往下二次方淡出；左右兩端各留一段漸收，四邊都不會有硬邊
+static func _ledge_wash() -> Texture2D:
+	if _wash_tex == null:
+		var img := Image.create(64, 32, false, Image.FORMAT_RGBA8)
+		for y in 32:
+			var v := pow(1.0 - y / 31.0, 1.4)
+			for x in 64:
+				var u := x / 63.0
+				var side := smoothstep(0.0, 0.18, u) * smoothstep(1.0, 0.82, u)
+				img.set_pixel(x, y, Color(0.106, 0.094, 0.078, v * side))
+		_wash_tex = ImageTexture.create_from_image(img)
+	return _wash_tex
+
+
+## 平台的樣子：一筆乾濕不均的墨線（站的地方），底下一抹往下淡出的淡墨，像畫裡的石台。
+## 筆觸兩端收尖、中段粗細起伏；要身法的平台在墨線上再加一道淡青。
+func _ink_ledge(left: float, top: float, width: float, skill: String, seed_value: int) -> Node2D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var node := Node2D.new()
+	node.name = "InkLedge"
+	node.position = Vector2(left, top)
+	var n := maxi(6, int(width / 14.0))
+	# 淡墨：以墨線中央為心，往下、往兩端淡出的半橢圓
+	var ink := Color("#1b1814")
+	var wash := TextureRect.new()
+	wash.texture = _ledge_wash()
+	wash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	wash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wash.position = Vector2(-6, 0)
+	wash.size = Vector2(width + 12, 30 + rng.randf_range(0, 14))
+	wash.modulate = Color(1, 1, 1, 0.8)
+	node.add_child(wash)
+	# 墨線
+	var stroke := Polygon2D.new()
+	var top_pts := PackedVector2Array()
+	var bottom_pts := PackedVector2Array()
+	for i in n + 1:
+		var t := float(i) / n
+		var taper := clampf(minf(t, 1.0 - t) * width / 28.0, 0.2, 1.0)
+		var thick := (8.0 + rng.randf_range(-1.5, 2.5)) * taper
+		var x := t * width
+		top_pts.append(Vector2(x, rng.randf_range(-0.6, 0.6) - thick * 0.35))
+		bottom_pts.append(Vector2(x, thick * 0.65 + rng.randf_range(0, 1.2)))
+	bottom_pts.reverse()
+	stroke.polygon = top_pts + bottom_pts
+	stroke.color = ink
+	node.add_child(stroke)
+	if skill != "":
+		var jade := Line2D.new()
+		jade.points = PackedVector2Array([Vector2(6, -3), Vector2(width - 6, -3)])
+		jade.width = 2.0
+		jade.default_color = Color("#9fc4c9", 0.9)
+		node.add_child(jade)
+	return node
 
 
 func _add_wall(left: float, width: float, bottom: float, top: float, kind: String) -> void:
@@ -1345,7 +1402,9 @@ func start_pack(pack: Dictionary) -> void:
 	# summary 是寫給導演與設計者看的（會劇透），玩家只看標題
 	add_log("【%s】" % pack["meta"]["title"])
 	_scroll_card(pack["meta"]["title"], event_seal(pack), true)
-	if pack["meta"].get("request_tag", "") == "heart_demon" or _pack_has_tag(pack, "illusion"):
+	_heart_demon_event = pack["meta"].get("request_tag", "") == "heart_demon" or _pack_has_tag(pack, "illusion")
+	_combat_hold = 0.0
+	if _heart_demon_event:
 		audio.stinger("heart_demon", "event_start")
 	else:
 		audio.stinger("event_start", "event_start")
@@ -1911,6 +1970,8 @@ func _process(delta: float) -> void:
 	_update_ambience()
 	# 受傷後無敵時閃爍
 	player.modulate.a = 0.35 if player_invuln > 0.0 and fmod(player_invuln, 0.14) < 0.07 else 1.0
+	_combat_hold = COMBAT_MUSIC_HOLD if (blocking() and _hostile_near()) else maxf(0.0, _combat_hold - delta)
+	audio.play_music(music_choice(), state.region)
 	audio.set_mood(absf(player.velocity.x) > 10.0 or player.climbing, in_danger(), dialogue_panel.visible, delta)
 	_update_prompt()
 	if runner != null:
@@ -1984,12 +2045,41 @@ func active_camera_zone() -> Dictionary:
 
 
 func in_danger() -> bool:
-	if blocking():
-		return true
+	return blocking() or _hostile_near()
+
+
+func _hostile_near() -> bool:
 	for view in actor_views.values():
 		if view.get_meta("hostile") and absf(view.position.x - player.position.x) < DANGER_RANGE:
 			return true
 	return false
+
+
+## 該放哪一首配樂（每格呼叫，曲子沒變就不會重播）：
+## 1. 事件裡有敵人在附近（剛打完也多留幾秒）→ 戰鬥曲；心魔事件 → 心魔對決曲。
+## 2. 事件進行中（會擋住移動的那種）→ 地圖本身有專屬曲（心魔幻境）就用它，否則劇情曲。
+## 3. 平常 → 玩家所在區塊的標籤有專屬曲（山洞、村落、山神廟、妖窟、傳功殿）就用它，否則地區的分層配樂。
+## 野怪不換曲，只讓分層配樂的鼓聲層進來。
+func music_choice() -> String:
+	var tags := current_span_tags()
+	var place: String = audio.music_key(state.region, tags)
+	if blocking():
+		if _combat_hold > 0.0:
+			var fight := "event.heart_demon" if _heart_demon_event else "event.combat"
+			if audio.music.has(fight):
+				return fight
+		if place.begins_with("tag.") and audio.music.get(place, {}).has("layers"):
+			return place
+		if audio.music.has("event.story"):
+			return "event.story"
+	return place
+
+
+func current_span_tags() -> Array:
+	for span in chunk_spans:
+		if player.position.x >= span["x0"] and player.position.x < span["x1"]:
+			return span["tags"]
+	return state.map_tags
 
 
 func _pack_has_tag(pack: Dictionary, tag: String) -> bool:
@@ -2419,6 +2509,13 @@ func _speaker_texture(speaker: String) -> Texture2D:
 		for n in view.get_children():
 			if n is Sprite2D:
 				return n.texture
+	# 還沒出場（例如在畫面外喊話）：照內容包的角色表找出場時會用的同一張立繪
+	if runner != null:
+		for actor in runner.pack.get("actors", []):
+			if actor.get("id", "") == speaker:
+				var key: String = actor.get("memory_key", actor.get("name", ""))
+				var hostile: bool = actor.get("disposition", "") == "hostile"
+				return art.texture(actor.get("template", ""), key, "mob.generic" if hostile else "npc.generic")
 	return null
 
 
