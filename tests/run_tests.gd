@@ -519,7 +519,8 @@ func test_event_dressing() -> void:
 	# 垂掛前景：森林有，心魔幻境沒有
 	expect(main.level.has_node("Hanging") and main.level.has_node("Haze"), "forest map has hanging branches and far haze")
 	expect(Scenery.hanging_kind(["illusion"]) == "" and Scenery.hanging_kind(["den", "forest"]) == "", "no hanging occluders in fight maps")
-	expect(Scenery.hanging_kind(["cave"]) == "stalactite" and Scenery.hanging_kind(["sect"]) == "pillar", "cave and sect get their own occluders")
+	expect(Scenery.hanging_kind(["cave"]) == "stalactite", "caves get stalactites")
+	expect(Scenery.hanging_kind(["sect"]) == "" and Scenery.hanging_kind(["sect", "hall"]) == "", "sect maps have real gate and hall pillars, no fake hanging pillar cutting through them")
 	# 正邪色調
 	expect(InkUI.karma_tint(1.0).b > InkUI.karma_tint(1.0).r and InkUI.karma_tint(-1.0).r > InkUI.karma_tint(-1.0).b, "righteous tints cool, wicked tints warm")
 	main.state.karma["正邪"] = -60
@@ -785,6 +786,12 @@ func test_scrolling_camera_and_parallax() -> void:
 		var gate_x: float = main.chunk_x["chunk.sect_gate"] + 560.0
 		var on_roof: Array = main.level.get_children().filter(func(n): return n.is_in_group("platform") and n.get_child(0).position.y < main.FLOOR_Y - 250.0 and absf(n.get_child(0).position.x - gate_x) < 40.0)
 		expect(not on_roof.is_empty(), "the gate's main roof is a platform")
+	# 傳功殿：區塊的 h100、h200 平台正好是台基頂與殿內迴廊，屋面平台從迴廊跳得上去（單跳約 120）
+	main.build_map([{"chunk": "chunk.sect_hall", "order": 0}], "")
+	var hall_tops: Array = main.level.get_children().filter(func(n): return n.is_in_group("platform")).map(func(n): return roundi(main.FLOOR_Y - n.get_child(0).position.y + 6))
+	expect(hall_tops.has(100) and hall_tops.has(200), "hall terrace and gallery are platforms %s" % [hall_tops])
+	var roof_h: int = hall_tops.max()
+	expect(roof_h > 200 and roof_h - 200 <= 118, "hall roof is one jump above the gallery (%d)" % roof_h)
 	main.free()
 
 

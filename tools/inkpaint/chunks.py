@@ -217,8 +217,7 @@ def sect_plaza(cid, w, name):
 def sect_hall(cid, w, name):
     cv = base(cid, w, "sect")
     _mist(cv, 590, 60, (234, 230, 214), 0.6)
-    # 傳功殿是場景物件（landmarks.py）；殿前香爐留在底圖
-    S.cauldron(cv, w * 0.5, 600, 28)
+    # 傳功殿（連台基、迴廊、香爐）是場景物件（landmarks.py）
     return finish(cv, name, "sect")
 
 

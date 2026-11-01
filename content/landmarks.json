@@ -22,9 +22,9 @@
       "back": "res://art/landmarks/sect_hall.hall_back.png",
       "platforms": [
         {
-          "dx": -135,
-          "h": 301,
-          "w": 270
+          "dx": -142,
+          "h": 280,
+          "w": 283
         }
       ],
       "front": "res://art/landmarks/sect_hall.hall_front.png"
