@@ -29,6 +29,8 @@ const InkFx = preload("res://scripts/ink_fx.gd")
 const GameAudio = preload("res://scripts/audio.gd")
 const Keys = preload("res://scripts/keys.gd")
 const KeyPanel = preload("res://scripts/key_panel.gd")
+const Martial = preload("res://scripts/martial.gd")
+const InkGlyph = preload("res://scripts/ink_glyph.gd")
 
 const FLOOR_Y := 560.0
 ## 鏡頭下緣在地面下多少：留一條地面給操作說明，其餘都給畫面
@@ -143,6 +145,17 @@ var player_invuln := 0.0
 var camera_zones: Array = []      # 這張地圖的戰場鏡頭 {x0, x1, zoom, lock_y?}（chunks.json 的 camera）
 var hitstop_enabled := true
 var attack_cooldown := 0.0
+# 兵器與功法（docs/design/weapons-and-arts.md）
+var weapons: Dictionary = {}      # content/weapons.json
+var arts: Dictionary = {}         # content/arts.json（功法）
+var combo_step := 0               # 連段打到第幾下（0 起）
+var combo_timer := 0.0            # 連段還能接的時間
+var mp := 0.0                     # 靈力
+var art_cooldown := 0.0
+var armor_time := 0.0             # 金身剩下的秒數
+var projectiles: Array = []       # 劍氣、火符 {view, dir, speed, left, damage, hit, kind, radius}
+var gear_options: Array = []      # 兵器・功法選單開著時的選項 [{kind: weapon|gongfa, id}]
+var mp_bar: ProgressBar
 var log_lines: Array = []
 
 var hud_status: Label
@@ -205,6 +218,8 @@ func _ready() -> void:
 	if not state.game_data.has("hp"):
 		state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
 	update_movement_skills()
+	_apply_gear()
+	mp = Martial.max_mp(state.tier_index)
 	go_home()
 	add_log(("%s。" + Keys.hint("map") + " 地圖、" + Keys.hint("settings") + " 按鍵設定、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。") % region_name())
 	playlog.write("session_start", {"version": ProjectSettings.get_setting("application/config/version", ""),
@@ -326,6 +341,10 @@ func load_content() -> void:
 	regions = _read_json("res://content/regions.json")
 	regions.erase("_comment")
 	errands = _read_json("res://content/errands.json")
+	weapons = _read_json("res://content/weapons.json")
+	weapons.erase("_comment")
+	arts = _read_json("res://content/arts.json")
+	arts.erase("_comment")
 
 
 func _read_json(path: String) -> Dictionary:
@@ -864,7 +883,7 @@ func open_cache(id: String) -> void:
 	var info: Dictionary = caches[id]["info"]
 	var items: Array = loot.get(info["loot"], {}).get(info.get("tier", "common"), [])
 	for item in items:
-		state.add_item(item)
+		gain_item(item)
 	state.game_data["found"] = found_caches() + [id]
 	caches[id]["view"].queue_free()
 	caches.erase(id)
@@ -1194,7 +1213,7 @@ func _wild_defeated(id: String) -> void:
 		var items: Array = loot.get(table, {}).get("common", [])
 		if not items.is_empty():
 			var item: String = items[randi() % items.size()]
-			state.add_item(item)
+			gain_item(item)
 			add_log("拾得：" + item)
 			audio.play("reward")
 	# 擊殺數記在引擎（state.kills）：觸發條件、導演和打怪目標都看它
@@ -1619,6 +1638,7 @@ func load_game() -> void:
 		if not regions.has(state.region):
 			state.region = START_REGION
 		update_movement_skills()
+		_apply_gear()
 		go_home()
 		add_log("讀取存檔：第 %d 天，%s。" % [state.day, region_name()])
 
@@ -1693,7 +1713,7 @@ func _on_reward(effect: Dictionary) -> void:
 	if effect["type"] == "give_loot":
 		var items: Array = loot.get(effect["loot_table"], {}).get(effect["tier"], [])
 		for item in items:
-			state.add_item(item)
+			gain_item(item)
 		add_log("獲得：" + "、".join(items))
 		audio.play("reward")
 	elif effect["type"] == "grant_exp":
@@ -1800,6 +1820,7 @@ func meditate() -> void:
 	var gain: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
 	var new_day := advance_time(1)
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
+	mp = Martial.max_mp(state.tier_index)
 	audio.play("meditate")
 	player.sit(1.6)
 	add_log("打坐一個時辰。（第 %d 天・%s）" % [state.day, state.time_of_day])
@@ -1838,25 +1859,161 @@ func pack_tier() -> int:
 	return maxi(0, state.tier_index_of(runner.pack["meta"]["tier_range"]["min"]))
 
 
+## 普攻：手上兵器決定距離、背後判定、連段、擊退、停頓、震動、音高、墨痕與字訣；
+## 主修功法配本命兵器時，最後一下有招牌（劍訣放劍氣、金剛崩拳震地）。
 func attack() -> void:
 	if attack_cooldown > 0.0:
 		return
-	attack_cooldown = ATTACK_COOLDOWN
-	var glyph: Node2D = player.play_attack()
-	audio.play("attack")
+	var kind := weapon_kind()
+	var combo: Array = kind.get("combo", [1.0])
+	if combo_timer <= 0.0:
+		combo_step = 0
+	var step := combo_step
+	var finisher := Martial.is_finisher(kind, step)
+	attack_cooldown = float(kind.get("cooldown", ATTACK_COOLDOWN))
+	combo_step = (step + 1) % combo.size()
+	combo_timer = float(kind.get("combo_window", 0.7))
+	var glyph: Node2D = player.play_attack(kind, step, finisher)
+	audio.play_pitched("attack", float(kind.get("pitch", 1.0)) * (0.92 if finisher else 1.0))
+	var g := gongfa()
+	var damage := Martial.attack_damage(Cultivation.player_damage(state.tier_index), weapons, weapon_id(), step, g)
+	var knock := float(kind.get("finisher_knockback", kind.get("knockback", ENEMY_KNOCKBACK))) if finisher else float(kind.get("knockback", ENEMY_KNOCKBACK))
+	var stop := float(kind.get("finisher_hitstop", kind.get("hitstop", HITSTOP))) if finisher else float(kind.get("hitstop", HITSTOP))
+	var shake := float(kind.get("finisher_shake", kind.get("shake", 0.0))) if finisher else float(kind.get("shake", 0.0))
+	var landed := false
+	if player_near_ground():
+		for id in actor_views.keys():
+			var view: Node2D = actor_views.get(id)
+			if view == null or not view.get_meta("hostile"):
+				continue
+			if Martial.in_reach(view.position.x - player.position.x, player.facing, kind):
+				damage_actor(id, damage, knock, stop)
+				landed = true
+	if landed:
+		if glyph != null:
+			glyph.shatter()
+		if shake > 0.0:
+			player.shake(shake)
+	if finisher and Martial.is_affinity(weapons, weapon_id(), g):
+		match str(g.get("passive", {}).get("finisher", "")):
+			"qi_wave":
+				_launch("wave", roundi(damage * 0.8), 260.0, 640.0, 0.0)
+			"quake":
+				_quake(damage)
+	# 槍的最後一下往前突進
+	if finisher and kind.has("finisher_lunge"):
+		player.move_and_collide(Vector2(player.facing * float(kind["finisher_lunge"]), 0))
+
+
+## 金剛崩拳：前後 120 的震地波
+func _quake(damage: int) -> void:
+	InkFx.ring(level, Vector2(player.position.x, player.feet()), 120.0, InkUI.GOLD, 0.45)
+	player.shake(4.0)
 	for id in actor_views.keys():
-		var view: Node2D = actor_views[id]
-		if view.get_meta("hostile") and absf(view.position.x - player.position.x) <= ATTACK_RANGE and player_near_ground():
-			damage_actor(id, Cultivation.player_damage(state.tier_index))
-			if glyph != null:
-				glyph.shatter()
+		var view: Node2D = actor_views.get(id)
+		if view != null and view.get_meta("hostile") and absf(view.position.x - player.position.x) <= 120.0:
+			damage_actor(id, maxi(1, damage / 2), 20.0, 0.05)
+
+
+## 術法鍵：放主修功法的招牌術法
+func cast_art() -> bool:
+	if blocking_input() or art_cooldown > 0.0:
+		return false
+	var g := gongfa()
+	var a: Dictionary = g.get("art", {})
+	if a.is_empty():
+		return false
+	if a.has("hp_cost"):
+		if hp() <= 1:
+			add_log("氣血不足，施展不了%s。" % a["name"])
+			return false
+	elif mp < float(a.get("cost", 0)):
+		add_log("靈力不足（%d／%d），施展不了%s。" % [int(mp), int(a.get("cost", 0)), a["name"]])
+		return false
+	else:
+		mp -= float(a.get("cost", 0))
+	art_cooldown = float(a.get("cooldown", 1.0))
+	var damage := Martial.art_damage(Cultivation.player_damage(state.tier_index), g)
+	if a.get("glyph", "") != "":
+		InkGlyph.spawn(level, player.position + Vector2(0, -96), a["glyph"], 64.0)
+	player.play_cast()
+	match str(a.get("kind", "")):
+		"wave", "fireball":
+			_launch(a["kind"], damage, float(a.get("range", 300)), float(a.get("speed", 600)), float(a.get("radius", 0.0)))
+			audio.play_pitched("attack", 0.7 if a["kind"] == "wave" else 0.6)
+		"armor":
+			armor_time = float(a.get("duration", 2.0))
+			player.set_aura(InkUI.GOLD, armor_time)
+			audio.play_pitched("meditate", 1.3)
+		"blood":
+			var cost := maxi(1, roundi(Cultivation.max_hp(state.tier_index) * float(a.get("hp_cost", 0.2))))
+			state.game_data["hp"] = maxi(1, hp() - cost)
+			InkFx.number(level, player.position + Vector2(0, -90), "-%d" % cost, Color("#e0503c"))
+			var r := float(a.get("radius", 140))
+			InkFx.ring(level, Vector2(player.position.x, player.feet()), r, InkUI.CINNABAR, 0.5)
+			player.shake(5.0)
+			audio.play_pitched("attack", 0.55)
+			for id in actor_views.keys():
+				var view: Node2D = actor_views.get(id)
+				if view != null and view.get_meta("hostile") and absf(view.position.x - player.position.x) <= r:
+					damage_actor(id, damage, 30.0, 0.1)
+	add_log("施展%s。" % a["name"])
+	_refresh_status()
+	return true
+
+
+## 劍氣、火符：沿著面向飛出去
+func _launch(kind: String, damage: int, distance: float, speed: float, radius: float) -> void:
+	var y: float = player.feet() - 40.0
+	var view: Node2D = InkFx.projectile(level, Vector2(player.position.x + player.facing * 30.0, y), player.facing, kind)
+	projectiles.append({"view": view, "dir": player.facing, "speed": speed, "left": distance, "damage": damage,
+		"hit": [], "kind": kind, "radius": radius})
+
+
+func _update_projectiles(delta: float) -> void:
+	for p in projectiles.duplicate():
+		if not is_instance_valid(p["view"]):
+			projectiles.erase(p)   # 地圖重建時跟著被刪了
+			continue
+		var view: Node2D = p["view"]
+		var step: float = p["speed"] * delta
+		view.position.x += p["dir"] * step
+		p["left"] -= step
+		var done: bool = p["left"] <= 0.0
+		for id in actor_views.keys():
+			var a: Node2D = actor_views.get(id)
+			if a == null or not a.get_meta("hostile") or p["hit"].has(id):
+				continue
+			if absf(a.position.x - view.position.x) <= 34.0 and absf((a.position.y - 40.0) - view.position.y) <= 90.0:
+				if p["kind"] == "fireball":
+					# 火符：打中就炸開，周圍一起燒
+					InkFx.ring(level, view.position, maxf(40.0, p["radius"]), Color("#d9622b"), 0.35)
+					for other in actor_views.keys():
+						var o: Node2D = actor_views.get(other)
+						if o != null and o.get_meta("hostile") and absf(o.position.x - view.position.x) <= maxf(40.0, p["radius"]):
+							damage_actor(other, p["damage"], 24.0, 0.06)
+					done = true
+					break
+				p["hit"].append(id)
+				damage_actor(id, p["damage"], 18.0, 0.04)
+		if done:
+			projectiles.erase(p)
+			if is_instance_valid(view):
+				view.queue_free()
+
+
+## 選單、對話、按鍵設定開著時不出招
+func blocking_input() -> bool:
+	return dialogue_panel.visible or player.frozen
 
 
 func player_near_ground() -> bool:
 	return player.feet() > FLOOR_Y - MELEE_HEIGHT
 
 
-func damage_actor(id: String, amount: int) -> void:
+## 打中敵人：扣血、雙向擊退、打斷前搖、命中停頓。knock／stop 由兵器決定。
+## 主修血煞魔功時每次命中回氣血，殺生讓正邪往邪偏。
+func damage_actor(id: String, amount: int, knock: float = ENEMY_KNOCKBACK, stop: float = HITSTOP) -> void:
 	if not actor_views.has(id):
 		return
 	actor_hp[id] -= amount
@@ -1870,12 +2027,15 @@ func damage_actor(id: String, amount: int) -> void:
 	if away == 0.0:
 		away = float(player.facing)
 	# Boss 站得穩，只退一半
-	view.position.x += away * ENEMY_KNOCKBACK * (0.5 if actor_boss.has(id) else 1.0)
+	view.position.x += away * knock * (0.5 if actor_boss.has(id) else 1.0)
 	player.move_and_collide(Vector2(-away * PLAYER_RECOIL, 0))
 	_cancel_windup(id)
 	InkFx.number(level, view.position + Vector2(0, -110), str(amount), Color("#f3ecd9"))
+	var passive: Dictionary = gongfa().get("passive", {})
+	if int(passive.get("lifesteal", 0)) > 0 and hp() < Cultivation.max_hp(state.tier_index):
+		state.game_data["hp"] = mini(Cultivation.max_hp(state.tier_index), hp() + int(passive["lifesteal"]))
 	if actor_hp[id] <= 0:
-		hitstop(HITSTOP_KILL)
+		hitstop(maxf(HITSTOP_KILL, stop))
 		player.shake(5.0)
 		audio.play("defeat")
 		if view.has_method("die"):
@@ -1884,6 +2044,11 @@ func damage_actor(id: String, amount: int) -> void:
 		else:
 			_remove_actor_view(id)
 		enemy_windup.erase(id)
+		if passive.has("kill_karma"):
+			var zx := int(state.karma.get("正邪", 0))
+			var floor_v := int(passive.get("karma_floor", -60))
+			if zx > floor_v:
+				state.add_karma("正邪", maxi(int(passive["kill_karma"]), floor_v - zx))
 		if wild.has(id):
 			_wild_defeated(id)
 		else:
@@ -1891,11 +2056,130 @@ func damage_actor(id: String, amount: int) -> void:
 		if runner != null:
 			runner.notify({"type": "actor_defeated", "actor": id})
 	else:
-		hitstop(HITSTOP)
+		hitstop(stop)
 		if actor_boss.get(id, true) == false and actor_hp[id] <= actor_max_hp[id] * Cultivation.BOSS_ENRAGE_AT:
 			actor_boss[id] = true
 			add_log("%s怒了，出手更快！" % actor_label(id))
 			player.shake(4.0)
+
+
+# ---------- 兵器與功法 ----------
+
+func weapon_id() -> String:
+	var id: String = state.game_data.get("weapon", Martial.DEFAULT_WEAPON)
+	return id if weapons.has(id) else Martial.DEFAULT_WEAPON
+
+
+func weapon_kind() -> Dictionary:
+	return Martial.kind_of(weapons, weapon_id())
+
+
+func owned_weapons() -> Array:
+	return state.game_data.get("weapons", Martial.STARTER_WEAPONS.duplicate())
+
+
+func gongfa_id() -> String:
+	var id: String = state.game_data.get("gongfa", Martial.DEFAULT_GONGFA)
+	return id if arts.has(id) else Martial.DEFAULT_GONGFA
+
+
+func gongfa() -> Dictionary:
+	return arts.get(gongfa_id(), {})
+
+
+func zhengxie() -> int:
+	return int(state.karma.get("正邪", 0))
+
+
+## 拿到物品；物品名是兵器表上的兵器就入手
+func gain_item(item: String) -> void:
+	state.add_item(item)
+	var wid := Martial.weapon_by_name(weapons, item)
+	if wid != "" and not owned_weapons().has(wid):
+		state.game_data["weapons"] = owned_weapons() + [wid]
+		add_log("得到兵器%s（%s・%s），按 %s 換上。" % [item, weapons["kinds"][weapons[wid]["kind"]]["name"],
+			weapons["grades"][int(weapons[wid].get("grade", 0))], Keys.hint("gear")])
+
+
+func equip_weapon(id: String) -> bool:
+	if not weapons.has(id) or not owned_weapons().has(id):
+		return false
+	state.game_data["weapon"] = id
+	combo_step = 0
+	combo_timer = 0.0
+	_apply_gear()
+	add_log("換上%s。" % weapons[id]["name"])
+	return true
+
+
+func practice(id: String) -> bool:
+	if not arts.has(id):
+		return false
+	if not Martial.can_practice(arts[id], zhengxie(), state.items.keys()):
+		add_log("%s修不了：需%s。" % [arts[id]["name"], Martial.requirement_text(arts[id])])
+		return false
+	state.game_data["gongfa"] = id
+	armor_time = 0.0
+	_apply_gear()
+	var note := "本命兵器：%s。" % weapons["kinds"][arts[id]["affinity"]]["name"] if weapons.get("kinds", {}).has(arts[id].get("affinity", "")) else ""
+	add_log("改修%s。%s" % [arts[id]["name"], note])
+	return true
+
+
+## 讓角色身上的兵器、光暈跟著目前的兵器與功法
+func _apply_gear() -> void:
+	if player == null:
+		return
+	var w: Dictionary = weapons.get(weapon_id(), {})
+	player.set_weapon(str(w.get("kind", "sword")), int(w.get("grade", 0)))
+	_refresh_status()
+
+
+func open_gear_menu() -> void:
+	if blocking() or dialogue_panel.visible:
+		return
+	gear_options = []
+	var text := "兵器・功法（主修%s，手持%s）" % [gongfa().get("name", ""), weapons[weapon_id()]["name"]]
+	var n := 0
+	for id in owned_weapons():
+		if not weapons.has(id):
+			continue
+		var w: Dictionary = weapons[id]
+		gear_options.append({"kind": "weapon", "id": id})
+		n += 1
+		text += "\n  %d. 兵器　%s（%s・%s）%s" % [n, w["name"], weapons["kinds"][w["kind"]]["name"],
+			weapons["grades"][int(w.get("grade", 0))], "　手持" if id == weapon_id() else ""]
+	for id in Martial.STARTER_GONGFA:
+		if not arts.has(id):
+			continue
+		var g: Dictionary = arts[id]
+		gear_options.append({"kind": "gongfa", "id": id})
+		n += 1
+		var mark := "　主修" if id == gongfa_id() else ""
+		if not Martial.can_practice(g, zhengxie(), state.items.keys()):
+			mark = "　（需%s）" % Martial.requirement_text(g)
+		text += "\n  %d. 功法　%s［%s］術法：%s%s" % [n, g["name"], g.get("path", ""), g.get("art", {}).get("name", ""), mark]
+	text += "\n  （%s 選、%s 確定、Esc 關閉）" % [Keys.first("move_up") + Keys.first("move_down"), Keys.hint("jump")]
+	_set_speaker("兵器・功法", null)
+	_set_menu_text(text)
+	dialogue_panel.visible = true
+	player.frozen = true
+
+
+func close_gear_menu() -> void:
+	gear_options = []
+	_hide_dialogue()
+
+
+func choose_gear(i: int) -> void:
+	if i >= gear_options.size():
+		return
+	var o: Dictionary = gear_options[i]
+	close_gear_menu()
+	if o["kind"] == "weapon":
+		equip_weapon(o["id"])
+	else:
+		practice(o["id"])
 
 
 ## 命中停頓：整個遊戲停一下再恢復。計時器用真實時間；main 被釋放也會恢復（_exit_tree）。
@@ -1930,8 +2214,15 @@ func _enemy_strike(id: String) -> void:
 	if absf(player.position.x - view.position.x) > ENEMY_STRIKE_REACH or not player_near_ground() or player_invuln > 0.0 or player.dashing > 0.0:
 		return
 	player_invuln = PLAYER_INVULN
+	var raw := Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), enemy_tier(id))
+	if armor_time > 0.0:
+		# 金身：刀槍不入，反震回去
+		var a: Dictionary = gongfa().get("art", {})
+		InkFx.ring(level, Vector2(player.position.x, player.feet() - 30.0), 50.0, InkUI.GOLD, 0.3)
+		damage_actor(id, maxi(1, roundi(Cultivation.player_damage(state.tier_index) * float(a.get("reflect", 1.0)))), 30.0, 0.05)
+		return
 	player.knock_back(view.position.x)
-	damage_player(Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), enemy_tier(id)))
+	damage_player(Martial.damage_taken(raw, gongfa()))
 
 
 func actor_label(id: String) -> String:
@@ -1983,6 +2274,16 @@ func player_down() -> void:
 func _process(delta: float) -> void:
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	player_invuln = maxf(0.0, player_invuln - delta)
+	combo_timer = maxf(0.0, combo_timer - delta)
+	art_cooldown = maxf(0.0, art_cooldown - delta)
+	armor_time = maxf(0.0, armor_time - delta)
+	var mp_max := float(Martial.max_mp(state.tier_index))
+	if mp < mp_max:
+		mp = minf(mp_max, mp + Martial.mp_regen(gongfa()) * delta)
+		if mp_bar != null:
+			mp_bar.max_value = mp_max
+			mp_bar.value = mp
+	_update_projectiles(delta)
 	player.camera_zone = active_camera_zone()
 	_update_ambience()
 	# 受傷後無敵時閃爍
@@ -2161,6 +2462,7 @@ func breakthrough() -> void:
 	state.tier_index += 1
 	_breakthrough_wash()
 	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
+	mp = Martial.max_mp(state.tier_index)
 	playlog.write("breakthrough", {"tier": state.tier_name(), "day": state.day})
 	audio.stinger("breakthrough", "breakthrough")
 	add_log("突破至" + state.tier_name() + "！")
@@ -2201,9 +2503,11 @@ func handle_input(event: InputEvent) -> void:
 			move_menu_cursor(1)
 		elif confirm:
 			choose_menu(menu_cursor)
-		elif cancel or event.is_action_pressed("map"):
+		elif cancel or event.is_action_pressed("map") or event.is_action_pressed("gear"):
 			if not travel_options.is_empty():
 				close_travel_menu()
+			elif not gear_options.is_empty():
+				close_gear_menu()
 			elif not errand_options.is_empty():
 				close_errand_board()
 		return
@@ -2225,6 +2529,10 @@ func handle_input(event: InputEvent) -> void:
 		interact()
 	elif event.is_action_pressed("attack"):
 		attack()
+	elif event.is_action_pressed("art"):
+		cast_art()
+	elif event.is_action_pressed("gear"):
+		open_gear_menu()
 	elif event.is_action_pressed("meditate"):
 		meditate()
 	elif event.is_action_pressed("breakthrough"):
@@ -2257,6 +2565,8 @@ func handle_input(event: InputEvent) -> void:
 func menu_count() -> int:
 	if not travel_options.is_empty():
 		return travel_options.size()
+	if not gear_options.is_empty():
+		return gear_options.size()
 	if not errand_options.is_empty():
 		return errand_options.size() if errand_options[0]["kind"] != "none" else 0
 	if dialogue_panel.visible:
@@ -2267,6 +2577,8 @@ func menu_count() -> int:
 func choose_menu(i: int) -> void:
 	if not travel_options.is_empty():
 		choose_travel(i)
+	elif not gear_options.is_empty():
+		choose_gear(i)
 	elif not errand_options.is_empty():
 		choose_errand(i)
 	else:
@@ -2364,7 +2676,7 @@ func _build_hud() -> void:
 	var bars := HBoxContainer.new()
 	bars.add_theme_constant_override("separation", 8)
 	rows.add_child(bars)
-	for spec in [["修為", InkUI.JADE], ["氣血", InkUI.CINNABAR]]:
+	for spec in [["修為", InkUI.JADE], ["氣血", InkUI.CINNABAR], ["靈力", Color("#7f9ec4")]]:
 		var name := Label.new()
 		name.text = spec[0]
 		name.theme_type_variation = "HudSmall"
@@ -2373,8 +2685,10 @@ func _build_hud() -> void:
 		bars.add_child(b)
 		if spec[0] == "修為":
 			exp_bar = b
-		else:
+		elif spec[0] == "氣血":
 			hp_bar = b
+		else:
+			mp_bar = b
 	hud_detail = Label.new()
 	hud_detail.theme_type_variation = "HudSmall"
 	rows.add_child(hud_detail)
@@ -2548,7 +2862,13 @@ func _refresh_status() -> void:
 	exp_bar.value = cultivation()
 	hp_bar.max_value = maxf(1.0, float(Cultivation.max_hp(state.tier_index)))
 	hp_bar.value = hp()
-	hud_detail.text = "修為 %d／%d　氣血 %d／%d　%s" % [cultivation(), need, hp(), Cultivation.max_hp(state.tier_index), "　".join(karma)]
+	if mp_bar != null:
+		mp_bar.max_value = float(Martial.max_mp(state.tier_index))
+		mp_bar.value = mp
+	var gear := ""
+	if weapons.has(weapon_id()) and not gongfa().is_empty():
+		gear = "　%s・%s" % [gongfa()["name"], weapons[weapon_id()]["name"]]
+	hud_detail.text = "修為 %d／%d　氣血 %d／%d　%s%s" % [cultivation(), need, hp(), Cultivation.max_hp(state.tier_index), "　".join(karma), gear]
 	if tint != null:
 		var target := InkUI.time_tint(state.time_of_day) * InkUI.karma_tint(_karma_lean())
 		if vignette != null:

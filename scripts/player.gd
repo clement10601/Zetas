@@ -100,6 +100,7 @@ var _base_limit_top := 0
 var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
 var rig: Node2D                 # 立繪的軸心放在腳底：走路一頓一頓、跳起拉長、落地壓扁都繞這裡
 var shadow: TextureRect
+var weapon_view: Node2D         # 身上的兵器（scripts/weapon_view.gd）
 
 var _walk := 0.0
 var _squash := 0.0              # 落地壓扁，1 → 0
@@ -134,6 +135,9 @@ func _ready() -> void:
 	rig.name = "Rig"
 	rig.position = Vector2(0, SIZE.y / 2)
 	add_child(rig)
+	weapon_view = preload("res://scripts/weapon_view.gd").new()
+	weapon_view.name = "Weapon"
+	rig.add_child(weapon_view)
 	shadow = TextureRect.new()
 	shadow.texture = preload("res://scripts/actor_view.gd").shadow_texture()
 	shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -381,16 +385,59 @@ func _animate(delta: float) -> void:
 	rig.rotation = lerp_angle(rig.rotation, target_rot + facing * 0.25 * _lunge, k)
 	rig.position = Vector2(facing * 10.0 * _lunge, SIZE.y / 2 + bob)
 	shadow.modulate.a = move_toward(shadow.modulate.a, 0.55 if grounded else 0.0, delta * 6.0)
+	weapon_view.scale.x = facing
 
 
-## 出劍：往前一衝，畫一道墨痕，前方依筆順寫出「斬」字（字訣，reference-study.md A4）。
-## 回傳那個字，打中東西時 main 叫它散成墨點。
-func play_attack() -> Node2D:
-	_lunge = 1.0
+## 出手：往前一衝，畫出兵器的墨痕，前方依筆順寫出字訣（劍「斬」、刀「破」、槍「刺」、拳收招「拳」；
+## reference-study.md A4、weapons-and-arts.md）。回傳那個字，打中東西時 main 叫它散成墨點。
+func play_attack(kind: Dictionary = {}, step := 0, finisher := false) -> Node2D:
+	var fx_kind: String = kind.get("fx", "slash")
+	_lunge = 1.4 if fx_kind == "thrust" else (0.6 if fx_kind == "jab" else 1.0)
+	if weapon_view != null:
+		weapon_view.swing = 1.0
 	if not is_inside_tree() or get_parent() == null:
 		return null
-	preload("res://scripts/ink_fx.gd").slash(get_parent(), position + Vector2(facing * 26.0, -8.0), facing)
-	return preload("res://scripts/ink_glyph.gd").spawn(get_parent(), position + Vector2(facing * 62.0, -46.0))
+	var Fx = preload("res://scripts/ink_fx.gd")
+	var reach := float(kind.get("reach", 90))
+	match fx_kind:
+		"heavy":
+			Fx.heavy(get_parent(), position + Vector2(facing * 30.0, -10.0), facing, step)
+			Fx.dust(get_parent(), position + Vector2(facing * 50.0, SIZE.y / 2))
+		"thrust":
+			Fx.thrust(get_parent(), position + Vector2(facing * 14.0, -6.0), facing, reach, finisher)
+		"jab":
+			Fx.jab(get_parent(), position + Vector2(facing * (30.0 + 6.0 * (step % 2)), -10.0 + 8.0 * (step % 2)), facing, finisher)
+		_:
+			var s = Fx.slash(get_parent(), position + Vector2(facing * 26.0, -8.0), facing)
+			if step % 2 == 1:
+				s.scale.y = -1.0   # 第二劍反手回砍
+			if finisher:
+				s.scale *= 1.25
+	var show_glyph: bool = kind.get("glyph_on", "every") == "every" or finisher
+	if not show_glyph:
+		return null
+	var glyph: String = kind.get("glyph", "zhan")
+	var ahead := clampf(reach * 0.7, 40.0, 110.0)
+	return preload("res://scripts/ink_glyph.gd").spawn(get_parent(), position + Vector2(facing * ahead, -46.0), glyph, 96.0 if finisher else 84.0)
+
+
+## 施展術法：一個捏訣的小動作
+func play_cast() -> void:
+	_squash = 0.6
+	if weapon_view != null:
+		weapon_view.swing = 0.5
+
+
+func set_weapon(kind: String, grade: int) -> void:
+	if weapon_view != null:
+		weapon_view.kind = kind
+		weapon_view.grade = grade
+
+
+func set_aura(color: Color, seconds: float) -> void:
+	if weapon_view != null:
+		weapon_view.aura = color
+		weapon_view.aura_time = seconds
 
 
 ## 平常會撞到的東西；學會土遁就不撞薄牆

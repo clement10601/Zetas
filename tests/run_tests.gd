@@ -53,6 +53,7 @@ func _run() -> void:
 	await test_wild_mobs()
 	await test_errand_board()
 	await test_keyboard_layout()
+	await test_weapons_and_arts()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -157,13 +158,13 @@ func test_heart_demon_trial() -> void:
 	main.choose_visible(0)
 	expect(main.state.flags.get("heart_demon_faced") == true, "choice recorded")
 	main.advance_dialogue()
-	expect(main.actor_hp["demon"] == 16, "the heart demon is a boss: about 8 hits for a fresh 築基")
+	expect(main.actor_hp["demon"] == 160, "the heart demon is a boss: about 8 hits for a fresh 築基")
 	var Cultivation = load("res://scripts/cultivation.gd")
 	var windup_calm: float = Cultivation.enemy_windup(main.pack_tier()) * main._enemy_speed("demon")
-	main.damage_actor("demon", 8)
+	main.damage_actor("demon", 80)
 	expect(main.actor_boss["demon"] == true and main.log_lines.any(func(l): return l.contains("怒了")), "at half hp the boss enrages")
 	expect(main._enemy_speed("demon") < 1.0 and Cultivation.enemy_windup(main.pack_tier()) * main._enemy_speed("demon") < windup_calm, "an enraged boss winds up faster")
-	main.damage_actor("demon", 8)
+	main.damage_actor("demon", 80)
 	expect(main.runner == null, "trial ends")
 	expect(main.state.flags.get("zhuji_heart_demon_cleared") == true, "trial cleared")
 	expect(main.state.tier_name() == "築基", "player is now 築基")
@@ -336,7 +337,7 @@ func test_personal_heart_demon() -> void:
 		main.advance_dialogue()
 	main.choose_visible(0)
 	main.advance_dialogue()
-	main.damage_actor("demon", 100)
+	main.damage_actor("demon", 1000)
 	expect(main.runner == null, "築基 trial finished")
 	expect(main.heart_demon_pending == "", "no heart demon request while cultivation is far from full")
 	main.gain_cultivation(300)
@@ -432,12 +433,12 @@ func test_combat() -> void:
 		main.advance_dialogue()
 	main.choose_visible(0)
 	main.advance_dialogue()
-	expect(main.actor_hp["hunter"] == 5, "hunter takes about 5 hits at 煉氣 (power 1.2)")
+	expect(main.actor_hp["hunter"] == 48, "hunter takes about 5 hits at 煉氣 (power 1.2)")
 	var hunter: Node2D = main.actor_views["hunter"]
 	hunter.position.x = main.player.position.x + 30
 	main.attack()
 	main.attack()
-	expect(main.actor_hp["hunter"] == 4, "attack has a cooldown")
+	expect(main.actor_hp["hunter"] == 36, "attack has a cooldown (one sword cut of 12: 10 × 1.15 for 青雲劍訣 with its own sword)")
 	main.player_invuln = 0.0
 	hunter.position.x = main.player.position.x + 30  # 擊退過了，拉回眼前
 	main._process(0.1)
@@ -940,7 +941,7 @@ func test_melee_height() -> void:
 	var hp_before: int = main.hp()
 	main._process(1.0)
 	main.attack()
-	expect(main.hp() == hp_before and main.actor_hp["hunter"] == 5, "on a platform out of melee reach both ways")
+	expect(main.hp() == hp_before and main.actor_hp["hunter"] == 48, "on a platform out of melee reach both ways")
 	main.free()
 
 
@@ -1191,7 +1192,7 @@ func test_wild_mobs() -> void:
 		main.actor_views[g].position.x = main.player.position.x + 30
 		main.attack()
 		hits += 1
-	expect(hits == 4, "a 煉氣 ghost (power 0.8) takes about 4 hits")
+	expect(hits == 3, "a 煉氣 ghost (power 0.8) takes 3 sword hits (the third of the combo is heavier)")
 	expect(main.cultivation() - exp_before == 4, "killing a wild mob gives a little cultivation (about half a meditation)")
 	expect(main.state.items.has("陰魂殘絲"), "wild mobs drop common loot")
 	expect(g in main.wild_defeated(), "the defeat is remembered")
@@ -1205,7 +1206,7 @@ func test_wild_mobs() -> void:
 	await at_region(main, "region.heifeng_ridge", 1)
 	var wolves: Array = main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.wolf_demon")
 	expect(wolves.size() == 4, "the den has twice the wolves at night")
-	expect(main.actor_hp[wolves[0]] == 8 and main.enemy_tier(wolves[0]) == 1, "heifeng mobs are as tough as a 築基 event")
+	expect(main.actor_hp[wolves[0]] == 80 and main.enemy_tier(wolves[0]) == 1, "heifeng mobs are as tough as a 築基 event")
 	main.state.time_of_day = "晨"
 	main.go_home()
 	expect(main.wild.keys().filter(func(id): return main.wild[id]["template"] == "mob.wolf_demon").size() == 2, "two wolves by day")
@@ -1428,3 +1429,157 @@ func test_music_by_map_and_event() -> void:
 	expect(main.music_choice() == "event.heart_demon", "the heart demon gets its own battle music")
 	main.free()
 
+
+
+## 兵器與功法（docs/design/weapons-and-arts.md）：四種兵器手感不同、功法有被動與術法、本命組合有招牌。
+func spawn_dummy(main: Node, id: String, dx: float, power := 10.0) -> Node2D:
+	main._on_actor_spawned({"id": id, "template": "mob.wandering_ghost", "name": "木人" + id, "disposition": "hostile", "power": power})
+	var view: Node2D = main.actor_views[id]
+	view.position.x = main.player.position.x + dx
+	return view
+
+
+func fresh_attack(main: Node) -> void:
+	main.attack_cooldown = 0.0
+	main.combo_timer = 0.0
+	main.attack()
+
+
+func test_weapons_and_arts() -> void:
+	var main: Node = await new_game()
+	main.clear_wild()
+	await step(main, {}, 10)
+	var weapons: Dictionary = main.weapons
+	var arts: Dictionary = main.arts
+	# 資料：兵器的類別、功法的本命、掉落表裡同名的兵器都對得上
+	for id in weapons:
+		if id.begins_with("weapon."):
+			expect(weapons["kinds"].has(weapons[id]["kind"]), "%s has a known kind" % id)
+	for id in arts:
+		expect(arts[id].has("art") and arts[id].has("affinity"), "%s has an art and an affinity" % id)
+	expect(main.Martial.weapon_by_name(weapons, "斬馬刀") != "" and main.loot["loot.wild_bandit"]["rare"].has("斬馬刀"), "the bandit drop 斬馬刀 is a weapon")
+	expect(main.loot["loot.demon_core"]["rare"].has("血煞殘卷"), "the demon core can drop the 血煞 scroll")
+	# 開局：青鋒劍、青雲劍訣，四種凡器都在手上
+	expect(main.weapon_id() == "weapon.qingfeng_sword" and main.gongfa_id() == "gongfa.qingyun_sword", "start with the sect sword and 青雲劍訣")
+	expect(main.owned_weapons().size() == 4, "playtest starts with all four plain weapons")
+	expect(main.player.weapon_view.kind == "sword", "the sword is drawn on the player")
+	main.player.facing = 1
+	# 劍：本命 ×1.15，三段第三下最重、放劍氣
+	var d: Node2D = spawn_dummy(main, "a", 40)
+	var hp0: int = main.actor_hp["a"]
+	fresh_attack(main)
+	expect(hp0 - main.actor_hp["a"] == 12, "a sword cut does 12 with 青雲劍訣 (10 × 1.15)")
+	expect(is_equal_approx(main.attack_cooldown, 0.35), "sword cooldown 0.35")
+	for i in 2:
+		d.position.x = main.player.position.x + 40
+		main.attack_cooldown = 0.0
+		main.attack()
+	expect(main.projectiles.size() == 1 and main.projectiles[0]["kind"] == "wave", "the third sword cut of 青雲劍訣 sends out a sword qi")
+	var far: Node2D = spawn_dummy(main, "far", 220)
+	var far_hp: int = main.actor_hp["far"]
+	for i in 30:
+		main._update_projectiles(0.016)
+	expect(main.actor_hp["far"] < far_hp, "the sword qi flies on and hits an enemy out of reach")
+	main._remove_actor_view("far")
+	main._remove_actor_view("a")
+	# 背後：劍砍不到背後的敵人，刀砍得到
+	var back: Node2D = spawn_dummy(main, "back", -45)
+	var back_hp: int = main.actor_hp["back"]
+	fresh_attack(main)
+	expect(main.actor_hp["back"] == back_hp, "a sword does not reach an enemy behind you")
+	expect(main.equip_weapon("weapon.kaishan_blade") and main.player.weapon_view.kind == "blade", "switch to the blade")
+	var bx: float = back.position.x
+	fresh_attack(main)
+	expect(back_hp - main.actor_hp["back"] == 18, "a blade sweep does 18 and reaches behind")
+	expect(is_equal_approx(main.attack_cooldown, 0.55), "the blade is slow (0.55)")
+	expect(bx - back.position.x >= 40.0, "the blade knocks enemies far back")
+	main._remove_actor_view("back")
+	# 槍：遠、只打正前方
+	var spear_t: Node2D = spawn_dummy(main, "s", 140)
+	main.equip_weapon("weapon.diangang_spear")
+	var s_hp: int = main.actor_hp["s"]
+	fresh_attack(main)
+	expect(s_hp - main.actor_hp["s"] == 12, "a spear thrust reaches 140 away for 12")
+	main.equip_weapon("weapon.qingfeng_sword")
+	spear_t.position.x = main.player.position.x + 140
+	s_hp = main.actor_hp["s"]
+	fresh_attack(main)
+	expect(main.actor_hp["s"] == s_hp, "the sword does not reach that far")
+	main._remove_actor_view("s")
+	# 拳＋金剛體術：快、四段，第四拳震地波打到背後
+	expect(main.practice("gongfa.jingang"), "switch to 金剛體術")
+	main.equip_weapon("weapon.iron_fist")
+	var f: Node2D = spawn_dummy(main, "f", 30)
+	var f_back: Node2D = spawn_dummy(main, "fb", -100)
+	var fb_hp: int = main.actor_hp["fb"]
+	var f_hp: int = main.actor_hp["f"]
+	fresh_attack(main)
+	expect(f_hp - main.actor_hp["f"] == 7 and is_equal_approx(main.attack_cooldown, 0.2), "a jab is quick and light (6 × 1.15 → 7)")
+	for i in 3:
+		f.position.x = main.player.position.x + 30
+		main.attack_cooldown = 0.0
+		main.attack()
+	expect(main.actor_hp["fb"] < fb_hp, "the fourth punch of 金剛體術 shakes the ground behind you too")
+	# 金身：被打不扣血、反震
+	main.mp = 30.0
+	expect(main.cast_art() and main.armor_time > 0.0 and main.mp < 30.0, "金身 costs 靈力 and turns you to gold")
+	var hp_armor: int = main.hp()
+	f_hp = main.actor_hp["f"]
+	main.player_invuln = 0.0
+	f.position.x = main.player.position.x + 30
+	main._enemy_strike("f")
+	expect(main.hp() == hp_armor and main.actor_hp["f"] < f_hp, "under 金身 a strike does no harm and is reflected")
+	main.armor_time = 0.0
+	main.player_invuln = 0.0
+	f.position.x = main.player.position.x + 30
+	main._enemy_strike("f")
+	expect(hp_armor - main.hp() == main.Martial.damage_taken(main.Cultivation.enemy_damage(10.0, 0), main.gongfa()), "金剛體術 takes 30% less damage")
+	main._remove_actor_view("f")
+	main._remove_actor_view("fb")
+	# 五行法訣：火符，靈力不夠放不出來
+	main.practice("gongfa.wuxing")
+	main.art_cooldown = 0.0
+	main.mp = 3.0
+	expect(not main.cast_art(), "no 靈力, no fire talisman")
+	main.mp = 30.0
+	var fire_t: Node2D = spawn_dummy(main, "fire", 200)
+	var fire_hp: int = main.actor_hp["fire"]
+	expect(main.cast_art() and main.projectiles.any(func(p): return p["kind"] == "fireball"), "火符 flies out")
+	for i in 40:
+		main._update_projectiles(0.016)
+	expect(fire_hp - main.actor_hp["fire"] == 30, "火符 hits for 30 at 煉氣 (10 × 2.4 × 1.25)")
+	main._remove_actor_view("fire")
+	# 血煞魔功：要條件；命中回血；殺生偏邪
+	expect(not main.practice("gongfa.xuesha"), "血煞魔功 is locked for a righteous player")
+	main.gain_item("血煞殘卷")
+	expect(main.practice("gongfa.xuesha"), "the 血煞 scroll unlocks it")
+	main.state.game_data["hp"] = 10
+	var prey: Node2D = spawn_dummy(main, "prey", 30, 0.1)
+	var zx: int = main.zhengxie()
+	main.equip_weapon("weapon.qingfeng_sword")
+	fresh_attack(main)
+	expect(main.hp() == 11, "血煞魔功 heals 1 per hit")
+	expect(not main.actor_views.has("prey") and main.zhengxie() == zx - 1, "killing with 血煞魔功 pulls 正邪 toward evil")
+	main.state.game_data["hp"] = 30
+	main.art_cooldown = 0.0
+	expect(main.cast_art() and main.hp() == 24, "血祭 costs a fifth of 氣血 instead of 靈力")
+	# 撿到兵器就入手；選單換兵器
+	main.gain_item("斬馬刀")
+	expect(main.owned_weapons().has("weapon.zhanma_blade"), "picking up 斬馬刀 adds it to your weapons")
+	main.handle_input(press_key(KEY_G))
+	expect(main.gear_options.size() == 5 + 4 and main.dialogue_panel.visible, "G opens the weapon and art menu")
+	var idx: int = main.gear_options.find({"kind": "weapon", "id": "weapon.zhanma_blade"})
+	main.choose_menu(idx)
+	expect(main.weapon_id() == "weapon.zhanma_blade" and not main.dialogue_panel.visible, "pick 斬馬刀 from the menu")
+	var z: Node2D = spawn_dummy(main, "z", 40)
+	var z_hp: int = main.actor_hp["z"]
+	fresh_attack(main)
+	expect(z_hp - main.actor_hp["z"] == roundi(10 * 1.8 * 1.25 * 1.2), "a 法器 blade hits harder (grade ×1.25)")
+	main._remove_actor_view("z")
+	main.art_cooldown = 0.0
+	main.mp = 30.0
+	main.state.game_data["hp"] = 30
+	main.handle_input(press_key(KEY_F))
+	expect(main.art_cooldown > 0.0, "F casts the art")
+	expect(main.help_label.text.contains("F/U 術法") and main.help_label.text.contains("G/O 兵器"), "help bar lists the art and gear keys")
+	main.free()
