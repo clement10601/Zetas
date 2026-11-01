@@ -741,14 +741,17 @@ func test_scrolling_camera_and_parallax() -> void:
 	expect(cam.global_position.y > cam_y + 60.0, "holding down looks down")
 	await step(main, {}, 60)
 	expect(absf(cam.global_position.y - cam_y) < 10.0, "letting go looks back")
-	# 背景畫：鏡頭走 100，畫只跟著走 DEPTH × 100
+	# 背景畫：鏡頭走 100，畫的下半只跟著走 DEPTH × 100，畫頂（遠山）走得更少；框固定蓋住區塊
 	var painting: TextureRect = main.level.get_children().filter(func(n): return n is TextureRect and n.has_method("setup"))[0]
-	painting._apply(painting.win_left + painting.win_width / 2)
 	var x0: float = painting.position.x
 	painting._apply(painting.win_left + painting.win_width / 2 + 100.0)
-	expect(is_equal_approx(painting.position.x - x0, 100.0 * painting.DEPTH), "chunk painting scrolls slower than the ground")
+	expect(is_equal_approx(painting.shift_at(1.0), 100.0 * painting.DEPTH), "chunk painting scrolls slower than the ground")
+	expect(painting.shift_at(0.0) < painting.shift_at(0.5) and painting.shift_at(0.5) < painting.shift_at(1.0), "the top of the painting (far peaks) moves least")
 	painting._apply(-10000.0)
-	expect(painting.position.x <= painting.win_left and painting.position.x + painting.size.x >= painting.win_left + painting.win_width, "painting always covers its chunk")
+	expect(absf(painting.shift_at(1.0)) <= painting.extra, "painting never slides past its spare edge")
+	expect(painting.position.x == x0 and painting.position.x <= painting.win_left and painting.position.x + painting.size.x >= painting.win_left + painting.win_width, "painting always covers its chunk")
+	expect(main.level.has_node("Sky") and main.level.has_node("Ranges_far") and main.level.has_node("Ranges_mid"), "outdoor maps have sky and far ranges behind the painting")
+	expect(main.level.get_node("Ranges_far").scroll_scale.x < main.level.get_node("Ranges_mid").scroll_scale.x and main.level.get_node("Ranges_mid").scroll_scale.x < painting.DEPTH_FAR + 0.1, "far ranges move slower than nearer ones")
 	expect(main.level.has_node("Mist") and main.level.has_node("Foreground"), "map has mist and foreground layers")
 	expect(main.level.get_node("Foreground").z_index > 0 and main.level.get_node("Mist").z_index < 0, "foreground in front of the player, mist behind")
 	# 天頂擋住御劍，不會飛出畫面

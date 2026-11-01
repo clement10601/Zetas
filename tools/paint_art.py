@@ -65,6 +65,10 @@ def main():
             done.append(rel)
             print("painted", rel)
     print(f"{len(done)} files painted")
+    if any(r.startswith("chunks/") for r in done):
+        from inkpaint import skyline
+        skyline.update_all()     # 天空遮罩與天色（content/sky.json）
+        print("sky masks updated")
     if args.sheet:
         overview(art_root, manifest, args.sheet)
 

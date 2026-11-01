@@ -1,0 +1,13 @@
+{
+  "_comment": "區塊圖天空（透明處）後面的天色，tools/inkpaint/skyline.py 產生",
+  "chunk.forest_clearing_a": "#c1b7a8",
+  "chunk.heifeng_pass": "#a99880",
+  "chunk.heifeng_ravine": "#6f6556",
+  "chunk.mountain_village": "#c6bba9",
+  "chunk.qingyun_road": "#c9c0b1",
+  "chunk.qingyun_woods": "#d8cbbb",
+  "chunk.ruined_shrine": "#c7bfae",
+  "chunk.sect_gate": "#8e8068",
+  "chunk.sect_hall": "#977f65",
+  "chunk.sect_plaza": "#917d64"
+}

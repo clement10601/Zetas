@@ -18,6 +18,12 @@ float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
+varying vec4 tint;
+
+void vertex() {
+	tint = COLOR;
+}
+
 void fragment() {
 	float a = written(UV);
 	float g = 0.0;
@@ -33,5 +39,5 @@ void fragment() {
 	float fade = 1.0 - smoothstep(0.6, 1.0, scatter);
 	vec3 rgb = mix(glow.rgb, ink.rgb, a);
 	float out_a = max(a * ink.a, g * glow.a) * keep * fade;
-	COLOR = vec4(rgb, out_a) * COLOR;
+	COLOR = vec4(rgb, out_a) * tint;
 }

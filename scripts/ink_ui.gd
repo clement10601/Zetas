@@ -188,13 +188,18 @@ static func time_tint(time_of_day: String) -> Color:
 	}.get(time_of_day, Color.WHITE)
 
 
-static var _halo: ShaderMaterial
+static var _halos: Dictionary = {}
 
 
-## 角色立繪用：後面一圈淡紙色光暈（scripts/ink_halo.gdshader），大家共用一個材質
-static func halo_material() -> ShaderMaterial:
-	if _halo == null:
-		_halo = ShaderMaterial.new()
-		_halo.shader = load("res://scripts/ink_halo.gdshader")
-	return _halo
-
+## 角色立繪用的材質（scripts/ink_halo.gdshader）：墨色描邊＋依身分上色的光暈。
+## role："player" 青玉、"hostile" 朱砂、其他（NPC）淡金紙色。同一種身分共用一個材質。
+static func halo_material(role := "npc") -> ShaderMaterial:
+	if not _halos.has(role):
+		var m := ShaderMaterial.new()
+		m.shader = load("res://scripts/ink_halo.gdshader")
+		m.set_shader_parameter("halo_color", {
+			"player": Color(JADE.lightened(0.35), 0.5),
+			"hostile": Color(CINNABAR.lightened(0.15), 0.45),
+		}.get(role, Color(0.98, 0.9, 0.7, 0.42)))
+		_halos[role] = m
+	return _halos[role]

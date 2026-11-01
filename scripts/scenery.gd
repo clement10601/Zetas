@@ -7,6 +7,8 @@
 ## 全部程式畫，不需要素材；顏色依地圖標籤換（洞窟、心魔幻境）。
 extends RefCounted
 
+const SKY_Z := -13
+const RANGES_Z := -12
 const HAZE_Z := -9
 const MIST_Z := -8              # 底圖 -10、接縫霧 -9，山嵐在其上、平台與角色之下
 const FRONT_Z := 10
@@ -19,6 +21,61 @@ static func mist_color(tags: Array) -> Color:
 	if tags.has("cave"):
 		return Color(0.7, 0.74, 0.78, 0.18)
 	return Color(0.97, 0.96, 0.92, 0.38)
+
+
+## 古畫後面：一條依區塊漸變的天色，上面兩層捲得很慢的遠山（art/bg/ranges_*.png）。
+## 只在古畫的天（透明處）露出來，洞窟、幻境不放。
+static func add_sky(level: Node, floor_y: float, spans: Array) -> void:
+	if spans.is_empty():
+		return
+	var total: float = spans[-1]["x"] + spans[-1]["width"]
+	var px := maxi(2, int(total / 16.0))
+	var img := Image.create(px, 1, false, Image.FORMAT_RGBA8)
+	for i in px:
+		var x := (i + 0.5) / px * total
+		var c: Color = spans[0]["color"]
+		for k in spans.size():
+			var s: Dictionary = spans[k]
+			if x >= s["x"]:
+				c = s["color"]
+				# 接縫兩邊 160px 漸變
+				if k + 1 < spans.size():
+					var edge: float = s["x"] + s["width"]
+					var t := clampf((x - (edge - 160.0)) / 320.0, 0.0, 1.0)
+					c = c.lerp(spans[k + 1]["color"], t * t * (3.0 - 2.0 * t))
+		img.set_pixel(i, 0, c)
+	var sky := TextureRect.new()
+	sky.name = "Sky"
+	sky.texture = ImageTexture.create_from_image(img)
+	sky.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sky.position = Vector2(-800, floor_y - 1400)
+	sky.size = Vector2(total + 1600, 1400)
+	sky.z_index = SKY_Z
+	level.add_child(sky)
+	var outdoor := spans.any(func(s): return not (s.get("tags", []).has("cave") or s.get("tags", []).has("illusion")))
+	if not outdoor:
+		return
+	# 遠山：最遠的幾乎不動、偏藍灰而淡；近一層稍快、濃一點。山腳沒入雲氣。
+	# 貼圖裡山脊平均高度：遠層 230、近層 320（tools/inkpaint/far_ranges.py）
+	for spec in [["ranges_far", 0.03, 0.5, floor_y - 540.0 - 230.0, Color(0.7, 0.76, 0.84)],
+			["ranges_mid", 0.09, 0.7, floor_y - 480.0 - 320.0, Color(0.55, 0.6, 0.62)]]:
+		var tex: Texture2D = load("res://art/bg/%s.png" % spec[0])
+		if tex == null:
+			continue
+		var layer := Parallax2D.new()
+		layer.name = "Ranges_" + spec[0].trim_prefix("ranges_")
+		layer.z_index = RANGES_Z
+		layer.scroll_scale = Vector2(spec[1], 1.0)
+		layer.repeat_size = Vector2(tex.get_width(), 0)
+		layer.repeat_times = 3
+		var sprite := Sprite2D.new()
+		sprite.texture = tex
+		sprite.centered = false
+		sprite.position = Vector2(0, spec[3])
+		sprite.modulate = Color(spec[4], spec[2])
+		layer.add_child(sprite)
+		level.add_child(layer)
 
 
 static func add_layers(level: Node, floor_y: float, tags: Array, seed_value: int) -> void:
