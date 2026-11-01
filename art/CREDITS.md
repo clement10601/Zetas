@@ -18,3 +18,15 @@
 ## 程式畫的部分
 
 角色立繪、平台與機關、洞窟區塊、古畫上加的建築與陣紋，都是 `tools/paint_art.py` 用筆觸程式畫的，屬本專案原創。
+
+## AI 重繪的角色立繪（AI 預先生成美術，上 Steam 要揭露）
+
+`art/sprites/` 的角色立繪（`boss.demon_lord.png` 與 `player.disciple.png` 除外，仍是程式畫的原圖；主角在遊戲中由衣櫃分層圖疊出）是拿 `tools/paint_art.py` 畫的底稿，用 ComfyUI 做 img2img 重繪成水墨手繪風，再用底稿的 alpha 切回原尺寸。做法和重跑方式見 `tools/comfy/README.md`。屬 Steam 定義的「預先生成」AI 內容，上架時要在內容問卷揭露。
+
+| 模型 | 來源 | 授權 |
+|---|---|---|
+| SDXL base 1.0 | [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) | CreativeML Open RAIL++-M（可商用，受授權的使用限制約束） |
+| controlnet-union-sdxl-1.0 promax | [xinsir/controlnet-union-sdxl-1.0](https://huggingface.co/xinsir/controlnet-union-sdxl-1.0) | Apache-2.0 |
+| XL - C_InkWashpainting v1.0 LoRA | [Civitai #137420](https://civitai.com/models/137420)，作者 Cinsdia | Civitai 授權欄：出圖可商用、可販售，不需署名 |
+
+這些圖已經不是程式畫的了：**別再跑 `python tools/paint_art.py --all`**，會把它們蓋回底稿。
