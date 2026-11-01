@@ -40,8 +40,13 @@ static func max_hp(tier: int) -> int:
 	return 30 + 20 * tier
 
 
+## 傷害數字放大十倍（煉氣一劍 10），兵器之間的差別（拳 6、刀 18）才看得出來；敵人血量跟著放大，挨幾下不變。
+const DAMAGE_SCALE := 10
+
+
+## 境界的基礎出手傷害；兵器、連段、功法再乘上去（scripts/martial.gd）
 static func player_damage(tier: int) -> int:
-	return 1 + tier
+	return DAMAGE_SCALE * (1 + tier)
 
 
 ## 敵人要挨幾刀：power 1 的小怪約 4 刀；Boss（boss.* 模板）再乘 BOSS_HP，突破心魔這種高潮至少要打一陣子。

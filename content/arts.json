@@ -1,0 +1,20 @@
+{
+  "_comment": "功法表（docs/design/weapons-and-arts.md）。一次主修一門。affinity 是本命兵器類別；passive 的鍵由 scripts/martial.gd 解讀；art 是招牌術法（術法鍵）。requires：karma_max（正邪不高於）或 item（持有物品）任一成立即可修。teachable：導演事件可以傳授。",
+  "gongfa.qingyun_sword": {"name": "青雲劍訣", "path": "正", "affinity": "sword", "tier_min": "煉氣", "teachable": true,
+    "note": "青雲宗根本劍訣。配劍時第三劍放出劍氣。",
+    "passive": {"affinity_damage": 1.15, "finisher": "qi_wave"},
+    "art": {"name": "劍氣斬", "kind": "wave", "cost": 12, "cooldown": 1.2, "damage": 2.0, "range": 340, "speed": 620, "glyph": "zhan"}},
+  "gongfa.wuxing": {"name": "五行法訣", "path": "正", "affinity": "fan", "tier_min": "煉氣", "teachable": true,
+    "note": "以術法為主。靈力回得快，術法更強。",
+    "passive": {"mp_regen": 1.6, "art_power": 1.25},
+    "art": {"name": "火符", "kind": "fireball", "cost": 10, "cooldown": 0.9, "damage": 2.4, "range": 380, "speed": 480, "radius": 70, "glyph": "huo"}},
+  "gongfa.jingang": {"name": "金剛體術", "path": "正", "affinity": "fist", "tier_min": "煉氣", "teachable": true,
+    "note": "硬吃傷害。配拳時第四拳崩出震地波。",
+    "passive": {"damage_taken": 0.7, "affinity_damage": 1.15, "finisher": "quake"},
+    "art": {"name": "金身", "kind": "armor", "cost": 15, "cooldown": 6.0, "duration": 2.5, "reflect": 1.0, "glyph": "jin"}},
+  "gongfa.xuesha": {"name": "血煞魔功", "path": "魔", "affinity": "banner", "tier_min": "煉氣", "teachable": false,
+    "note": "以血換力。命中回血，殺生會讓心性偏邪。",
+    "requires": {"karma_max": -20, "item": "血煞殘卷"},
+    "passive": {"damage": 1.2, "lifesteal": 1, "kill_karma": -1, "karma_floor": -60},
+    "art": {"name": "血祭", "kind": "blood", "hp_cost": 0.2, "cooldown": 3.0, "damage": 3.0, "radius": 140, "glyph": "xue"}}
+}

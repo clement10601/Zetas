@@ -212,6 +212,13 @@ func motif(key: String) -> void:
 		_play_stream(stream, -6.0, 0.0)
 
 
+## 同一個音效換音高：兵器的手感（刀沉、拳脆）靠這個分（docs/design/weapons-and-arts.md）
+func play_pitched(name: String, pitch: float) -> void:
+	_pitch = pitch
+	play(name)
+	_pitch = 1.0
+
+
 func play(name: String, pitch_jitter := 0.04) -> void:
 	played.append(name)
 	var entry: Dictionary = sfx.get(name, {})
@@ -227,6 +234,9 @@ func play(name: String, pitch_jitter := 0.04) -> void:
 		_play_stream(stream, float(entry.get("volume_db", 0.0)), pitch_jitter)
 
 
+var _pitch := 1.0
+
+
 func _play_stream(stream: AudioStream, volume_db: float, pitch_jitter: float) -> void:
 	var p: AudioStreamPlayer = null
 	for q in _pool:
@@ -238,7 +248,7 @@ func _play_stream(stream: AudioStream, volume_db: float, pitch_jitter: float) ->
 		_pool.push_back(_pool.pop_front())
 	p.stream = stream
 	p.volume_db = volume_db
-	p.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
+	p.pitch_scale = _pitch * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
 	p.play()
 
 

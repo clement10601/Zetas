@@ -1,0 +1,21 @@
+{
+  "_comment": "兵器表（docs/design/weapons-and-arts.md）。kinds 是兵器類別的手感數值，其餘是兵器。物品名（name）等於 loot.json 的物品名時，拿到就入手。grade 是 grades 的 index。",
+  "grades": ["凡器", "法器", "靈器", "法寶", "仙器"],
+  "grade_bonus": 0.25,
+  "kinds": {
+    "sword": {"name": "劍", "reach": 90, "behind": 20, "cooldown": 0.35, "combo": [1.0, 1.0, 1.5], "combo_window": 0.7,
+      "knockback": 16, "hitstop": 0.06, "shake": 0.0, "pitch": 1.0, "glyph": "zhan", "glyph_on": "every", "fx": "slash"},
+    "blade": {"name": "刀", "reach": 105, "behind": 60, "cooldown": 0.55, "combo": [1.8, 2.4], "combo_window": 0.9,
+      "knockback": 34, "hitstop": 0.11, "shake": 3.0, "pitch": 0.78, "glyph": "po", "glyph_on": "every", "fx": "heavy"},
+    "spear": {"name": "槍", "reach": 150, "behind": 0, "cooldown": 0.42, "combo": [1.2, 1.2, 1.6], "combo_window": 0.8,
+      "knockback": 22, "hitstop": 0.05, "shake": 0.0, "pitch": 1.1, "glyph": "ci", "glyph_on": "every", "fx": "thrust", "finisher_lunge": 60},
+    "fist": {"name": "拳", "reach": 60, "behind": 10, "cooldown": 0.2, "combo": [0.6, 0.6, 0.6, 1.4], "combo_window": 0.55,
+      "knockback": 8, "finisher_knockback": 34, "hitstop": 0.03, "finisher_hitstop": 0.08, "shake": 0.0, "finisher_shake": 3.0,
+      "pitch": 1.3, "glyph": "quan", "glyph_on": "finisher", "fx": "jab"}
+  },
+  "weapon.qingfeng_sword": {"name": "青鋒劍", "kind": "sword", "grade": 0, "note": "青雲宗弟子配劍，輕快。"},
+  "weapon.kaishan_blade": {"name": "開山刀", "kind": "blade", "grade": 0, "note": "厚背大刀，一刀下去山石都要讓路。"},
+  "weapon.diangang_spear": {"name": "點鋼槍", "kind": "spear", "grade": 0, "note": "白蠟桿點鋼頭，站得遠打得到。"},
+  "weapon.iron_fist": {"name": "鐵護手", "kind": "fist", "grade": 0, "note": "纏手的鐵護手，貼身快打。"},
+  "weapon.zhanma_blade": {"name": "斬馬刀", "kind": "blade", "grade": 1, "note": "山賊頭目的長刀，法器。"}
+}
