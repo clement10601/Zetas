@@ -43,7 +43,7 @@
 - 出劍寫一個「斬」字：照筆順一筆筆寫出，命中時從後寫的筆畫開始碎成墨點散掉（`scripts/ink_glyph.gd`、`scripts/ink_glyph.gdshader`）。字圖 `art/fx/zhan.png` 由 `python tools/glyph_fx.py <霞鶩文楷 TTF>` 產生：R 是字形、G 是每一點被寫到的時間、B 是第幾筆；筆順是在 `GLYPHS` 裡手標的折線，要加別的字（如「破」「封」）照同樣格式加。
 - 事件包裝：事件開始時卷軸展開、朱印蓋下（心魔／奇遇／機緣／事件），結束時收一張小卷，印文了／敗／罷；這次事件的 NPC 頭上有一個小朱印。
 - 正邪色調：偏正世界略冷略清、偏邪略暖紅且暗角加深，幅度小到感覺得到、不太看得出來（`InkUI.karma_tint`）。突破時以角色為心染開一圈顏色：偏正青玉、偏邪朱砂、居中金。
-- 背景是多張獨立圖層疊起來，由遠到近捲得越來越快（不是一張畫）：天色 → 遠峰、遠山（`art/bg/ranges_*.png`，`python -m tools.inkpaint.far_ranges`）→ 丘陵 `hills_<地區>` → 水面 `water`（山村、林間）或雲海 `cloudsea`（宗門、黑風嶺）→ 古畫（戶外只留下半段的建築與坡腳）→ 近景山石松樹 `near_<地區>` → 山嵐 → 角色 → 前景草石與垂掛。地區圖層由 `python -m tools.inkpaint.layers` 產生（地區色在 `PALETTES`），越遠越淡越藍、越近越深越濃。
+- 背景是多張獨立圖層疊起來，由遠到近捲得越來越快（不是一張畫）：天色 → 遠峰、遠山（`art/bg/ranges_*.png`，`python -m tools.inkpaint.far_ranges`）→ 丘陵 `hills_<地區>` → 水面 `water`（山村、林間）或雲海 `cloudsea`（宗門、黑風嶺）→ 近景山石松樹 `near_<地區>` → 區塊圖（戶外只畫這塊自己的坡腳、樹、建築、石碑，上面透明，`chunks.py` 的 `bank`／`REGION`，幾乎貼著地面捲動）→ 山嵐 → 角色 → 前景草石與垂掛。地區圖層由 `python -m tools.inkpaint.layers` 產生（地區色在 `PALETTES`），越遠越淡越藍、越近越深越濃。
   - 古畫上方空白的天是透明的（`python -m tools.inkpaint.skyline`，天色寫進 `content/sky.json`；`paint_art.py` 畫完區塊會自動重跑），遠山從那裡露出來。
   - 古畫本身也分遠近（`scripts/parallax_painting.gd`）：畫頂只跟鏡頭走 6%、畫的下段走 24%，下段 38% 不拉斜（房子、牌坊不會歪）；越上面越淡、越偏天色（空氣透視）。
   - 古畫依地區上色（青綠山水式：深墨 → 地區主色 → 紙色）：山腳青綠、宗門藍青、黑風嶺赭石、村落土黃；洞窟、幻境保持原樣。
@@ -55,3 +55,5 @@
 ## 交付
 - 檔名照 `content/assets.json` 的 `files`；放進 `art/` 以後重開 Godot 就會自動匯入。
 - 缺哪些、哪些最常出場：`python tools/art_todo.py` 會產生 `art/TODO.md`。
+
+- 2026-11-01 起戶外區塊不再用古畫底圖（Kc：原底圖沒跟上設計）；古畫裁圖只剩幻境在用。

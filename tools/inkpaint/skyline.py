@@ -74,11 +74,18 @@ def update_all():
     """所有區塊圖加天空遮罩，天色寫進 content/sky.json（遊戲拿來畫遠山後面的天）。"""
     root = Path(__file__).resolve().parents[2]
     out = {}
+    path = root / "content/sky.json"
+    old = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     for p in sorted((root / "art/chunks").glob("chunk.*.png")):
-        c = apply(p)
+        img = np.asarray(Image.open(p).convert("RGBA"))
+        if img[: img.shape[0] // 4, :, 3].mean() < 20:
+            # 戶外區塊（chunks.REGION）本來就只畫坡腳與建築、上面透明：不用再找天，天色沿用
+            if p.stem in old:
+                out[p.stem] = old[p.stem]
+            continue
+        c = apply(p) or old.get(p.stem)
         if c:
             out[p.stem] = c
-    path = root / "content/sky.json"
     data = {"_comment": "區塊圖天空（透明處）後面的天色，tools/inkpaint/skyline.py 產生"}
     data.update(out)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
