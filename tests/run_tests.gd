@@ -1646,7 +1646,7 @@ func test_equipment() -> void:
 	expect(main.equipment()["cuffs"] == "equip.jade_bracer", "new gear in an empty slot is put on")
 	expect(main.player_max_hp() == 30 + int(Equipment.stats("equip.jade_bracer")["hp"]), "gear adds 氣血")
 	expect(main.player.equip_grade == 2 and main.player._motes != null and main.player._motes.emitting, "靈器 lights up motes")
-	expect(main.player_look()["cuffs"] == Wardrobe.EQUIP and main.player.sprite.texture == Wardrobe.compose(Wardrobe.resolve(main.player_look(), {"top": "moon_robe", "belt": "teal_wrap", "shoes": "boots", "cuffs": "jade_bracer"})), "worn gear shows on the body")
+	expect(main.player_look()["cuffs"] == Wardrobe.EQUIP and main.player.sprite.texture == Wardrobe.compose(Wardrobe.resolve(main.player_look(), {"top": "moon_robe", "belt": "teal_wrap", "shoes": "boots", "cuffs": "jade_bracer"}), "body"), "worn gear shows on the body")
 	expect(main.equipment_guard(100) == roundi(100 * (1.0 - Equipment.stats("equip.jade_bracer")["guard"])), "護體 cuts damage")
 	# 已經有東西的欄位：只進背包，到【裝備】頁換
 	main.gain_item("雲紋道袍")
@@ -1749,7 +1749,21 @@ func test_wardrobe() -> void:
 	var path := "user://zetas_test_wardrobe.json"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	var main: Node = await new_game(false, path)
-	expect(main.player.sprite.texture == main.player_texture(), "player wears the composed look")
+	expect(main.player.sprite.texture == main.player_texture("body") and main.player.flow_sprite.texture == main.player_texture("flow"), "player wears the composed look (body + flowing layer)")
+	# 飄動層：只有背飾、後髮、髮帶；身體那張沒有它們，整張＝兩張疊起來的層
+	var all_keys := Wardrobe.layer_keys(Wardrobe.resolve(main.player_look()))
+	expect(all_keys.any(func(k): return k.begins_with("back/")), "default look has a back ribbon to flutter")
+	expect(main.player.flow_sprite.texture.get_width() == main.player.sprite.texture.get_width() + 2 * Wardrobe.FLOW_PAD, "flowing layer has room to stream out")
+	# 御劍：整片往後拉
+	var pl = main.player
+	pl.flying = 0.5
+	expect(pl._flow_target() == "fly", "sword flight streams the robes")
+	for i in 60:
+		pl._flow(1.0 / 60.0)
+	var fl: Vector2 = pl.flow_sprite.material.get_shader_parameter("flow")
+	var bd: Vector2 = pl.sprite.material.get_shader_parameter("flow")
+	expect(fl.x < -80.0 and bd.x < -40.0, "in flight ribbons and hem trail behind (%s, %s)" % [fl, bd])
+	pl.flying = 0.0
 	expect(not Wardrobe.is_unlocked("top", "sky_robe", main.state), "天青長衫 locked at 煉氣")
 	main.state.tier_index = 1
 	expect(Wardrobe.is_unlocked("top", "sky_robe", main.state), "天青長衫 unlocked at 築基")
