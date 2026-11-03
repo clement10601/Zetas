@@ -370,8 +370,9 @@ func _animate(delta: float) -> void:
 		var b := sin(_time * 1.6) * 0.02
 		target_scale = Vector2(1.12, 0.64 + b)
 	elif flying > 0.0:
-		target_rot = facing * 0.35
-		target_scale = Vector2(1.06, 0.95)
+		# 御劍：前傾、上下浮動（像奇幻之境的死靈浮空），腿由飄動往後收
+		target_rot = facing * 0.22
+		bob = sin(_time * 2.4) * 3.0
 	elif climbing:
 		_walk += delta * absf(velocity.y) / 18.0
 		target_rot = sin(_walk) * 0.06
@@ -407,20 +408,20 @@ func _animate(delta: float) -> void:
 	weapon_view.scale.x = facing
 
 
-## 飄動：衣襬（身體那張，從腰往下）與飄帶、後髮（飄動層，從肩往下）的擺動參數，見 ink_halo.gdshader。
-## 單位是貼圖像素（立繪約 5.5 倍解析度）。x 負＝往身後甩，y 負＝往上飄。
-## 站著：微風輕擺；跑：往後甩；起跳：衣襬往下墜；下落：往上掀；御風：大幅慢擺；御劍：整片往後拉成一條、快速抖動。
-const FLOW_BODY := {"idle": [0.0, 0.0, 2.0], "run": [-30.0, 0.0, 8.0], "rise": [-8.0, 16.0, 6.0],
-	"fall": [-12.0, -40.0, 12.0], "glide": [-26.0, -46.0, 16.0], "fly": [-80.0, -20.0, 14.0]}
-const FLOW_TAIL := {"idle": [0.0, 0.0, 6.0], "run": [-70.0, -10.0, 14.0], "rise": [-16.0, 36.0, 12.0],
-	"fall": [-26.0, -80.0, 18.0], "glide": [-70.0, -70.0, 26.0], "fly": [-130.0, -40.0, 22.0]}
-const FLOW_SPEED := {"idle": 2.0, "run": 7.0, "rise": 5.0, "fall": 6.0, "glide": 3.5, "fly": 11.0}
+## 飄動（參考奇幻之境：衣片掛在骨頭上整片轉、不拉伸）：ink_halo.gdshader 以軸為中心把下方整片往背後彎，長度不變。
+## 飄動層（飄帶、後髮、髮帶）軸在肩頸；身體那張軸在胯，只有御劍、御風、下落時讓腿往後收一點，地上不動，腳不會滑。
+## 每個狀態 [彎多少（弧度，正＝往背後）, 擺動幅度（弧度）, 擺動快慢]。
+const FLOW_TAIL := {"idle": [0.03, 0.04, 1.6], "run": [0.3, 0.1, 6.0], "rise": [0.08, 0.06, 4.0],
+	"fall": [0.42, 0.12, 5.0], "glide": [0.55, 0.16, 2.6], "fly": [0.7, 0.14, 8.0]}
+const FLOW_LEGS := {"idle": [0.0, 0.0], "run": [0.0, 0.0], "rise": [0.0, 0.0], "fall": [0.06, 0.0],
+	"glide": [0.14, 0.02], "fly": [0.38, 0.015]}
+const TAIL_PIVOT := Vector2(0.5, 0.24)
+const LEGS_PIVOT := Vector2(0.5, 0.52)
 var flow_state := "idle"
 var flow_override := ""             # 截圖、除錯用：強制某個飄動狀態
-var _flow_body := Vector3.ZERO      # 目前的 (flow.x, flow.y, flutter)，往目標慢慢靠，換狀態才不會一下彈過去
-var _flow_tail := Vector3.ZERO
+var _flow_tail := Vector3(0.03, 0.04, 1.6)   # 目前的 (彎, 擺幅, 快慢)，往目標慢慢靠，換狀態才不會一下彈過去
+var _flow_legs := Vector2.ZERO
 var _flow_phase := 0.0
-var _flow_speed := 2.0
 
 
 func _flow_target() -> String:
@@ -445,20 +446,23 @@ func _flow(delta: float) -> void:
 	flow_state = _flow_target()
 	# 跑的快慢決定往後甩多少；往後退（面朝反方向移動）就不甩
 	var run := clampf(velocity.x * facing / (SPEED * speed_mult), 0.0, 1.0) if flow_state == "run" else 1.0
-	var b: Array = FLOW_BODY[flow_state]
 	var t: Array = FLOW_TAIL[flow_state]
-	var k := minf(1.0, delta * 5.0)
-	_flow_body = _flow_body.lerp(Vector3(b[0] * run, b[1], b[2]), k)
-	_flow_tail = _flow_tail.lerp(Vector3(t[0] * run, t[1], t[2]), k)
-	_flow_speed = lerpf(_flow_speed, FLOW_SPEED[flow_state], k)
-	_flow_phase = fmod(_flow_phase + delta * _flow_speed, TAU * 1000.0)
-	for pair in [[sprite, _flow_body, 0.45], [flow_sprite, _flow_tail, 0.12]]:
-		var m: ShaderMaterial = pair[0].material
-		var v: Vector3 = pair[1]
-		m.set_shader_parameter("flow", Vector2(v.x, v.y))
-		m.set_shader_parameter("flutter", v.z)
-		m.set_shader_parameter("flutter_phase", _flow_phase)
-		m.set_shader_parameter("flow_from", pair[2])
+	var l: Array = FLOW_LEGS[flow_state]
+	var k := minf(1.0, delta * 4.0)
+	_flow_tail = _flow_tail.lerp(Vector3(t[0] * run + (1.0 - run) * 0.03, t[1], t[2]), k)
+	_flow_legs = _flow_legs.lerp(Vector2(l[0], l[1]), k)
+	_flow_phase = fmod(_flow_phase + delta * _flow_tail.z, TAU * 1000.0)
+	_set_bend(flow_sprite, TAIL_PIVOT, 300.0, _flow_tail.x, _flow_tail.y)
+	_set_bend(sprite, LEGS_PIVOT, 200.0, _flow_legs.x, _flow_legs.y)
+
+
+func _set_bend(sp: Sprite2D, pivot: Vector2, reach: float, bend: float, ripple: float) -> void:
+	var m: ShaderMaterial = sp.material
+	m.set_shader_parameter("pivot", pivot)
+	m.set_shader_parameter("reach", reach)
+	m.set_shader_parameter("bend", bend)
+	m.set_shader_parameter("ripple", ripple)
+	m.set_shader_parameter("ripple_phase", _flow_phase)
 
 
 ## 出手：往前一衝，畫出兵器的墨痕，前方依筆順寫出字訣（劍「斬」、刀「破」、槍「刺」、拳收招「拳」；
