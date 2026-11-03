@@ -33,6 +33,7 @@ const Martial = preload("res://scripts/martial.gd")
 const InkGlyph = preload("res://scripts/ink_glyph.gd")
 const Wardrobe = preload("res://scripts/wardrobe.gd")
 const WardrobePanel = preload("res://scripts/wardrobe_panel.gd")
+const Equipment = preload("res://scripts/equipment.gd")
 
 const FLOOR_Y := 560.0
 ## 鏡頭下緣在地面下多少：留一條地面給操作說明，其餘都給畫面
@@ -216,15 +217,16 @@ func _ready() -> void:
 	player.sound.connect(func(n): audio.play(n))
 	if save_path != "" and state.load_file(save_path):
 		add_log("讀取存檔：第 %d 天。" % state.day)
+	ensure_equipment()
 	apply_look()
 	note_new_looks(true)
 	if not regions.has(state.region):
 		state.region = START_REGION
 	if not state.game_data.has("hp"):
-		state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
+		state.game_data["hp"] = player_max_hp()
 	update_movement_skills()
 	_apply_gear()
-	mp = Martial.max_mp(state.tier_index)
+	mp = player_max_mp()
 	go_home()
 	add_log(("%s。" + Keys.hint("map") + " 地圖、" + Keys.hint("settings") + " 按鍵設定、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。") % region_name())
 	playlog.write("session_start", {"version": ProjectSettings.get_setting("application/config/version", ""),
@@ -1839,7 +1841,7 @@ func cultivation() -> int:
 
 
 func hp() -> int:
-	return int(state.game_data.get("hp", Cultivation.max_hp(state.tier_index)))
+	return int(state.game_data.get("hp", player_max_hp()))
 
 
 func gain_cultivation(amount: int) -> void:
@@ -1859,8 +1861,8 @@ func meditate() -> void:
 		return
 	var gain: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
 	var new_day := advance_time(1)
-	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
-	mp = Martial.max_mp(state.tier_index)
+	state.game_data["hp"] = player_max_hp()
+	mp = player_max_mp()
 	audio.play("meditate")
 	player.sit(1.6)
 	add_log("打坐一個時辰。（第 %d 天・%s）" % [state.day, state.time_of_day])
@@ -1986,7 +1988,7 @@ func cast_art() -> bool:
 			player.set_aura(InkUI.GOLD, armor_time)
 			audio.play_pitched("meditate", 1.3)
 		"blood":
-			var cost := maxi(1, roundi(Cultivation.max_hp(state.tier_index) * float(a.get("hp_cost", 0.2))))
+			var cost := maxi(1, roundi(player_max_hp() * float(a.get("hp_cost", 0.2))))
 			state.game_data["hp"] = maxi(1, hp() - cost)
 			InkFx.number(level, player.position + Vector2(0, -90), "-%d" % cost, Color("#e0503c"))
 			var r := float(a.get("radius", 140))
@@ -2072,8 +2074,8 @@ func damage_actor(id: String, amount: int, knock: float = ENEMY_KNOCKBACK, stop:
 	_cancel_windup(id)
 	InkFx.number(level, view.position + Vector2(0, -110), str(amount), Color("#f3ecd9"))
 	var passive: Dictionary = gongfa().get("passive", {})
-	if int(passive.get("lifesteal", 0)) > 0 and hp() < Cultivation.max_hp(state.tier_index):
-		state.game_data["hp"] = mini(Cultivation.max_hp(state.tier_index), hp() + int(passive["lifesteal"]))
+	if int(passive.get("lifesteal", 0)) > 0 and hp() < player_max_hp():
+		state.game_data["hp"] = mini(player_max_hp(), hp() + int(passive["lifesteal"]))
 	if actor_hp[id] <= 0:
 		hitstop(maxf(HITSTOP_KILL, stop))
 		player.shake(5.0)
@@ -2131,9 +2133,23 @@ func zhengxie() -> int:
 	return int(state.karma.get("正邪", 0))
 
 
-## 拿到物品；物品名是兵器表上的兵器就入手
+## 拿到物品；物品名是兵器表上的兵器、裝備表上的裝備就入手
 func gain_item(item: String) -> void:
+	var eid := Equipment.by_name(item)
+	var fresh := eid != "" and not Equipment.owns(state, eid)
 	state.add_item(item)
+	if fresh:
+		var slot: String = Equipment.item(eid)["slot"]
+		var cur := equipment()
+		if not cur.has(slot):
+			var before := player_max_hp()
+			cur[slot] = eid
+			state.game_data["equip"] = cur
+			_gain_max_hp(before)
+			apply_look()
+			add_log("得到裝備%s，已穿上。" % Equipment.describe(eid))
+		else:
+			add_log("得到裝備%s，按 %s 在【裝備】頁換上。" % [Equipment.describe(eid), Keys.hint("wardrobe")])
 	var wid := Martial.weapon_by_name(weapons, item)
 	if wid != "" and not owned_weapons().has(wid):
 		state.game_data["weapons"] = owned_weapons() + [wid]
@@ -2262,7 +2278,7 @@ func _enemy_strike(id: String) -> void:
 		damage_actor(id, maxi(1, roundi(Cultivation.player_damage(state.tier_index) * float(a.get("reflect", 1.0)))), 30.0, 0.05)
 		return
 	player.knock_back(view.position.x)
-	damage_player(Martial.damage_taken(raw, gongfa()))
+	damage_player(equipment_guard(Martial.damage_taken(raw, gongfa())))
 
 
 func actor_label(id: String) -> String:
@@ -2299,7 +2315,7 @@ func player_down() -> void:
 	var in_event := blocking()
 	if in_event:
 		runner.abort("fail")
-	state.game_data["hp"] = Cultivation.max_hp(state.tier_index) / 2
+	state.game_data["hp"] = player_max_hp() / 2
 	if advance_time(1):
 		day_started()
 	add_log("醒來時已是%s。" % state.time_of_day)
@@ -2317,9 +2333,9 @@ func _process(delta: float) -> void:
 	combo_timer = maxf(0.0, combo_timer - delta)
 	art_cooldown = maxf(0.0, art_cooldown - delta)
 	armor_time = maxf(0.0, armor_time - delta)
-	var mp_max := float(Martial.max_mp(state.tier_index))
+	var mp_max := float(player_max_mp())
 	if mp < mp_max:
-		mp = minf(mp_max, mp + Martial.mp_regen(gongfa()) * delta)
+		mp = minf(mp_max, mp + Martial.mp_regen(gongfa()) * (1.0 + float(equipment_stats()["regen"])) * delta)
 		if mp_bar != null:
 			mp_bar.max_value = mp_max
 			mp_bar.value = mp
@@ -2501,8 +2517,8 @@ func breakthrough() -> void:
 		return
 	state.tier_index += 1
 	_breakthrough_wash()
-	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
-	mp = Martial.max_mp(state.tier_index)
+	state.game_data["hp"] = player_max_hp()
+	mp = player_max_mp()
 	playlog.write("breakthrough", {"tier": state.tier_name(), "day": state.day})
 	audio.stinger("breakthrough", "breakthrough")
 	add_log("突破至" + state.tier_name() + "！")
@@ -2680,11 +2696,76 @@ func player_look() -> Dictionary:
 
 
 func player_texture() -> Texture2D:
-	return Wardrobe.compose(player_look())
+	return Wardrobe.compose(Wardrobe.resolve(player_look(), Equipment.look_of(equipment())))
 
 
 func apply_look() -> void:
+	if player == null:
+		return
 	player.set_look(player_texture(), float(art.info("player.disciple").get("height", 88)))
+	var aura := Equipment.aura(equipment())
+	player.set_equip_aura(int(aura["grade"]), str(aura["line"]))
+	player.speed_mult = 1.0 + float(equipment_stats()["speed"])
+	if hp() > player_max_hp():
+		state.game_data["hp"] = player_max_hp()
+	mp = minf(mp, float(player_max_mp()))
+
+
+# ---------- 裝備（有品階數值；時裝只換外觀，見 scripts/equipment.gd） ----------
+
+## 身上穿的裝備（欄位 -> id），背包裡沒有的不算
+func equipment() -> Dictionary:
+	return Equipment.normalize(state.game_data.get("equip", {}), state)
+
+
+func equipment_stats() -> Dictionary:
+	return Equipment.totals(equipment())
+
+
+func player_max_hp() -> int:
+	return Cultivation.max_hp(state.tier_index) + int(equipment_stats()["hp"])
+
+
+func player_max_mp() -> int:
+	return Martial.max_mp(state.tier_index) + int(equipment_stats()["mp"])
+
+
+## 氣血上限變高時，多出來的那截直接補上（換上好裝備不會看起來像受了傷）
+func _gain_max_hp(before: int) -> void:
+	var after := player_max_hp()
+	if after > before and state.game_data.has("hp"):
+		state.game_data["hp"] = hp() + after - before
+
+
+## 護體：照比例少受傷，至少 1
+func equipment_guard(amount: int) -> int:
+	return maxi(1, roundi(amount * (1.0 - float(equipment_stats()["guard"]))))
+
+
+## 新角色（和還沒有裝備的舊存檔）：發入門裝備穿上；舊存檔原本穿預設那件的欄位改成「隨裝備」
+func ensure_equipment() -> void:
+	if state.game_data.has("equip"):
+		return
+	var eq := {}
+	for id in Equipment.data()["starter"]:
+		if not Equipment.owns(state, id):
+			state.add_item(Equipment.item(id)["name"])
+		eq[Equipment.item(id)["slot"]] = id
+	state.game_data["equip"] = eq
+	if state.game_data.has("look"):
+		var look: Dictionary = state.game_data["look"]
+		var d: Dictionary = Wardrobe.catalog()["default"]
+		for slot in Wardrobe.EQUIP_SLOTS:
+			if look.get(slot, d[slot]) == d[slot]:
+				look[slot] = Wardrobe.EQUIP
+
+
+func set_equipment(eq: Dictionary) -> void:
+	var before := player_max_hp()
+	state.game_data["equip"] = Equipment.normalize(eq, state)
+	_gain_max_hp(before)
+	apply_look()
+	_refresh_status()
 
 
 func open_wardrobe() -> void:
@@ -2697,12 +2778,15 @@ func open_wardrobe() -> void:
 			state.game_data["look"] = look
 			apply_look()
 			autosave())
+		wardrobe_panel.equip_changed.connect(func(eq: Dictionary):
+			set_equipment(eq)
+			autosave())
 		wardrobe_panel.closed.connect(func():
 			player.input_blocked = false
 			_refresh_status())
 		hud_layer.add_child(wardrobe_panel)
 	player.input_blocked = true
-	wardrobe_panel.open(state, player_look())
+	wardrobe_panel.open(state, player_look(), equipment())
 
 
 ## 有新解鎖的外觀就在紀錄提一句。first：讀檔時只記下已有的，不提示。
@@ -2960,15 +3044,15 @@ func _refresh_status() -> void:
 	var need := Cultivation.need(state.tier_index)
 	exp_bar.max_value = maxf(1.0, float(need))
 	exp_bar.value = cultivation()
-	hp_bar.max_value = maxf(1.0, float(Cultivation.max_hp(state.tier_index)))
+	hp_bar.max_value = maxf(1.0, float(player_max_hp()))
 	hp_bar.value = hp()
 	if mp_bar != null:
-		mp_bar.max_value = float(Martial.max_mp(state.tier_index))
+		mp_bar.max_value = float(player_max_mp())
 		mp_bar.value = mp
 	var gear := ""
 	if weapons.has(weapon_id()) and not gongfa().is_empty():
 		gear = "　%s・%s" % [gongfa()["name"], weapons[weapon_id()]["name"]]
-	hud_detail.text = "修為 %d／%d　氣血 %d／%d　%s%s" % [cultivation(), need, hp(), Cultivation.max_hp(state.tier_index), "　".join(karma), gear]
+	hud_detail.text = "修為 %d／%d　氣血 %d／%d　%s%s" % [cultivation(), need, hp(), player_max_hp(), "　".join(karma), gear]
 	if tint != null:
 		var target := InkUI.time_tint(state.time_of_day) * InkUI.karma_tint(_karma_lean())
 		if vignette != null:

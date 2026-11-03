@@ -101,6 +101,10 @@ var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
 var rig: Node2D                 # 立繪的軸心放在腳底：走路一頓一頓、跳起拉長、落地壓扁都繞這裡
 var shadow: TextureRect
 var weapon_view: Node2D         # 身上的兵器（scripts/weapon_view.gd）
+var speed_mult := 1.0           # 裝備的身法加成
+var equip_grade := 0            # 裝備品階的周身光效（set_equip_aura）
+var equip_line := ""
+var _motes: CPUParticles2D
 
 var _walk := 0.0
 var _squash := 0.0              # 落地壓扁，1 → 0
@@ -160,8 +164,9 @@ func set_look(tex: Texture2D, height: float) -> void:
 	if sprite == null:
 		sprite = Sprite2D.new()
 		sprite.centered = false
-		sprite.material = preload("res://scripts/ink_ui.gd").halo_material("player")
+		sprite.material = preload("res://scripts/ink_ui.gd").halo_material("player").duplicate()
 		rig.add_child(sprite)
+		_apply_equip_aura()
 	sprite.texture = tex
 	sprite.scale = Vector2.ONE * height / tex.get_height()
 	sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, -height)
@@ -247,7 +252,7 @@ func _dash(dir: float, delta: float) -> void:
 		dashing = 0.0
 	if dashing <= 0.0:
 		# 還按著同方向就接著跑，否則停住
-		velocity.x = _dash_dir * SPEED if int(dir) == _dash_dir else 0.0
+		velocity.x = _dash_dir * SPEED * speed_mult if int(dir) == _dash_dir else 0.0
 
 
 ## 殘影：立繪的墨色拷貝，原地淡掉。
@@ -434,6 +439,62 @@ func set_weapon(kind: String, grade: int) -> void:
 		weapon_view.grade = grade
 
 
+## 裝備品階的周身光效：凡器只有平常的青玉光暈；法器光暈加亮；靈器起靈光點點；法寶光點變多、光暈轉金；
+## 仙器金光往上飄、魔器朱紅火星。時裝蓋不掉，也穿不出來。
+const AURA_HALO := [Color(0.69, 0.84, 0.79, 0.5), Color(0.62, 0.9, 0.8, 0.62), Color(0.62, 0.82, 0.98, 0.7),
+	Color(0.95, 0.85, 0.55, 0.72), Color(1.0, 0.88, 0.5, 0.8)]
+const AURA_RADIUS := [20.0, 24.0, 28.0, 32.0, 38.0]
+const AURA_MOTES := [0, 0, 10, 20, 32]
+const MO_HALO := Color(0.85, 0.22, 0.18, 0.78)
+
+
+func set_equip_aura(grade: int, line: String) -> void:
+	equip_grade = clampi(grade, 0, AURA_HALO.size() - 1)
+	equip_line = line
+	_apply_equip_aura()
+
+
+func _apply_equip_aura() -> void:
+	if sprite == null:
+		return
+	var mo := equip_grade >= 4 and equip_line == "mo"
+	var halo: Color = MO_HALO if mo else AURA_HALO[equip_grade]
+	sprite.material.set_shader_parameter("halo_color", halo)
+	sprite.material.set_shader_parameter("radius", AURA_RADIUS[equip_grade])
+	var n: int = AURA_MOTES[equip_grade]
+	if n == 0:
+		if _motes != null:
+			_motes.emitting = false
+			_motes.visible = false
+		return
+	if _motes == null:
+		_motes = CPUParticles2D.new()
+		_motes.name = "Motes"
+		_motes.position = Vector2(0, -SIZE.y * 0.55)
+		_motes.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		_motes.emission_rect_extents = Vector2(SIZE.x * 0.7, SIZE.y * 0.45)
+		_motes.direction = Vector2(0, -1)
+		_motes.spread = 25.0
+		_motes.gravity = Vector2(0, -18)
+		_motes.initial_velocity_min = 6.0
+		_motes.initial_velocity_max = 18.0
+		_motes.lifetime = 1.6
+		_motes.scale_amount_min = 2.5
+		_motes.scale_amount_max = 4.5
+		var fade := Gradient.new()
+		fade.set_color(0, Color(1, 1, 1, 0.0))
+		fade.add_point(0.25, Color(1, 1, 1, 1))
+		fade.set_color(fade.get_point_count() - 1, Color(1, 1, 1, 0.0))
+		_motes.color_ramp = fade
+		rig.add_child(_motes)
+	_motes.amount = n
+	_motes.color = Color(1.0, 0.45, 0.3) if mo else Color(halo.r, halo.g, halo.b, 1.0).lightened(0.2)
+	if mo:
+		_motes.gravity = Vector2(0, -40)
+	_motes.visible = true
+	_motes.emitting = true
+
+
 func set_aura(color: Color, seconds: float) -> void:
 	if weapon_view != null:
 		weapon_view.aura = color
@@ -585,7 +646,7 @@ func _physics_process(delta: float) -> void:
 		sound.emit("double_jump")
 
 	if _wall_lock <= 0.0 and _hurt_lock <= 0.0:
-		var target := dir * SPEED
+		var target := dir * SPEED * speed_mult
 		var rate := AIR_ACCEL
 		if is_on_floor():
 			if dir == 0.0:
