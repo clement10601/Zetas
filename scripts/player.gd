@@ -98,6 +98,7 @@ var _zone_blend := 0.0
 var _zone_last: Dictionary = {}
 var _base_limit_top := 0
 var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
+var flow_sprite: Sprite2D       # 會飄的圖層（背飾飄帶、後髮、髮帶），疊在身體後面，單獨擺動
 var rig: Node2D                 # 立繪的軸心放在腳底：走路一頓一頓、跳起拉長、落地壓扁都繞這裡
 var shadow: TextureRect
 var weapon_view: Node2D         # 身上的兵器（scripts/weapon_view.gd）
@@ -158,10 +159,16 @@ func _ready() -> void:
 
 
 ## 換上立繪（面朝右、腳底貼齊圖的底邊），height 是畫面上的身高；碰撞框不變。
-func set_look(tex: Texture2D, height: float) -> void:
+## flow_tex：會飄的圖層（左右各多 flow_pad 空白），疊在身體後面，跑、跳、御劍時跟衣襬一起飄。
+func set_look(tex: Texture2D, height: float, flow_tex: Texture2D = null, flow_pad := 0) -> void:
 	if tex == null:
 		return
 	if sprite == null:
+		flow_sprite = Sprite2D.new()
+		flow_sprite.name = "Flow"
+		flow_sprite.centered = false
+		flow_sprite.material = preload("res://scripts/ink_ui.gd").halo_material("player").duplicate()
+		rig.add_child(flow_sprite)
 		sprite = Sprite2D.new()
 		sprite.centered = false
 		sprite.material = preload("res://scripts/ink_ui.gd").halo_material("player").duplicate()
@@ -170,13 +177,20 @@ func set_look(tex: Texture2D, height: float) -> void:
 	sprite.texture = tex
 	sprite.scale = Vector2.ONE * height / tex.get_height()
 	sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, -height)
+	flow_sprite.texture = flow_tex
+	flow_sprite.visible = flow_tex != null
+	flow_sprite.scale = sprite.scale
+	if flow_tex != null:
+		flow_sprite.position = Vector2(-flow_tex.get_width() * sprite.scale.x / 2, -height)
 	get_node("Body").visible = false
 
 
 func _process(delta: float) -> void:
 	if sprite:
 		sprite.flip_h = facing < 0
+		flow_sprite.flip_h = facing < 0
 	_animate(delta)
+	_flow(delta)
 	_update_camera(delta)
 
 
@@ -393,6 +407,60 @@ func _animate(delta: float) -> void:
 	weapon_view.scale.x = facing
 
 
+## 飄動：衣襬（身體那張，從腰往下）與飄帶、後髮（飄動層，從肩往下）的擺動參數，見 ink_halo.gdshader。
+## 單位是貼圖像素（立繪約 5.5 倍解析度）。x 負＝往身後甩，y 負＝往上飄。
+## 站著：微風輕擺；跑：往後甩；起跳：衣襬往下墜；下落：往上掀；御風：大幅慢擺；御劍：整片往後拉成一條、快速抖動。
+const FLOW_BODY := {"idle": [0.0, 0.0, 2.0], "run": [-30.0, 0.0, 8.0], "rise": [-8.0, 16.0, 6.0],
+	"fall": [-12.0, -40.0, 12.0], "glide": [-26.0, -46.0, 16.0], "fly": [-80.0, -20.0, 14.0]}
+const FLOW_TAIL := {"idle": [0.0, 0.0, 6.0], "run": [-70.0, -10.0, 14.0], "rise": [-16.0, 36.0, 12.0],
+	"fall": [-26.0, -80.0, 18.0], "glide": [-70.0, -70.0, 26.0], "fly": [-130.0, -40.0, 22.0]}
+const FLOW_SPEED := {"idle": 2.0, "run": 7.0, "rise": 5.0, "fall": 6.0, "glide": 3.5, "fly": 11.0}
+var flow_state := "idle"
+var flow_override := ""             # 截圖、除錯用：強制某個飄動狀態
+var _flow_body := Vector3.ZERO      # 目前的 (flow.x, flow.y, flutter)，往目標慢慢靠，換狀態才不會一下彈過去
+var _flow_tail := Vector3.ZERO
+var _flow_phase := 0.0
+var _flow_speed := 2.0
+
+
+func _flow_target() -> String:
+	if flow_override != "":
+		return flow_override
+	if sitting > 0.0 or climbing:
+		return "idle"
+	if flying > 0.0:
+		return "fly"
+	if not is_on_floor():
+		if velocity.y < -60.0:
+			return "rise"
+		if glide and velocity.y > 0.0 and velocity.y <= GLIDE_FALL + 1.0:
+			return "glide"
+		return "fall"
+	return "run" if absf(velocity.x) > 40.0 else "idle"
+
+
+func _flow(delta: float) -> void:
+	if sprite == null:
+		return
+	flow_state = _flow_target()
+	# 跑的快慢決定往後甩多少；往後退（面朝反方向移動）就不甩
+	var run := clampf(velocity.x * facing / (SPEED * speed_mult), 0.0, 1.0) if flow_state == "run" else 1.0
+	var b: Array = FLOW_BODY[flow_state]
+	var t: Array = FLOW_TAIL[flow_state]
+	var k := minf(1.0, delta * 5.0)
+	_flow_body = _flow_body.lerp(Vector3(b[0] * run, b[1], b[2]), k)
+	_flow_tail = _flow_tail.lerp(Vector3(t[0] * run, t[1], t[2]), k)
+	_flow_speed = lerpf(_flow_speed, FLOW_SPEED[flow_state], k)
+	_flow_phase = fmod(_flow_phase + delta * _flow_speed, TAU * 1000.0)
+	for pair in [[sprite, _flow_body, 0.45], [flow_sprite, _flow_tail, 0.12]]:
+		var m: ShaderMaterial = pair[0].material
+		var v: Vector3 = pair[1]
+		m.set_shader_parameter("flow", Vector2(v.x, v.y))
+		m.set_shader_parameter("flutter", v.z)
+		m.set_shader_parameter("flutter_phase", _flow_phase)
+		m.set_shader_parameter("flow_from", pair[2])
+
+
 ## 出手：往前一衝，畫出兵器的墨痕，前方依筆順寫出字訣（劍「斬」、刀「破」、槍「刺」、拳收招「拳」；
 ## reference-study.md A4、weapons-and-arts.md）。回傳那個字，打中東西時 main 叫它散成墨點。
 func play_attack(kind: Dictionary = {}, step := 0, finisher := false) -> Node2D:
@@ -459,8 +527,9 @@ func _apply_equip_aura() -> void:
 		return
 	var mo := equip_grade >= 4 and equip_line == "mo"
 	var halo: Color = MO_HALO if mo else AURA_HALO[equip_grade]
-	sprite.material.set_shader_parameter("halo_color", halo)
-	sprite.material.set_shader_parameter("radius", AURA_RADIUS[equip_grade])
+	for sp in [sprite, flow_sprite]:
+		sp.material.set_shader_parameter("halo_color", halo)
+		sp.material.set_shader_parameter("radius", AURA_RADIUS[equip_grade])
 	var n: int = AURA_MOTES[equip_grade]
 	if n == 0:
 		if _motes != null:

@@ -2695,14 +2695,14 @@ func player_look() -> Dictionary:
 	return Wardrobe.only_unlocked(Wardrobe.normalize(state.game_data.get("look", {})), state)
 
 
-func player_texture() -> Texture2D:
-	return Wardrobe.compose(Wardrobe.resolve(player_look(), Equipment.look_of(equipment())))
+func player_texture(part := "all") -> Texture2D:
+	return Wardrobe.compose(Wardrobe.resolve(player_look(), Equipment.look_of(equipment())), part)
 
 
 func apply_look() -> void:
 	if player == null:
 		return
-	player.set_look(player_texture(), float(art.info("player.disciple").get("height", 88)))
+	player.set_look(player_texture("body"), float(art.info("player.disciple").get("height", 88)), player_texture("flow"), Wardrobe.FLOW_PAD)
 	var aura := Equipment.aura(equipment())
 	player.set_equip_aura(int(aura["grade"]), str(aura["line"]))
 	player.speed_mult = 1.0 + float(equipment_stats()["speed"])

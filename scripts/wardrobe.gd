@@ -21,6 +21,12 @@ const ORDER := [
 	["sleeve_front", "top"], ["cuffs", "cuffs"], ["coat_sleeve", "coat"], ["shoulder", "shoulder"],
 ]
 
+## 會飄的圖層（背飾飄帶、後髮、髮帶長尾）：遊戲裡另疊一張放在身體後面，給 ink_halo 著色器單獨擺動，
+## 跑、跳、御劍時才飄得起來。都在 ORDER 最前面（最後面那層），拆開疊順序不變。
+const FLOW_LAYERS := ["back", "hair_back", "hair_acc_back"]
+## 飄動層左右多留的空白（貼圖像素），飄帶往後甩出去才不會被切掉
+const FLOW_PAD := 140
+
 ## 時裝「隨裝備」：這一欄顯示身上的裝備
 const EQUIP := "equip"
 const EQUIP_SLOTS := ["top", "belt", "cuffs", "shoes", "head", "waist"]
@@ -193,20 +199,24 @@ static func _image(key: String) -> Image:
 
 
 ## 疊好的全身立繪。同一套外觀只疊一次。
-static func compose(look: Dictionary) -> Texture2D:
+## part："all" 整張（頭像、心魔鏡像）；"body" 不含飄動層；"flow" 只有飄動層，左右各多 FLOW_PAD 空白。
+static func compose(look: Dictionary, part := "all") -> Texture2D:
 	look = normalize(look)
 	var keys := layer_keys(look)
-	var sig := "|".join(keys)
+	if part != "all":
+		keys = keys.filter(func(k): return FLOW_LAYERS.has(str(k).get_slice("/", 0)) == (part == "flow"))
+	var sig := part + ":" + "|".join(keys)
 	if _textures.has(sig):
 		return _textures[sig]
 	var size: Array = layers()["size"]
-	var canvas := Image.create(int(size[0]), int(size[1]), false, Image.FORMAT_RGBA8)
+	var pad := FLOW_PAD if part == "flow" else 0
+	var canvas := Image.create(int(size[0]) + 2 * pad, int(size[1]), false, Image.FORMAT_RGBA8)
 	for key in keys:
 		var img := _image(key)
 		if img == null:
 			continue
 		var info: Dictionary = layers()["layers"][key]
-		canvas.blend_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), Vector2i(int(info["x"]), int(info["y"])))
+		canvas.blend_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), Vector2i(int(info["x"]) + pad, int(info["y"])))
 	var tex := ImageTexture.create_from_image(canvas)
 	_textures[sig] = tex
 	return tex

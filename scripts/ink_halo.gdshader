@@ -2,6 +2,9 @@
 // 1. 外圈一道墨色描邊（比立繪本身的勾線粗），剪影在繁複的古畫上一眼看得出來。
 // 2. 描邊外一圈依身分上色的光暈：玩家青玉、敵人朱砂、其他人淡金紙色（ink_ui.gd 的 halo_material）。
 // 3. 立繪本身提高彩度與對比，不再灰灰的像底圖的一部分。
+// 4. 飄動（玩家用；預設全 0 不動）：flow_from 到 flow_to 之間（貼圖 UV 的 y，上到下）越往下擺得越大。
+//    flow 是整體偏移（x 正＝往立繪面朝的前方，負＝往後甩；y 負＝往上飄），flutter 是波浪幅度，都以貼圖像素計。
+//    衣襬（身體那張，從腰往下）和飄帶、後髮（另一張飄動層）各用一份材質、各自的參數，見 player.gd 的 _flow。
 // 半徑以貼圖像素計（立繪約 4 倍解析度，outline 8 ≈ 畫面上 2px）。保留父節點的 modulate（受擊閃紅、倒下淡出）。
 shader_type canvas_item;
 
@@ -11,6 +14,11 @@ uniform float outline = 8.0;
 uniform float radius = 20.0;
 uniform float saturation = 1.3;
 uniform float contrast = 1.08;
+uniform vec2 flow = vec2(0.0);
+uniform float flutter = 0.0;
+uniform float flutter_phase = 0.0;   // 波浪相位，由腳本累加（換狀態時速度變了也不會跳）
+uniform float flow_from = 0.5;
+uniform float flow_to = 1.0;
 
 varying vec4 tint;
 
@@ -18,17 +26,34 @@ void vertex() {
 	tint = COLOR;
 }
 
+vec2 warp(vec2 uv, vec2 px) {
+	float w = smoothstep(flow_from, flow_to, uv.y);
+	w = w * w * (1.5 - 0.5 * w);
+	float wave = sin(flutter_phase - uv.y * 22.0) * flutter * w;
+	vec2 off = vec2(flow.x * w + wave, flow.y * w + 0.35 * wave * abs(flow.x) / max(abs(flow.x), 1.0));
+	return uv - off * px;
+}
+
+vec4 sample_tex(sampler2D tex, vec2 uv, vec2 px) {
+	vec2 u = warp(uv, px);
+	if (u.x < 0.0 || u.x > 1.0 || u.y < 0.0 || u.y > 1.0) {
+		return vec4(0.0);
+	}
+	return texture(tex, u);
+}
+
 void fragment() {
-	vec4 c = texture(TEXTURE, UV);
+	vec2 px = TEXTURE_PIXEL_SIZE;
+	vec4 c = sample_tex(TEXTURE, UV, px);
 	float line = 0.0;
 	float glow = 0.0;
 	for (int i = 0; i < 12; i++) {
 		float ang = float(i) * 0.5235988;
 		vec2 dir = vec2(cos(ang), sin(ang)) * TEXTURE_PIXEL_SIZE;
-		line = max(line, texture(TEXTURE, UV + dir * outline).a);
-		line = max(line, texture(TEXTURE, UV + dir * outline * 0.5).a);
-		glow = max(glow, texture(TEXTURE, UV + dir * radius).a * 0.55);
-		glow = max(glow, texture(TEXTURE, UV + dir * (outline + radius) * 0.5).a);
+		line = max(line, sample_tex(TEXTURE, UV + dir * outline, px).a);
+		line = max(line, sample_tex(TEXTURE, UV + dir * outline * 0.5, px).a);
+		glow = max(glow, sample_tex(TEXTURE, UV + dir * radius, px).a * 0.55);
+		glow = max(glow, sample_tex(TEXTURE, UV + dir * (outline + radius) * 0.5, px).a);
 	}
 	// 立繪本身：彩度、對比
 	float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
