@@ -19,6 +19,9 @@ from .ink import INK, Canvas, chaikin, mix, seed_of
 GOLD = F.GOLD
 SILVER = (178, 184, 192)
 JADE = (104, 178, 178)
+HEAD_SCALE = 1.36
+TEAL = (30, 110, 120)
+VERMILION = (176, 46, 40)
 
 # 疊圖順序（由後往前）。每一層：(圖層名, figure 的部位, 決定這層長相的選項欄位)
 ORDER = [
@@ -35,9 +38,11 @@ ORDER = [
     ("brows", "brows", "brows"),
     ("head", "head_items", "head"),
     ("sleeve_front", "sleeve_front", "outfit"),
+    ("shoulder", "shoulder", "shoulder"),     # 肩飾蓋在前袖上
 ]
 
-BASE = dict(inner=(238, 236, 228), back_items=[F.sword_back])
+# hair_ornament：髻上步搖、馬尾髮帶；head_scale：玩家頭再放大一點（橫軸畫面上角色只有 88px 高，臉與髮型要撐得起來）
+BASE = dict(inner=(238, 236, 228), back_items=[F.sword_back], hair_ornament=True, head_scale=HEAD_SCALE)
 
 HAIR_COLORS = {
     "ink": (34, 30, 34),        # 墨黑
@@ -161,20 +166,102 @@ def flame_marks(color):
     return draw
 
 
+
+# ---------- 肩飾 ----------
+
+def cloud_collar(color=(70, 140, 150), edge=GOLD):
+    """雲肩：圍在頸肩的四瓣雲頭，瓣尖垂一點流蘇。"""
+    def draw(f):
+        lobes = [(-44, .74), (-20, .72), (8, .73), (34, .74)]
+        pts = [(-12, .86), (-40, .83)]
+        for x, y in lobes:
+            pts += [(x - 6, y + .03), (x, y), (x + 8, y + .025)]
+        pts += [(44, .8), (14, .855)]
+        f.fill(pts, color, 2.0, 0.3, 1.0)
+        f.line(pts[1:-1], 2.2, edge, 0.9, dry=0.2)
+        for x, y in lobes:  # 每瓣一朵小捲雲
+            cx, cy = f.P(x, y + .045)
+            f.cv.stroke([(cx - 4, cy + 2), (cx - 4, cy - 3), (cx + 3, cy - 3), (cx + 3, cy + 1)], 1.3, edge, 0.85, smooth=1)
+            tx, ty = f.P(x, y - .004)
+            f.cv.stroke([(tx, ty), (tx, ty + 12)], 1.4, VERMILION, 0.9, taper=(0.1, 0.6))
+    return draw
+
+
+def pauldron(f):
+    """護肩：前肩三片疊甲，皮繩斜綁過胸，劍修、散修的利落感。"""
+    f.line([(-30, .82), (8, .7), (40, .62)], 3, (96, 66, 44), 0.95, smooth=1)
+    for k in range(3):
+        y = .835 - k * .04
+        f.fill([(22 + k * 3, y + .015), (52 + k * 4, y), (62 + k * 4, y - .05), (52 + k * 3, y - .06), (26 + k * 2, y - .035)],
+               mix((84, 92, 100), (200, 200, 196), k * 0.12), 1.8, 0.35, 1.0)
+    cx, cy = f.P(44, .8)
+    f.cv.paint(f.cv.ellipse(cx, cy, 3, 3, blur=0.3), GOLD, 1.0)
+
+
+def fur_collar(f):
+    """毛領：頸肩一圈蓬鬆白毛，崑崙雪地的厚氅領子。"""
+    cv = f.cv
+    for x, y, r in ((-40, .81, 13), (-26, .835, 13), (-8, .845, 12), (12, .835, 12), (30, .815, 13), (44, .79, 11), (-46, .78, 10)):
+        cx, cy = f.P(x, y)
+        cv.paint(cv.ellipse(cx, cy + 2, r, r * 0.8, blur=2.0), (180, 176, 168), 1.0)
+        cv.paint(cv.textured(cv.ellipse(cx - 1, cy - 1, r * 0.9, r * 0.72, blur=1.5), 0.8, "cloud", lo=0.5), (248, 246, 240), 1.0)
+    for x, y in ((-36, .8), (-6, .825), (24, .805), (42, .78), (-18, .84), (8, .83)):
+        f.line([(x, y + .02), (x + 4, y - .015)], 1.2, INK, 0.5, dry=0.6)
+
+
+# 每套都照同一組「熱門仙俠造型」的層次去配（docs/design/character-style.md）：
+# 內襯＋袍＋外罩三層明度、寬腰封＋長垂帶當視覺中心、袖口與衣緣鑲邊、一個強調色。
 OUTFITS = {
-    "disciple": dict(robe=(240, 238, 230), trim=(30, 110, 120), sash=(30, 110, 120)),
+    # 月白弟子袍：月白長袍外罩天青半臂，青腰封、白玉色回紋鑲邊——原本的主角，層次加滿
+    "disciple": dict(robe=(240, 238, 230), trim=TEAL, sash=TEAL, collar=TEAL, cuff=TEAL,
+                     overcoat=dict(color=(150, 194, 200), trim=TEAL, length=.36, sleeve="half", slit=True),
+                     waist_wrap=dict(color=TEAL, trim=(232, 236, 228), tail=(104, 178, 178), tassel=VERMILION),
+                     hem_band=(196, 222, 222), hem_pattern=TEAL, boots=(46, 52, 58)),
+    # 外門短褐：短衣長褲、束袖護腕、綁腿，腰間粗布腰封打結
     "outer": dict(robe=(176, 188, 188), inner=(220, 220, 212), trim=(60, 92, 104), sash=(60, 92, 104), sleeve="tight",
-                  short_robe=True, pants=(110, 122, 126)),
-    "wanderer": dict(robe=(150, 128, 96), inner=(204, 190, 162), trim=(90, 70, 50), sash=(90, 70, 50), sleeve="tight"),
-    "inner": dict(robe=(160, 196, 214), trim=(36, 92, 130), sash=(36, 92, 130), hem_band=(232, 236, 232)),
+                  short_robe=True, pants=(110, 122, 126), cuff=(96, 78, 60), leg_wraps=(214, 206, 188), collar=(60, 92, 104),
+                  waist_wrap=dict(color=(60, 92, 104), trim=(214, 206, 188), tail=(60, 92, 104), tail_len=0.6),
+                  boots=(60, 50, 42)),
+    # 散修布衣：赭長衫開衩、繩腰帶繫葫蘆色流蘇、綁腿長靴，風塵感
+    "wanderer": dict(robe=(150, 128, 96), inner=(204, 190, 162), trim=(90, 70, 50), sash=(90, 70, 50), sleeve="tight",
+                     cuff=(80, 62, 46), split=True, pants=(96, 86, 72), collar=(110, 86, 60),
+                     overcoat=dict(color=(118, 98, 72), trim=(80, 62, 46), length=.5, slit=True),
+                     waist_wrap=dict(color=(88, 66, 46), trim=(196, 170, 120), tail=(196, 170, 120), tassel=(186, 140, 60)),
+                     boots=(70, 56, 44)),
+    # 內門青衫：天青衫、白鑲邊，外罩月白長褙子，銀邊腰封
+    "inner": dict(robe=(160, 196, 214), trim=(36, 92, 130), sash=(36, 92, 130), hem_band=(232, 236, 232), hem_pattern=(36, 92, 130),
+                  collar=(232, 236, 232), cuff=(232, 236, 232),
+                  overcoat=dict(color=(236, 240, 238), trim=(36, 92, 130), length=.22, sleeve="half", slit=True),
+                  waist_wrap=dict(color=(36, 92, 130), trim=SILVER, tail=(232, 236, 232), tassel=(104, 178, 178)),
+                  boots=(40, 50, 62)),
+    # 雲紋道袍：深青道袍罩金邊大氅、廣袖金緣，金腰封
     "cloud_daoist": dict(robe=(66, 84, 108), inner=(226, 222, 210), trim=GOLD, sash=GOLD, hem_band=(42, 56, 76), flare=1.08,
-                         robe_marks=[cloud_marks((206, 176, 100))]),
+                         robe_marks=[cloud_marks((206, 176, 100))], collar=GOLD, cuff=GOLD, hem_pattern=GOLD,
+                         overcoat=dict(color=(44, 58, 78), trim=GOLD, length=.1, sleeve="long", flare=1.12,
+                                       marks=[cloud_marks((206, 176, 100))]),
+                         waist_wrap=dict(color=GOLD, trim=(66, 84, 108), tail=(206, 176, 100), tassel=VERMILION)),
+    # 照影墨衣：墨色勁裝、朱紅內襯開衩、護腕、朱紅長垂帶
     "mirror": dict(robe=(40, 38, 44), inner=(96, 32, 36), trim=(156, 34, 36), sash=(156, 34, 36), sleeve="tight",
-                   shoes=(20, 18, 20)),
+                   shoes=(20, 18, 20), split=True, pants=(96, 32, 36), cuff=(70, 64, 72), collar=(156, 34, 36),
+                   waist_wrap=dict(color=(30, 28, 32), trim=(156, 34, 36), tail=(156, 34, 36), tail_len=1.3),
+                   boots=(24, 22, 26)),
+    # 流雲仙裳：月白仙裳、三層天青薄紗下襬、淡金腰封與長垂帶
     "xian": dict(robe=(248, 246, 238), inner=(214, 232, 236), trim=(204, 172, 98), sash=(204, 172, 98), hem_band=(180, 210, 222),
-                 flare=1.18, robe_marks=[cloud_marks((150, 190, 206))]),
+                 flare=1.18, robe_marks=[cloud_marks((150, 190, 206))], collar=(204, 172, 98), cuff=(180, 210, 222),
+                 skirt_layers=[(214, 232, 236), (190, 218, 228), (170, 204, 220)],
+                 waist_wrap=dict(color=(204, 172, 98), trim=(248, 246, 238), tail=(214, 232, 236), tail_len=1.4, tassel=(120, 200, 210))),
+    # 墨焰魔袍：墨袍外罩焰紋大氅、朱紅寬領、朱紅腰封
     "mo": dict(robe=(30, 24, 28), inner=(124, 22, 28), trim=(176, 32, 30), sash=(176, 32, 30), hem_band=(70, 18, 22), flare=1.1,
-               robe_marks=[flame_marks((196, 40, 32))], shoes=(16, 12, 14)),
+               robe_marks=[flame_marks((196, 40, 32))], shoes=(16, 12, 14), collar=(176, 32, 30), cuff=(176, 32, 30),
+               overcoat=dict(color=(20, 16, 18), trim=(176, 32, 30), length=.08, sleeve="long", flare=1.15,
+                             marks=[flame_marks((196, 40, 32))]),
+               waist_wrap=dict(color=(176, 32, 30), trim=GOLD, tail=(124, 22, 28), tail_len=1.2),
+               boots=(20, 16, 18)),
+    # 青雲劍裝（新）：劍修勁裝，窄袖護腕、前開衩長擺、天青腰封長垂帶——青雲宗的戰鬥服
+    "sword": dict(robe=(214, 230, 232), inner=(240, 238, 230), trim=TEAL, sash=TEAL, sleeve="tight", split=True,
+                  pants=(54, 74, 84), cuff=(54, 74, 84), collar=TEAL, hem_band=TEAL, hem_pattern=(232, 236, 228),
+                  waist_wrap=dict(color=(54, 74, 84), trim=(104, 178, 178), tail=TEAL, tail_len=1.3, tassel=(240, 238, 230)),
+                  boots=(40, 46, 52)),
 }
 
 HEADWEAR = {
@@ -188,6 +275,11 @@ BACKS = {
     "ribbon_jade": F.ribbon(JADE),
     "ribbon_cloud": cloud_ribbon,
     "ink_cape": ink_cape,
+}
+SHOULDERS = {
+    "cloud_collar": cloud_collar(),
+    "pauldron": pauldron,
+    "fur_collar": fur_collar,
 }
 WAISTS = {
     "gourd": F.gourd,
@@ -220,6 +312,8 @@ def jobs():
         out[f"back/{bid}"] = ("behind", {"behind": [fn]})
     for wid, fn in WAISTS.items():
         out[f"waist/{wid}"] = ("belt", {"belt": [fn]})
+    for sid, fn in SHOULDERS.items():
+        out[f"shoulder/{sid}"] = ("shoulder", {"shoulder_items": [fn]})
     return out
 
 
@@ -260,6 +354,9 @@ def paint_all(art_root: Path, only=None):
             old["layers"].update(manifest["layers"])
             manifest = old
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    # 主角的整張立繪（沒載入外觀前、心魔鏡像等地方用）＝預設外觀疊出來的樣子，兩邊才不會長得不一樣
+    catalog = json.loads((art_root.parent / "content/wardrobe.json").read_text(encoding="utf-8"))
+    compose(art_root, catalog["default"]).save(art_root / "sprites/player.disciple.png", optimize=True)
     return manifest
 
 

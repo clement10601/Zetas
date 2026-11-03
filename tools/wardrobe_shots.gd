@@ -35,17 +35,21 @@ func _run() -> void:
 	main.open_wardrobe()
 	await _shot("w1_wardrobe")
 	var p = main.wardrobe_panel
-	p.look = {"outfit": "xian", "head": "lotus_crown", "back": "ribbon_cloud", "waist": "jade_pendant",
+	p.look = {"outfit": "xian", "head": "lotus_crown", "back": "ribbon_cloud", "waist": "jade_pendant", "shoulder": "cloud_collar",
 		"hair": "high_tail", "hair_color": "frost", "face": "slender", "eyes": "phoenix", "brows": "willow"}
 	p._refresh()
 	await _shot("w2_try_xian")
 	p.close()
 	var looks := {
 		"w3_mo": {"outfit": "mo", "head": "demon_mask", "back": "ink_cape", "hair": "wild", "hair_color": "crimson", "face": "square", "brows": "sword"},
-		"w4_wanderer": {"outfit": "wanderer", "head": "weimao", "back": "", "waist": "gourd", "hair": "ponytail", "hair_color": "chestnut"},
+		"w4_wanderer": {"outfit": "wanderer", "head": "weimao", "back": "", "waist": "gourd", "shoulder": "pauldron", "hair": "ponytail", "hair_color": "chestnut"},
+		"w5_default": {},
+		"w6_sword": {"outfit": "sword", "hair": "high_tail", "brows": "sword", "eyes": "phoenix"},
+		"w7_daoist": {"outfit": "cloud_daoist", "head": "crown", "waist": "jade_pendant", "shoulder": "fur_collar", "hair": "bun"},
 	}
 	main.state.tier_index = 3
 	main.state.karma["仁殺"] = -50
+	main.state.flags["spared_white_fox"] = true
 	for k in ["流雲仙裳", "墨焰魔袍", "半面魔紋", "墨焰披風"]:
 		main.state.items[k] = 1
 	for name in looks:
