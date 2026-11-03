@@ -5,6 +5,7 @@
     {"id": "head", "name": "頭飾", "group": "衣櫃", "optional": true},
     {"id": "back", "name": "背飾", "group": "衣櫃", "optional": true},
     {"id": "waist", "name": "腰飾", "group": "衣櫃", "optional": true},
+    {"id": "shoulder", "name": "肩飾", "group": "衣櫃", "optional": true},
     {"id": "hair", "name": "髮型", "group": "容貌"},
     {"id": "hair_color", "name": "髮色", "group": "容貌"},
     {"id": "face", "name": "臉型", "group": "容貌"},
@@ -12,24 +13,25 @@
     {"id": "brows", "name": "眉型", "group": "容貌"}
   ],
   "default": {
-    "outfit": "disciple", "head": "", "back": "ribbon_jade", "waist": "",
+    "outfit": "disciple", "head": "", "back": "ribbon_jade", "waist": "", "shoulder": "",
     "hair": "long_bun", "hair_color": "ink", "face": "oval", "eyes": "almond", "brows": "straight"
   },
   "options": {
     "outfit": [
-      {"id": "disciple", "name": "月白弟子袍", "line": "青雲", "desc": "青雲宗弟子的常服，月白袍、青色交領與腰帶。"},
-      {"id": "outer", "name": "外門短褐", "line": "青雲", "desc": "外門弟子幹活穿的短衣長褲，袖口收緊，跑山路方便。"},
-      {"id": "wanderer", "name": "散修布衣", "line": "散修", "desc": "褪色的赭布長衫，走過很多地方的人都這樣穿。"},
-      {"id": "inner", "name": "內門青衫", "line": "青雲", "desc": "築基才發的內門制服，天青衫子、白色鑲邊。",
+      {"id": "disciple", "name": "月白弟子袍", "line": "青雲", "desc": "青雲宗弟子的常服：月白長袍外罩天青半臂，青腰封垂一條長帶。"},
+      {"id": "outer", "name": "外門短褐", "line": "青雲", "desc": "外門弟子幹活穿的短衣長褲，護腕綁腿，跑山路方便。"},
+      {"id": "wanderer", "name": "散修布衣", "line": "散修", "desc": "褪色的赭布長衫外罩一件舊褂，下襬開衩、長靴沾泥，走過很多地方的人都這樣穿。"},
+      {"id": "inner", "name": "內門青衫", "line": "青雲", "desc": "築基才發的內門制服，天青衫子外罩月白褙子，銀邊腰封。",
         "unlock": [{"type": "tier_at_least", "tier": "築基"}], "source": "突破築基，宗門發給"},
-      {"id": "cloud_daoist", "name": "雲紋道袍", "line": "青雲", "desc": "金丹真人的深青道袍，袍角繡金色捲雲。",
+      {"id": "cloud_daoist", "name": "雲紋道袍", "line": "青雲", "desc": "金丹真人的深青道袍，外罩金邊廣袖大氅，袍角繡金色捲雲。",
         "unlock": [{"type": "tier_at_least", "tier": "金丹"}], "source": "結成金丹，師父賜下"},
       {"id": "mirror", "name": "照影墨衣", "line": "心魔", "desc": "照著心魔的樣子縫的墨衣。看過自己最暗的一面，就不怕穿上它。",
         "unlock": [{"type": "flag", "key": "zhuji_heart_demon_cleared", "equals": true}], "source": "通過築基心魔"},
-      {"id": "xian", "name": "流雲仙裳", "line": "仙", "desc": "月白仙裳，下襬一圈天青，走起來像踩著雲。",
+      {"id": "xian", "name": "流雲仙裳", "line": "仙", "desc": "月白仙裳，下襬襯三層天青薄紗，走起來像踩著雲。",
         "unlock": [{"type": "has_item", "item": "流雲仙裳"}], "source": "仙緣機緣事件"},
-      {"id": "mo", "name": "墨焰魔袍", "line": "魔", "desc": "墨黑長袍，下襬朱紅火舌往上燒。",
-        "unlock": [{"type": "has_item", "item": "墨焰魔袍"}], "source": "魔緣機緣事件"}
+      {"id": "mo", "name": "墨焰魔袍", "line": "魔", "desc": "墨黑長袍外罩焰紋大氅，下襬朱紅火舌往上燒。",
+        "unlock": [{"type": "has_item", "item": "墨焰魔袍"}], "source": "魔緣機緣事件"},
+      {"id": "sword", "name": "青雲劍裝", "line": "青雲", "desc": "劍修練劍穿的勁裝，窄袖護腕、前襬開衩，踢腿出劍都不絆。"}
     ],
     "head": [
       {"id": "", "name": "不戴"},
@@ -58,6 +60,14 @@
         "unlock": [{"type": "tier_at_least", "tier": "築基"}], "source": "突破築基"},
       {"id": "fox_sachet", "name": "狐毛香囊", "line": "因果", "desc": "白狐報恩時留下的香囊，白毛滾邊。",
         "unlock": [{"type": "flag", "key": "spared_white_fox", "equals": true}], "source": "放走受傷的白狐"}
+    ],
+    "shoulder": [
+      {"id": "", "name": "不戴"},
+      {"id": "cloud_collar", "name": "青雲肩", "line": "青雲", "desc": "圍在頸肩的四瓣雲頭，金線滾邊，瓣尖垂朱紅穗子。",
+        "unlock": [{"type": "tier_at_least", "tier": "築基"}], "source": "突破築基"},
+      {"id": "pauldron", "name": "玄鐵護肩", "line": "散修", "desc": "前肩三片疊甲，皮繩斜綁過胸。擋不了法寶，擋得了山風。"},
+      {"id": "fur_collar", "name": "雪狐毛領", "line": "因果", "desc": "一圈蓬鬆的白毛領子，白狐那邊的親戚送的。",
+        "unlock": [{"type": "flag", "key": "spared_white_fox", "equals": true}, {"type": "tier_at_least", "tier": "築基"}], "source": "放走白狐，並且修到築基"}
     ],
     "hair": [
       {"id": "long_bun", "name": "垂髻長髮"},

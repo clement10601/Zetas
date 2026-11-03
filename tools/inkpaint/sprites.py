@@ -17,6 +17,7 @@ def disciple(robe=QING, trim=QING_TRIM, hair="bun", ribbon=None, **kw):
 
 SPECS = {
     # 玩家本人：月白袍的青雲宗弟子，心魔是他的墨色鏡像
+    # 主角現在由衣櫃分層疊出（wardrobe.py）；--wardrobe 會用預設外觀蓋掉這張，這裡只是舊底稿
     "player.disciple": [disciple(robe=(240, 238, 230), trim=(30, 110, 120), hair="long_bun", ribbon=JADE_RIBBON)],
     "npc.fellow_disciple": [
         disciple(),

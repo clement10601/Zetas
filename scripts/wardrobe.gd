@@ -1,4 +1,4 @@
-## 玩家外觀：容貌（臉型、眼、眉、髮型、髮色）與衣櫃（衣著、頭飾、背飾、腰飾）。
+## 玩家外觀：容貌（臉型、眼、眉、髮型、髮色）與衣櫃（衣著、頭飾、背飾、腰飾、肩飾）。
 ## 選項與解鎖條件在 content/wardrobe.json；每個選項的分層立繪在 art/wardrobe/，位移在 content/wardrobe_layers.json
 ## （由 tools/inkpaint/wardrobe.py 畫出來）。compose() 照固定順序把圖層疊成一張全身立繪，跟原本的 player.disciple 同尺寸。
 ## 外觀存在 state.game_data["look"]，只管長相，不加數值。
@@ -13,7 +13,7 @@ const LAYERS_PATH := "res://content/wardrobe_layers.json"
 const ORDER := [
 	["back", "back"], ["hair_back", "hair"], ["sleeve_back", "outfit"], ["gear", ""], ["body", "outfit"],
 	["waist", "waist"], ["hair_under", "hair"], ["face", "face"], ["hair_over", "hair"], ["eyes", "eyes"],
-	["brows", "brows"], ["head", "head"], ["sleeve_front", "outfit"],
+	["brows", "brows"], ["head", "head"], ["sleeve_front", "outfit"], ["shoulder", "shoulder"],
 ]
 
 ## 頭像裁切範圍（全身圖上頭肩的位置；外觀會加長飄帶、披風，不能照不透明範圍裁）
