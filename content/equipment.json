@@ -1,0 +1,359 @@
+{
+  "_comment": "裝備表（docs/design/equipment.md）。裝備有品階與數值，時裝（content/wardrobe.json）只換外觀、蓋在裝備上。品階名稱與倍率跟兵器一致：grades 用 weapons.json 的，數值乘 1 + grade_bonus×品階；第 5 階依 line 叫仙器或魔器。name 等於 loot.json 的物品名時，拿到就入手。look 是這件裝備穿在身上的樣子（wardrobe.json 同欄位的選項 id）。 plain：入門就有的布衣，只是衣服沒有數值（戰鬥數值以它為基準調）。",
+  "slots": [
+    {
+      "id": "top",
+      "name": "衣袍"
+    },
+    {
+      "id": "belt",
+      "name": "腰封"
+    },
+    {
+      "id": "cuffs",
+      "name": "護腕"
+    },
+    {
+      "id": "shoes",
+      "name": "鞋靴"
+    },
+    {
+      "id": "head",
+      "name": "頭冠"
+    },
+    {
+      "id": "waist",
+      "name": "佩飾"
+    }
+  ],
+  "starter": [
+    "equip.disciple_robe",
+    "equip.teal_wrap",
+    "equip.black_boots"
+  ],
+  "grade_bonus": 0.25,
+  "line_names": {
+    "xian": "仙器",
+    "mo": "魔器"
+  },
+  "grade_colors": [
+    "#3a332b",
+    "#2f7f6a",
+    "#2f62a0",
+    "#7a4a9a",
+    "#b8892e"
+  ],
+  "line_colors": {
+    "xian": "#b8892e",
+    "mo": "#b23a2e"
+  },
+  "stats": {
+    "hp": {
+      "name": "氣血",
+      "pct": false
+    },
+    "mp": {
+      "name": "真元",
+      "pct": false
+    },
+    "guard": {
+      "name": "護體",
+      "pct": true
+    },
+    "speed": {
+      "name": "身法",
+      "pct": true
+    },
+    "regen": {
+      "name": "回氣",
+      "pct": true
+    }
+  },
+  "caps": {
+    "guard": 0.45,
+    "speed": 0.25,
+    "regen": 1.0
+  },
+  "base": {
+    "top": {
+      "hp": 6,
+      "guard": 0.04
+    },
+    "belt": {
+      "hp": 3,
+      "mp": 4
+    },
+    "cuffs": {
+      "guard": 0.03,
+      "hp": 2
+    },
+    "shoes": {
+      "speed": 0.04
+    },
+    "head": {
+      "mp": 6
+    },
+    "waist": {
+      "regen": 0.15
+    }
+  },
+  "affix_values": {
+    "hp": 5,
+    "mp": 5,
+    "guard": 0.03,
+    "speed": 0.03,
+    "regen": 0.1
+  },
+  "affix_count": [
+    0,
+    1,
+    2,
+    2,
+    2
+  ],
+  "aura": [
+    "",
+    "淡光",
+    "靈光點點",
+    "寶光繞身",
+    "仙光／魔焰"
+  ],
+  "equip.disciple_robe": {
+    "name": "青雲弟子袍",
+    "slot": "top",
+    "grade": 0,
+    "look": "moon_robe",
+    "note": "宗門發的弟子袍，粗布縫得結實。",
+    "source": "入門就有",
+    "plain": true
+  },
+  "equip.teal_wrap": {
+    "name": "青雲腰封",
+    "slot": "belt",
+    "grade": 0,
+    "look": "teal_wrap",
+    "note": "弟子腰封，垂兩條青綢。",
+    "source": "入門就有",
+    "plain": true
+  },
+  "equip.black_boots": {
+    "name": "黑布靴",
+    "slot": "shoes",
+    "grade": 0,
+    "look": "boots",
+    "note": "及小腿的黑布靴。",
+    "source": "入門就有",
+    "plain": true
+  },
+  "equip.cloth_bracer": {
+    "name": "布護腕",
+    "slot": "cuffs",
+    "grade": 0,
+    "look": "cloth_bracer",
+    "note": "手腕纏一截布，擋得住樹枝擋不住刀。",
+    "source": "山腳野怪掉落、狌狌偷果差事"
+  },
+  "equip.straw_wraps": {
+    "name": "綁腿草鞋",
+    "slot": "shoes",
+    "grade": 0,
+    "look": "straw_wraps",
+    "note": "小腿纏布、腳穿草鞋，從山賊身上扒下來的。",
+    "source": "山賊掉落、山道剪徑差事"
+  },
+  "equip.gourd": {
+    "name": "酒葫蘆",
+    "slot": "waist",
+    "grade": 0,
+    "look": "gourd",
+    "note": "散修的小葫蘆，喝一口回點氣。",
+    "source": "散修遺物"
+  },
+  "equip.headband": {
+    "name": "青雲抹額",
+    "slot": "head",
+    "grade": 0,
+    "look": "headband",
+    "note": "練劍綁著擋汗。",
+    "source": "宗門獎賞"
+  },
+  "equip.iron_bracer": {
+    "name": "鐵釘皮護腕",
+    "slot": "cuffs",
+    "grade": 1,
+    "look": "leather_bracer",
+    "note": "山賊頭目的皮護腕，釘一排鐵釘，出手比較敢。",
+    "source": "山賊身上的好東西（藏寶、事件）",
+    "affixes": [
+      "speed"
+    ]
+  },
+  "equip.sky_robe": {
+    "name": "天青法衣",
+    "slot": "top",
+    "grade": 1,
+    "look": "sky_robe",
+    "note": "內門長衫，衣裡縫了避塵符。",
+    "source": "宗門獎賞（較好）",
+    "affixes": [
+      "guard"
+    ]
+  },
+  "equip.silver_wrap": {
+    "name": "銀邊腰封",
+    "slot": "belt",
+    "grade": 1,
+    "look": "silver_wrap",
+    "note": "銀線織的腰封，綁緊了氣比較順。",
+    "source": "山中採藥的好收穫",
+    "affixes": [
+      "regen"
+    ]
+  },
+  "equip.soul_pendant": {
+    "name": "安魂玉佩",
+    "slot": "waist",
+    "grade": 1,
+    "look": "jade_pendant",
+    "note": "破廟裡撿到的玉佩，摸著冰涼，心定得下來。",
+    "source": "破廟遊魂身上的好東西",
+    "affixes": [
+      "mp"
+    ]
+  },
+  "equip.wolf_boots": {
+    "name": "狼皮快靴",
+    "slot": "shoes",
+    "grade": 1,
+    "look": "boots",
+    "note": "狼妖皮做的靴子，跑起來沒聲音。",
+    "source": "黑風嶺狼妖掉落、清剿狼妖差事",
+    "affixes": [
+      "hp"
+    ]
+  },
+  "equip.jade_bracer": {
+    "name": "青玉護腕",
+    "slot": "cuffs",
+    "grade": 2,
+    "look": "jade_bracer",
+    "note": "嵌白玉的護腕，擋招時玉會亮一下。",
+    "source": "妖獸身上的好東西",
+    "affixes": [
+      "guard",
+      "mp"
+    ]
+  },
+  "equip.silver_crown": {
+    "name": "束髮銀冠",
+    "slot": "head",
+    "grade": 2,
+    "look": "crown",
+    "note": "內門真傳的小銀冠，戴上耳目清明。",
+    "source": "宗門重賞",
+    "affixes": [
+      "mp",
+      "regen"
+    ]
+  },
+  "equip.talisman_charm": {
+    "name": "護身符籙",
+    "slot": "waist",
+    "grade": 2,
+    "look": "talismans",
+    "note": "兩張朱砂黃符，遇邪自燃。",
+    "source": "破廟深處的寶物",
+    "affixes": [
+      "guard",
+      "hp"
+    ]
+  },
+  "equip.shadow_boots": {
+    "name": "踏影靴",
+    "slot": "shoes",
+    "grade": 2,
+    "look": "ink_boots",
+    "note": "蠱雕翎羽縫在靴口，踏地無影。",
+    "source": "蠱雕掉落、蠱雕翎羽差事",
+    "affixes": [
+      "speed",
+      "guard"
+    ]
+  },
+  "equip.cloud_robe": {
+    "name": "雲紋道袍",
+    "slot": "top",
+    "grade": 3,
+    "look": "daoist_robe",
+    "note": "金丹真人才穿得動的道袍，袍角捲雲會隨氣流動。",
+    "source": "鎮妖司重賞",
+    "affixes": [
+      "hp",
+      "guard"
+    ]
+  },
+  "equip.gold_wrap": {
+    "name": "金絲腰封",
+    "slot": "belt",
+    "grade": 3,
+    "look": "gold_wrap",
+    "note": "金線密織，系上後真元生生不息。",
+    "source": "妖丹洞深處",
+    "affixes": [
+      "mp",
+      "regen"
+    ]
+  },
+  "equip.xian_robe": {
+    "name": "流雲仙裳",
+    "slot": "top",
+    "grade": 4,
+    "look": "xian_robe",
+    "note": "三層天青紗，仙人遺下的衣裳。",
+    "source": "仙緣機緣事件",
+    "line": "xian",
+    "affixes": [
+      "hp",
+      "regen"
+    ]
+  },
+  "equip.lotus_crown": {
+    "name": "蓮華冠",
+    "slot": "head",
+    "grade": 4,
+    "look": "lotus_crown",
+    "note": "白玉蓮花冠，冠心一點青光。",
+    "source": "仙緣機緣事件",
+    "line": "xian",
+    "affixes": [
+      "mp",
+      "guard"
+    ]
+  },
+  "equip.mo_robe": {
+    "name": "墨焰魔袍",
+    "slot": "top",
+    "grade": 4,
+    "look": "mo_robe",
+    "note": "墨色長袍，下襬朱紅火舌往上燒。",
+    "source": "魔緣機緣事件",
+    "line": "mo",
+    "affixes": [
+      "hp",
+      "speed"
+    ]
+  },
+  "equip.demon_mask": {
+    "name": "半面魔紋",
+    "slot": "head",
+    "grade": 4,
+    "look": "demon_mask",
+    "note": "遮住半張臉的魔紋面具。",
+    "source": "魔緣機緣事件",
+    "line": "mo",
+    "affixes": [
+      "mp",
+      "speed"
+    ]
+  }
+}

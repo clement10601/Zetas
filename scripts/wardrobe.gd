@@ -1,7 +1,9 @@
 ## 玩家外觀：衣著逐件可換（上衣、下裳、外罩、腰封、護腕、鞋靴；套裝一鍵換一整組）、配件（頭飾、髮飾、肩飾、背飾、腰飾）與容貌。
 ## 選項與解鎖條件在 content/wardrobe.json；每個選項的分層立繪在 art/wardrobe/，位移在 content/wardrobe_layers.json
 ## （由 tools/inkpaint/wardrobe.py 畫出來）。compose() 照固定順序把圖層疊成一張全身立繪，跟原本的 player.disciple 同尺寸。
-## 外觀存在 state.game_data["look"]，只管長相，不加數值。
+## 外觀存在 state.game_data["look"]，只管長相，不加數值。這是「時裝」：裝備（scripts/equipment.gd）有品階數值，
+## 穿在身上也有樣子；有裝備的欄位（衣袍、腰封、護腕、鞋靴、頭冠、佩飾）時裝選「隨裝備」（EQUIP）就顯示裝備，
+## 選別的就蓋在裝備上面。resolve() 把「隨裝備」換成裝備的樣子，沒穿裝備就是預設那件。
 extends RefCounted
 
 const Conditions = preload("res://addons/zeworld/conditions.gd")
@@ -18,6 +20,11 @@ const ORDER := [
 	["hair_over", "hair"], ["eyes", "eyes"], ["brows", "brows"], ["hair_acc", "hair_acc"], ["head", "head"],
 	["sleeve_front", "top"], ["cuffs", "cuffs"], ["coat_sleeve", "coat"], ["shoulder", "shoulder"],
 ]
+
+## 時裝「隨裝備」：這一欄顯示身上的裝備
+const EQUIP := "equip"
+const EQUIP_SLOTS := ["top", "belt", "cuffs", "shoes", "head", "waist"]
+const EQUIP_OPTION := {"id": EQUIP, "name": "隨裝備", "desc": "顯示身上這一欄裝備的樣子；換成別的就是時裝，蓋在裝備上面，數值照算裝備的。"}
 
 ## 頭像裁切範圍（全身圖上頭肩的位置；外觀會加長飄帶、披風，不能照不透明範圍裁）
 const PORTRAIT_RECT := Rect2(104, 0, 172, 172)
@@ -45,7 +52,10 @@ static func slots() -> Array:
 
 
 static func options(slot: String) -> Array:
-	return catalog()["options"].get(slot, [])
+	var opts: Array = catalog()["options"].get(slot, [])
+	if EQUIP_SLOTS.has(slot):
+		return [EQUIP_OPTION] + opts
+	return opts
 
 
 static func option(slot: String, id: String) -> Dictionary:
@@ -55,8 +65,21 @@ static func option(slot: String, id: String) -> Dictionary:
 	return {}
 
 
+## 新角色：有裝備的欄位都「隨裝備」（入門裝備長得就是預設那套）
 static func default_look() -> Dictionary:
-	return catalog()["default"].duplicate()
+	var d: Dictionary = catalog()["default"].duplicate()
+	for slot in EQUIP_SLOTS:
+		d[slot] = EQUIP
+	return d
+
+
+## 「隨裝備」換成裝備的樣子（equip_look：欄位 -> 選項 id，見 Equipment.look_of）；沒穿那一欄就是 content 的預設那件。
+static func resolve(look: Dictionary, equip_look: Dictionary = {}) -> Dictionary:
+	var out := look.duplicate()
+	for slot in EQUIP_SLOTS:
+		if out.get(slot, EQUIP) == EQUIP:
+			out[slot] = equip_look.get(slot, catalog()["default"][slot])
+	return out
 
 
 ## 套裝：一鍵換上一整組衣著（pieces），之後每件還能自己換。
@@ -131,6 +154,8 @@ static func layer_keys(look: Dictionary) -> Array:
 		var layer_name: String = entry[0]
 		var field: String = entry[1]
 		var val: String = look.get(field, "") if field != "" else ""
+		if val == EQUIP:
+			val = catalog()["default"][field]
 		match field:
 			"":
 				keys.append(layer_name)
@@ -144,7 +169,8 @@ static func layer_keys(look: Dictionary) -> Array:
 				if field == "hair_acc":
 					keys.append("%s/%s/%s" % [layer_name, val, look["hair"]])
 				elif field == "cuffs":
-					keys.append("cuffs/%s/%s" % [val, option("top", look["top"]).get("sleeve", "wide")])
+					var top: String = look["top"] if look["top"] != EQUIP else catalog()["default"]["top"]
+					keys.append("cuffs/%s/%s" % [val, option("top", top).get("sleeve", "wide")])
 				else:
 					keys.append("%s/%s" % [layer_name, val])
 	return keys

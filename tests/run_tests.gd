@@ -55,6 +55,7 @@ func _run() -> void:
 	await test_keyboard_layout()
 	await test_weapons_and_arts()
 	await test_wardrobe()
+	await test_equipment()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -1601,6 +1602,94 @@ func test_weapons_and_arts() -> void:
 	expect(main.help_label.text.contains("F/U 術法") and main.help_label.text.contains("G/O 兵器"), "help bar lists the art and gear keys")
 	main.free()
 ## 衣櫃與容貌：每個選項都有圖層、疊出來跟原本立繪同尺寸、解鎖照條件、試穿關掉會換回、存檔帶著走。
+func test_equipment() -> void:
+	const Equipment = preload("res://scripts/equipment.gd")
+	const Wardrobe = preload("res://scripts/wardrobe.gd")
+	var weapons: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/weapons.json"))
+	var loot: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/loot.json"))
+	var dropped := []
+	for t in loot:
+		if loot[t] is Dictionary:
+			for tier in loot[t]:
+				dropped.append_array(loot[t][tier])
+	var names := {}
+	for id in Equipment.all_ids():
+		var it := Equipment.item(id)
+		expect(Equipment.slot_ids().has(it["slot"]), "%s slot" % id)
+		expect(not Wardrobe.option(it["slot"], it["look"]).is_empty(), "%s look %s is a wardrobe piece" % [id, it["look"]])
+		expect(int(it["grade"]) >= 0 and int(it["grade"]) < weapons["grades"].size(), "%s grade in the weapon grade table" % id)
+		expect(it.get("affixes", []).size() == int(Equipment.data()["affix_count"][int(it["grade"])]), "%s affix count fits its grade" % id)
+		expect(it.get("source", "") != "", "%s says where it comes from" % id)
+		expect(not names.has(it["name"]), "%s name unique" % id)
+		names[it["name"]] = true
+		expect(Equipment.by_name(it["name"]) == id, "%s found by item name" % id)
+		if int(it["grade"]) >= 4:
+			expect(it.get("line", "") in ["xian", "mo"], "%s 仙器／魔器 has a line" % id)
+		elif not Equipment.data()["starter"].has(id):
+			expect(dropped.has(it["name"]), "%s drops somewhere" % id)
+	# 品階跟兵器同名、同倍率；越高越強
+	expect(Equipment.grade_name("equip.sky_robe") == weapons["grades"][1], "法器 named like weapons")
+	expect(Equipment.grade_name("equip.mo_robe") == "魔器" and Equipment.grade_name("equip.xian_robe") == "仙器", "仙器／魔器")
+	expect(is_equal_approx(Equipment.multiplier(4), 1.0 + float(weapons["grade_bonus"]) * 4), "grade multiplier same as weapons")
+	expect(Equipment.stats("equip.disciple_robe").is_empty(), "starter robe is plain cloth")
+	expect(Equipment.stats("equip.cloud_robe")["hp"] > Equipment.stats("equip.sky_robe").get("hp", 0), "法寶 robe beats 法器 robe")
+	expect(Equipment.totals({"a": "equip.talisman_charm", "b": "equip.jade_bracer", "c": "equip.lotus_crown", "d": "equip.cloud_robe"})["guard"] <= 0.45, "guard capped")
+
+	var path := "user://zetas_test_equipment.json"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	var main: Node = await new_game(false, path)
+	expect(main.equipment() == {"top": "equip.disciple_robe", "belt": "equip.teal_wrap", "shoes": "equip.black_boots"}, "new disciple wears the starter gear")
+	expect(main.player_max_hp() == 30, "starter gear adds nothing")
+	expect(main.player.equip_grade == 0, "凡器: no extra aura")
+	# 掉落：空欄位直接穿上
+	main.gain_item("青玉護腕")
+	expect(main.equipment()["cuffs"] == "equip.jade_bracer", "new gear in an empty slot is put on")
+	expect(main.player_max_hp() == 30 + int(Equipment.stats("equip.jade_bracer")["hp"]), "gear adds 氣血")
+	expect(main.player.equip_grade == 2 and main.player._motes != null and main.player._motes.emitting, "靈器 lights up motes")
+	expect(main.player_look()["cuffs"] == Wardrobe.EQUIP and main.player.sprite.texture == Wardrobe.compose(Wardrobe.resolve(main.player_look(), {"top": "moon_robe", "belt": "teal_wrap", "shoes": "boots", "cuffs": "jade_bracer"})), "worn gear shows on the body")
+	expect(main.equipment_guard(100) == roundi(100 * (1.0 - Equipment.stats("equip.jade_bracer")["guard"])), "護體 cuts damage")
+	# 已經有東西的欄位：只進背包，到【裝備】頁換
+	main.gain_item("雲紋道袍")
+	expect(main.equipment()["top"] == "equip.disciple_robe", "an occupied slot keeps what it had")
+	main.open_wardrobe()
+	var panel = main.wardrobe_panel
+	expect(panel.current_slot() == "eq.top", "opens on the 衣袍 row")
+	panel.cycle(1)
+	panel.cycle(1)
+	expect(not main.equipment().has("top"), "cycling past the last robe takes the top off")
+	panel.cycle(-1)
+	expect(main.equipment()["top"] == "equip.cloud_robe", "cycling puts on the 法寶 robe")
+	expect(main.player.equip_grade == 3, "法寶 aura")
+	expect(panel.note.text.contains("法寶") and panel.note.text.contains("全身合計"), "gear note shows grade and totals")
+	# 時裝蓋在裝備上：衣著頁上衣換成散修長衫，數值不變
+	var hp_before: int = main.player_max_hp()
+	while panel.current_slot() != "top":
+		panel.move_row(1)
+	panel.cycle(1)
+	expect(main.player_look()["top"] != Wardrobe.EQUIP, "fashion top chosen")
+	expect(main.player_max_hp() == hp_before and main.equipment()["top"] == "equip.cloud_robe", "fashion changes looks only")
+	expect(main.player.equip_grade == 3, "fashion can't hide the grade aura")
+	panel.close()
+	# 仙器、魔器
+	main.gain_item("墨焰魔袍")
+	main.set_equipment({"top": "equip.mo_robe"})
+	expect(main.player.equip_grade == 4 and main.player.equip_line == "mo", "魔器 aura")
+	main.autosave()
+	main.free()
+	var again: Node = await new_game(false, path)
+	expect(again.equipment() == {"top": "equip.mo_robe"}, "gear restored from save")
+	again.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	# 舊存檔（還沒有裝備）：發入門裝備，原本穿預設那件的欄位改成「隨裝備」
+	var old := preload("res://addons/zeworld/world_state.gd").new()
+	old.game_data["look"] = {"top": "moon_robe", "belt": "rope", "shoes": "boots"}
+	old.save_file(path)
+	var migrated: Node = await new_game(false, path)
+	expect(migrated.equipment().size() == 3 and migrated.player_look()["top"] == Wardrobe.EQUIP and migrated.player_look()["belt"] == "rope", "old save gets the starter gear, keeps its own fashion")
+	migrated.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
 func test_wardrobe() -> void:
 	const Wardrobe = preload("res://scripts/wardrobe.gd")
 	var layers: Dictionary = Wardrobe.layers()["layers"]
@@ -1643,7 +1732,7 @@ func test_wardrobe() -> void:
 	for st in Wardrobe.sets():
 		for slot in st["pieces"]:
 			expect(not Wardrobe.option(slot, st["pieces"][slot]).is_empty() or st["pieces"][slot] == "", "set %s piece %s" % [st["id"], slot])
-	expect(Wardrobe.matching_set(d) == "disciple", "default look is the disciple set")
+	expect(Wardrobe.matching_set(Wardrobe.resolve(d)) == "disciple", "default look (following the starter gear) is the disciple set")
 	# 每件單獨換都換得掉，而且只動到自己那幾層
 	var mix := d.duplicate()
 	mix["belt"] = "rope"
@@ -1658,6 +1747,7 @@ func test_wardrobe() -> void:
 	expect(Wardrobe.layer_keys(wide_cuff).has("cuffs/cloth_bracer/wide"), "bracers follow the top's sleeve")
 
 	var path := "user://zetas_test_wardrobe.json"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	var main: Node = await new_game(false, path)
 	expect(main.player.sprite.texture == main.player_texture(), "player wears the composed look")
 	expect(not Wardrobe.is_unlocked("top", "sky_robe", main.state), "天青長衫 locked at 煉氣")
@@ -1669,7 +1759,10 @@ func test_wardrobe() -> void:
 	main.open_wardrobe()
 	var panel = main.wardrobe_panel
 	expect(panel.visible and main.player.input_blocked, "Y opens the wardrobe")
-	expect(panel.current_slot() == "set" and panel.tabs.text.contains("【衣著】"), "wardrobe opens on the 衣著 page, set row")
+	expect(panel.current_slot() == "eq.top" and panel.tabs.text.contains("【裝備】"), "wardrobe opens on the 裝備 page")
+	while panel.current_slot() != "set":
+		panel.move_row(1)
+	expect(panel.tabs.text.contains("【衣著】"), "past the gear rows is the 衣著 page")
 	# 套裝往後換：外門短褐（每件都解鎖）整組穿上
 	panel.cycle(1)
 	expect(main.state.game_data["look"]["top"] == "grey_jacket" and main.state.game_data["look"]["shoes"] == "straw_wraps", "a set swaps every piece at once")
