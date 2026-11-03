@@ -2,6 +2,8 @@
 ##   xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tools/wardrobe_shots.gd -- /tmp/shots
 extends SceneTree
 
+const Wardrobe = preload("res://scripts/wardrobe.gd")
+
 var out_dir := "/tmp/shots"
 
 
@@ -35,8 +37,8 @@ func _run() -> void:
 	main.open_wardrobe()
 	await _shot("w1_wardrobe")
 	var p = main.wardrobe_panel
-	p.look = {"outfit": "xian", "head": "lotus_crown", "back": "ribbon_cloud", "waist": "jade_pendant", "shoulder": "cloud_collar",
-		"hair": "high_tail", "hair_color": "frost", "face": "slender", "eyes": "phoenix", "brows": "willow"}
+	p.look = Wardrobe.normalize({"outfit": "xian", "head": "lotus_crown", "back": "ribbon_cloud", "waist": "jade_pendant", "shoulder": "cloud_collar",
+		"hair": "high_tail", "hair_color": "frost", "face": "slender", "eyes": "phoenix", "brows": "willow"})
 	p._refresh()
 	await _shot("w2_try_xian")
 	p.close()
@@ -46,10 +48,13 @@ func _run() -> void:
 		"w5_default": {},
 		"w6_sword": {"outfit": "sword", "hair": "high_tail", "brows": "sword", "eyes": "phoenix"},
 		"w7_daoist": {"outfit": "cloud_daoist", "head": "crown", "waist": "jade_pendant", "shoulder": "fur_collar", "hair": "bun"},
+		"w8_mix": {"top": "sword_robe", "bottom": "gauze_skirt", "coat": "moon_beizi", "belt": "ink_wrap", "cuffs": "ink_bracer",
+			"shoes": "cloud_shoes", "hair": "high_tail", "hair_acc": "red_ribbon", "shoulder": "pauldron"},
 	}
 	main.state.tier_index = 3
 	main.state.karma["仁殺"] = -50
 	main.state.flags["spared_white_fox"] = true
+	main.state.flags["zhuji_heart_demon_cleared"] = true
 	for k in ["流雲仙裳", "墨焰魔袍", "半面魔紋", "墨焰披風"]:
 		main.state.items[k] = 1
 	for name in looks:

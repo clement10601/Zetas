@@ -1619,7 +1619,9 @@ func test_wardrobe() -> void:
 			look[id] = o["id"]
 			for key in Wardrobe.layer_keys(look):
 				# 短髮沒有後髮、沒戴配件沒有那層：那些 key 本來就可以沒有圖
-				if key.begins_with("hair_back/") or key.begins_with("hair_under/"):
+				# 只有髮帶有後面的長尾、只有半臂／大氅有外袖
+				if key.begins_with("hair_back/") or key.begins_with("hair_under/") or key.begins_with("hair_acc_back/") \
+						or key.begins_with("coat_sleeve"):
 					continue
 				expect(layers.has(key), "layer %s exists" % key)
 				if layers.has(key):
@@ -1632,33 +1634,63 @@ func test_wardrobe() -> void:
 	var old_used := old.get_image().get_used_rect()
 	expect(absi(used.position.y - old_used.position.y) <= 3 and absi(used.end.y - old_used.end.y) <= 3, "default look stands where the old sprite stood")
 	expect(Wardrobe.compose(d) == tex, "same look composed once")
-	expect(Wardrobe.normalize({"outfit": "nope", "hair": "twin"})["outfit"] == d["outfit"]
+	expect(Wardrobe.normalize({"top": "nope", "hair": "twin"})["top"] == d["top"]
 		and Wardrobe.normalize({"hair": "twin"})["hair"] == "twin", "normalize keeps known choices, drops unknown")
+	# 舊存檔只記一整套 outfit：換成那一套的各件
+	var migrated := Wardrobe.normalize({"outfit": "wanderer"})
+	expect(migrated["top"] == "ochre_robe" and migrated["belt"] == "rope" and migrated["coat"] == "old_vest", "old outfit save becomes its pieces")
+	# 每一套的每件都存在；預設外觀就是一套（月白弟子袍）
+	for st in Wardrobe.sets():
+		for slot in st["pieces"]:
+			expect(not Wardrobe.option(slot, st["pieces"][slot]).is_empty() or st["pieces"][slot] == "", "set %s piece %s" % [st["id"], slot])
+	expect(Wardrobe.matching_set(d) == "disciple", "default look is the disciple set")
+	# 每件單獨換都換得掉，而且只動到自己那幾層
+	var mix := d.duplicate()
+	mix["belt"] = "rope"
+	var diff := []
+	for k in Wardrobe.layer_keys(mix):
+		if not Wardrobe.layer_keys(d).has(k):
+			diff.append(k)
+	expect(diff == ["belt/rope"], "changing one piece swaps only its layer")
+	expect(Wardrobe.matching_set(mix) == "", "a mixed look matches no set")
+	var wide_cuff := d.duplicate()
+	wide_cuff["cuffs"] = "cloth_bracer"
+	expect(Wardrobe.layer_keys(wide_cuff).has("cuffs/cloth_bracer/wide"), "bracers follow the top's sleeve")
 
 	var path := "user://zetas_test_wardrobe.json"
 	var main: Node = await new_game(false, path)
 	expect(main.player.sprite.texture == main.player_texture(), "player wears the composed look")
-	expect(not Wardrobe.is_unlocked("outfit", "inner", main.state), "內門青衫 locked at 煉氣")
+	expect(not Wardrobe.is_unlocked("top", "sky_robe", main.state), "天青長衫 locked at 煉氣")
 	main.state.tier_index = 1
-	expect(Wardrobe.is_unlocked("outfit", "inner", main.state), "內門青衫 unlocked at 築基")
+	expect(Wardrobe.is_unlocked("top", "sky_robe", main.state), "天青長衫 unlocked at 築基")
 	main.autosave()
-	expect(main.log_lines.any(func(l): return l.contains("內門青衫")), "new look announced")
+	expect(main.log_lines.any(func(l): return l.contains("天青長衫")), "new look announced")
 	main.state.tier_index = 0
 	main.open_wardrobe()
 	var panel = main.wardrobe_panel
 	expect(panel.visible and main.player.input_blocked, "Y opens the wardrobe")
-	# 衣著欄往後換：外門短褐（已解鎖）直接穿上
+	expect(panel.current_slot() == "set" and panel.tabs.text.contains("【衣著】"), "wardrobe opens on the 衣著 page, set row")
+	# 套裝往後換：外門短褐（每件都解鎖）整組穿上
 	panel.cycle(1)
-	expect(main.state.game_data["look"]["outfit"] == "outer", "unlocked outfit is worn at once")
-	# 再往後：散修布衣、內門青衫（煉氣還沒解鎖）→ 試穿
+	expect(main.state.game_data["look"]["top"] == "grey_jacket" and main.state.game_data["look"]["shoes"] == "straw_wraps", "a set swaps every piece at once")
+	# 再往後：散修布衣（解鎖）、青雲劍裝（解鎖）、內門青衫（煉氣還沒解鎖的件只試穿）
 	panel.cycle(1)
 	panel.cycle(1)
-	expect(panel.look["outfit"] == "inner" and main.state.game_data["look"]["outfit"] == "wanderer", "locked outfit is only tried on")
-	expect(panel.note.text.contains("突破築基"), "locked outfit says where it comes from")
+	panel.cycle(1)
+	expect(panel.look["top"] == "sky_robe" and main.state.game_data["look"]["top"] == "sword_robe", "locked set pieces are only tried on")
+	expect(panel.note.text.contains("突破築基"), "locked set says where it comes from")
 	var tried: Texture2D = panel.preview.texture
 	panel.close()
 	expect(not main.player.input_blocked, "closing gives control back")
-	expect(main.player.sprite.texture != tried and main.player_look()["outfit"] == "wanderer", "closing drops the try-on")
+	expect(main.player.sprite.texture != tried and main.player_look()["top"] == "sword_robe", "closing drops the try-on")
+	# 單件：只換腰封
+	main.open_wardrobe()
+	while panel.current_slot() != "belt":
+		panel.move_row(1)
+	panel.cycle(-1)
+	expect(main.player_look()["belt"] == "rope" and main.player_look()["top"] == "sword_robe", "one piece changes alone")
+	expect(Wardrobe.matching_set(main.player_look()) == "", "mixing leaves the set")
+	panel.close()
 	# 容貌：髮型換一個
 	main.open_wardrobe()
 	while panel.current_slot() != "hair":
@@ -1666,11 +1698,12 @@ func test_wardrobe() -> void:
 	panel.cycle(1)
 	panel.close()
 	expect(main.player_look()["hair"] == "bun", "hair changed")
+	expect(panel.tabs.text.contains("【容貌】"), "moving down past 配件 turns to the 容貌 page")
 	expect(main._portrait_crop(main._speaker_texture("player")).region == Wardrobe.PORTRAIT_RECT, "player portrait uses the fixed head crop")
 	# 事件中不能換
 	main.free()
 	var again: Node = await new_game(false, path)
-	expect(again.player_look()["outfit"] == "wanderer" and again.player_look()["hair"] == "bun", "look restored from save")
+	expect(again.player_look()["top"] == "sword_robe" and again.player_look()["hair"] == "bun", "look restored from save")
 	# 心性變了：赤霞髮色條件不成立就換回預設
 	again.state.game_data["look"]["hair_color"] = "crimson"
 	expect(again.player_look()["hair_color"] == "ink", "crimson hair needs a killer's heart")

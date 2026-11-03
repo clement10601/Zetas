@@ -1,4 +1,4 @@
-## 玩家外觀：容貌（臉型、眼、眉、髮型、髮色）與衣櫃（衣著、頭飾、背飾、腰飾、肩飾）。
+## 玩家外觀：衣著逐件可換（上衣、下裳、外罩、腰封、護腕、鞋靴；套裝一鍵換一整組）、配件（頭飾、髮飾、肩飾、背飾、腰飾）與容貌。
 ## 選項與解鎖條件在 content/wardrobe.json；每個選項的分層立繪在 art/wardrobe/，位移在 content/wardrobe_layers.json
 ## （由 tools/inkpaint/wardrobe.py 畫出來）。compose() 照固定順序把圖層疊成一張全身立繪，跟原本的 player.disciple 同尺寸。
 ## 外觀存在 state.game_data["look"]，只管長相，不加數值。
@@ -10,10 +10,13 @@ const CATALOG_PATH := "res://content/wardrobe.json"
 const LAYERS_PATH := "res://content/wardrobe_layers.json"
 
 ## 疊圖順序（由後往前）：[圖層名, 決定這層的欄位]。要跟 tools/inkpaint/wardrobe.py 的 ORDER 一致。
+## 衣物一件一層（上衣、外罩各分後袖／身／前袖），所以每件都能單獨換。
 const ORDER := [
-	["back", "back"], ["hair_back", "hair"], ["sleeve_back", "outfit"], ["gear", ""], ["body", "outfit"],
-	["waist", "waist"], ["hair_under", "hair"], ["face", "face"], ["hair_over", "hair"], ["eyes", "eyes"],
-	["brows", "brows"], ["head", "head"], ["sleeve_front", "outfit"], ["shoulder", "shoulder"],
+	["back", "back"], ["hair_back", "hair"], ["hair_acc_back", "hair_acc"], ["sleeve_back", "top"],
+	["coat_sleeve_back", "coat"], ["gear", ""], ["bottom", "bottom"], ["shoes", "shoes"], ["top", "top"],
+	["coat", "coat"], ["belt", "belt"], ["waist", "waist"], ["hair_under", "hair"], ["face", "face"],
+	["hair_over", "hair"], ["eyes", "eyes"], ["brows", "brows"], ["hair_acc", "hair_acc"], ["head", "head"],
+	["sleeve_front", "top"], ["cuffs", "cuffs"], ["coat_sleeve", "coat"], ["shoulder", "shoulder"],
 ]
 
 ## 頭像裁切範圍（全身圖上頭肩的位置；外觀會加長飄帶、披風，不能照不透明範圍裁）
@@ -56,9 +59,47 @@ static func default_look() -> Dictionary:
 	return catalog()["default"].duplicate()
 
 
+## 套裝：一鍵換上一整組衣著（pieces），之後每件還能自己換。
+static func sets() -> Array:
+	return catalog().get("sets", [])
+
+
+static func set_by_id(id: String) -> Dictionary:
+	for s in sets():
+		if s["id"] == id:
+			return s
+	return {}
+
+
+## 這身衣著正好是哪一套（每件都對上）；混搭的回傳空字串。
+static func matching_set(look: Dictionary) -> String:
+	for s in sets():
+		var all := true
+		for slot in s["pieces"]:
+			if look.get(slot, "") != s["pieces"][slot]:
+				all = false
+				break
+		if all:
+			return s["id"]
+	return ""
+
+
+## 套裝的每件都解鎖了沒。
+static func set_unlocked(id: String, state) -> bool:
+	var s := set_by_id(id)
+	for slot in s.get("pieces", {}):
+		if not is_unlocked(slot, s["pieces"][slot], state):
+			return false
+	return not s.is_empty()
+
+
 ## 補齊缺的欄位、換掉不認得的選項（舊存檔、改過清單的存檔都能讀）。
+## 舊存檔只有一個 outfit（整套）：換成那一套的各件。
 static func normalize(look) -> Dictionary:
 	var out := default_look()
+	if look is Dictionary and look.has("outfit") and not look.has("top"):
+		look = look.duplicate()
+		look.merge(set_by_id(str(look["outfit"])).get("pieces", {}), true)
 	if look is Dictionary:
 		for slot in out:
 			var id = look.get(slot)
@@ -89,6 +130,7 @@ static func layer_keys(look: Dictionary) -> Array:
 	for entry in ORDER:
 		var layer_name: String = entry[0]
 		var field: String = entry[1]
+		var val: String = look.get(field, "") if field != "" else ""
 		match field:
 			"":
 				keys.append(layer_name)
@@ -96,11 +138,15 @@ static func layer_keys(look: Dictionary) -> Array:
 				keys.append("%s/%s/%s" % [layer_name, look["hair"], look["hair_color"]])
 			"brows":
 				keys.append("brows/%s/%s" % [look["brows"], look["hair_color"]])
-			"outfit":
-				keys.append("%s/%s" % [layer_name, look["outfit"]])
 			_:
-				if look.get(field, "") != "":
-					keys.append("%s/%s" % [field, look[field]])
+				if val == "":
+					continue
+				if field == "hair_acc":
+					keys.append("%s/%s/%s" % [layer_name, val, look["hair"]])
+				elif field == "cuffs":
+					keys.append("cuffs/%s/%s" % [val, option("top", look["top"]).get("sleeve", "wide")])
+				else:
+					keys.append("%s/%s" % [layer_name, val])
 	return keys
 
 
