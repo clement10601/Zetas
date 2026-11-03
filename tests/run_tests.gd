@@ -1760,9 +1760,15 @@ func test_wardrobe() -> void:
 	expect(pl._flow_target() == "fly", "sword flight streams the robes")
 	for i in 60:
 		pl._flow(1.0 / 60.0)
-	var fl: Vector2 = pl.flow_sprite.material.get_shader_parameter("flow")
-	var bd: Vector2 = pl.sprite.material.get_shader_parameter("flow")
-	expect(fl.x < -80.0 and bd.x < -40.0, "in flight ribbons and hem trail behind (%s, %s)" % [fl, bd])
+	var fl: float = pl.flow_sprite.material.get_shader_parameter("bend")
+	var lg: float = pl.sprite.material.get_shader_parameter("bend")
+	expect(fl > 0.6 and lg > 0.2, "in flight ribbons swing back and legs trail (%s, %s)" % [fl, lg])
+	pl.flying = 0.0
+	pl.flow_override = "run"
+	for i in 120:
+		pl._flow(1.0 / 60.0)
+	expect(float(pl.sprite.material.get_shader_parameter("bend")) < 0.02, "on the ground the body never bends (feet don't slide)")
+	pl.flow_override = ""
 	pl.flying = 0.0
 	expect(not Wardrobe.is_unlocked("top", "sky_robe", main.state), "天青長衫 locked at 煉氣")
 	main.state.tier_index = 1

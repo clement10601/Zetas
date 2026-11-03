@@ -2,9 +2,9 @@
 // 1. 外圈一道墨色描邊（比立繪本身的勾線粗），剪影在繁複的古畫上一眼看得出來。
 // 2. 描邊外一圈依身分上色的光暈：玩家青玉、敵人朱砂、其他人淡金紙色（ink_ui.gd 的 halo_material）。
 // 3. 立繪本身提高彩度與對比，不再灰灰的像底圖的一部分。
-// 4. 飄動（玩家用；預設全 0 不動）：flow_from 到 flow_to 之間（貼圖 UV 的 y，上到下）越往下擺得越大。
-//    flow 是整體偏移（x 正＝往立繪面朝的前方，負＝往後甩；y 負＝往上飄），flutter 是波浪幅度，都以貼圖像素計。
-//    衣襬（身體那張，從腰往下）和飄帶、後髮（另一張飄動層）各用一份材質、各自的參數，見 player.gd 的 _flow。
+// 4. 飄動（玩家用；預設 bend 0 不動）：像奇幻之境把衣片掛在骨頭上整片轉，不拉伸。以 pivot（貼圖 UV）為軸，
+//    pivot 下方離軸越遠彎得越多（reach 貼圖像素處到 bend 弧度），長度不變；ripple 是沿著長度往外傳的小擺動（弧度）。
+//    bend 正＝往立繪背後甩（立繪面朝右，背後是 -x）。飄帶、後髮（飄動層，軸在肩頸）與腿（身體那張，軸在胯，只有御劍、御風用）各一份參數，見 player.gd。
 // 半徑以貼圖像素計（立繪約 4 倍解析度，outline 8 ≈ 畫面上 2px）。保留父節點的 modulate（受擊閃紅、倒下淡出）。
 shader_type canvas_item;
 
@@ -14,11 +14,11 @@ uniform float outline = 8.0;
 uniform float radius = 20.0;
 uniform float saturation = 1.3;
 uniform float contrast = 1.08;
-uniform vec2 flow = vec2(0.0);
-uniform float flutter = 0.0;
-uniform float flutter_phase = 0.0;   // 波浪相位，由腳本累加（換狀態時速度變了也不會跳）
-uniform float flow_from = 0.5;
-uniform float flow_to = 1.0;
+uniform float bend = 0.0;
+uniform float ripple = 0.0;
+uniform float ripple_phase = 0.0;    // 由腳本累加（換狀態時速度變了也不會跳）
+uniform vec2 pivot = vec2(0.5, 0.25);
+uniform float reach = 200.0;
 
 varying vec4 tint;
 
@@ -27,11 +27,19 @@ void vertex() {
 }
 
 vec2 warp(vec2 uv, vec2 px) {
-	float w = smoothstep(flow_from, flow_to, uv.y);
-	w = w * w * (1.5 - 0.5 * w);
-	float wave = sin(flutter_phase - uv.y * 22.0) * flutter * w;
-	vec2 off = vec2(flow.x * w + wave, flow.y * w + 0.35 * wave * abs(flow.x) / max(abs(flow.x), 1.0));
-	return uv - off * px;
+	if (bend == 0.0 && ripple == 0.0) {
+		return uv;
+	}
+	vec2 d = (uv - pivot) / px;                     // 貼圖像素
+	float r = length(d);
+	float below = smoothstep(-30.0, 40.0, d.y);      // 軸以上（頭頂的髮）不動
+	float k = clamp(r / reach, 0.0, 1.6);           // 越遠彎越多：整條是一道弧，不是一根棍子
+	float a = (bend * k + ripple * sin(ripple_phase - r * 0.03) * k) * below;
+	// 輸出點往回轉 a，找到原圖上的點（整片繞軸轉，長度不變）
+	float c = cos(a);
+	float s = sin(a);
+	vec2 src = vec2(d.x * c + d.y * s, -d.x * s + d.y * c);
+	return pivot + src * px;
 }
 
 vec4 sample_tex(sampler2D tex, vec2 uv, vec2 px) {
