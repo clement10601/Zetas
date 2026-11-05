@@ -121,7 +121,9 @@ var sky_colors: Dictionary = {}     # 區塊圖透明的天後面要補的天色
 var landmarks: Dictionary = {}      # 山門、殿宇等場景物件（content/landmarks.json，tools/inkpaint/landmarks.py）
 var loot: Dictionary = {}
 var consumables: Dictionary = {}
-var mob_moves: Dictionary = {}    # content/mob_moves.json：各模板的招式  # content/consumables.json：可服用物品 -> 效果
+var mob_moves: Dictionary = {}
+var shop: Dictionary = {}         # content/shop.json：周掌櫃的店與銀兩
+var shop_options: Array = []      # 店開著時的選項 [{kind: buy|sell|leave, item, price}]    # content/mob_moves.json：各模板的招式  # content/consumables.json：可服用物品 -> 效果
 var regions: Dictionary = {}
 var runner = null
 
@@ -356,6 +358,7 @@ func load_content() -> void:
 	loot = _read_json("res://content/loot.json")
 	consumables = _read_json("res://content/consumables.json").get("items", {})
 	mob_moves = _read_json("res://content/mob_moves.json")
+	shop = _read_json("res://content/shop.json")
 	art = AssetLibrary.from_file(assets_path)
 	regions = _read_json("res://content/regions.json")
 	regions.erase("_comment")
@@ -1388,6 +1391,10 @@ func talk_to(id: String) -> void:
 		return
 	var line: String = lines[r["said"] % lines.size()]
 	r["said"] += 1
+	if id == shop.get("merchant", ""):
+		open_shop(line)
+		playlog.write("talk", {"npc": r["info"].get("memory_key", id), "region": state.region})
+		return
 	_set_speaker(r["info"]["name"], _speaker_texture(id))
 	dialogue_label.text = "%s\n（%s 繼續）" % [line, Keys.hint("jump")]
 	dialogue_panel.visible = true
@@ -1913,6 +1920,104 @@ func try_breakthrough() -> bool:
 	return true
 
 
+# ---------- 銀兩與周掌櫃的店 ----------
+
+func silver() -> int:
+	return int(state.game_data.get("silver", 0))
+
+
+func gain_silver(amount: int) -> void:
+	state.game_data["silver"] = silver() + amount
+	add_log("銀兩 +%d（共 %d 兩）" % [amount, silver()])
+	_refresh_status()
+
+
+## 身上能賣給掌櫃的妖材：[[物品, 數量, 單價]]
+func sellable() -> Array:
+	var out := []
+	for item in shop.get("sell", {}):
+		var n := int(state.items.get(item, 0))
+		if n > 0:
+			out.append([item, n, int(shop["sell"][item])])
+	return out
+
+
+func open_shop(greeting := "", cursor := 0) -> void:
+	if dialogue_panel.visible:
+		return
+	shop_options = []
+	var text := "%s\n身上銀兩：%d 兩" % [greeting if greeting != "" else "客官要些什麼？", silver()]
+	# 「改天再來」放第一個：剛開店時游標在這，按跳只會離開，不會誤買
+	shop_options.append({"kind": "leave"})
+	text += "\n  1. 改天再來"
+	for b in shop.get("buy", []):
+		var fx: Dictionary = consumables.get(b["item"], {})
+		var what := []
+		if fx.has("exp"):
+			what.append("修為 +%d" % int(fx["exp"]))
+		if fx.has("hp"):
+			what.append("氣血回%s" % ("滿" if float(fx["hp"]) >= 1.0 else "%d 成" % roundi(float(fx["hp"]) * 10)))
+		if fx.has("mp"):
+			what.append("靈力回滿")
+		shop_options.append({"kind": "buy", "item": b["item"], "price": int(b["price"])})
+		text += "\n  %d. 買%s・%d 兩（%s，身上 %d）" % [shop_options.size(), b["item"], int(b["price"]), "、".join(what), int(state.items.get(b["item"], 0))]
+	var goods := sellable()
+	if not goods.is_empty():
+		var total := 0
+		var names := []
+		for g in goods:
+			total += g[1] * g[2]
+			names.append("%s×%d" % [g[0], g[1]])
+		shop_options.append({"kind": "sell", "price": total})
+		text += "\n  %d. 賣妖材：%s，共 %d 兩" % [shop_options.size(), "、".join(names), total]
+	text += "\n  （%s 選、%s 確定、Esc 關閉）" % [Keys.first("move_up") + Keys.first("move_down"), Keys.hint("jump")]
+	var r: Dictionary = residents.get(shop.get("merchant", ""), {})
+	_set_speaker(r.get("info", {}).get("name", "掌櫃"), _speaker_texture(shop.get("merchant", "")) if not r.is_empty() else null)
+	_set_menu_text(text)
+	menu_cursor = mini(cursor, shop_options.size() - 1)
+	_render_menu()
+	dialogue_panel.visible = true
+	player.frozen = true
+
+
+func close_shop() -> void:
+	shop_options = []
+	_hide_dialogue()
+
+
+## 選了店裡的一項：買／賣完店還開著（方便連買），離開就關
+func choose_shop(i: int) -> void:
+	if i >= shop_options.size():
+		return
+	var opt: Dictionary = shop_options[i]
+	if opt["kind"] == "leave":
+		close_shop()
+		return
+	var line := ""
+	if opt["kind"] == "buy":
+		if silver() < int(opt["price"]):
+			line = "銀子不夠啊，客官。（還差 %d 兩）" % (int(opt["price"]) - silver())
+		else:
+			state.game_data["silver"] = silver() - int(opt["price"])
+			state.add_item(opt["item"])
+			add_log("買了%s，花 %d 兩（剩 %d 兩）。" % [opt["item"], int(opt["price"]), silver()])
+			audio.play("reward")
+			line = "%s一份，收好了。" % opt["item"]
+	elif opt["kind"] == "sell":
+		for g in sellable():
+			state.items.erase(g[0])
+		state.game_data["silver"] = silver() + int(opt["price"])
+		add_log("賣了妖材，得 %d 兩（共 %d 兩）。" % [int(opt["price"]), silver()])
+		audio.play("reward")
+		line = "好貨！%d 兩，點清楚。" % int(opt["price"])
+	playlog.write("shop", {"kind": opt["kind"], "item": opt.get("item", ""), "price": opt["price"]})
+	_refresh_status()
+	autosave()
+	shop_options = []
+	dialogue_panel.visible = false
+	open_shop(line, menu_cursor)
+
+
 # ---------- 服用丹藥 ----------
 
 ## 身上有、而且現在能服用（境界沒超過 tier_max）
@@ -2226,6 +2331,9 @@ func zhengxie() -> int:
 
 ## 拿到物品；物品名是兵器表上的兵器、裝備表上的裝備就入手
 func gain_item(item: String) -> void:
+	if shop.get("money_items", {}).has(item):
+		gain_silver(int(shop["money_items"][item]))
+		return
 	var eid := Equipment.by_name(item)
 	var fresh := eid != "" and not Equipment.owns(state, eid)
 	state.add_item(item)
@@ -2799,6 +2907,8 @@ func handle_input(event: InputEvent) -> void:
 				close_gear_menu()
 			elif not errand_options.is_empty():
 				close_errand_board()
+			elif not shop_options.is_empty():
+				close_shop()
 		return
 	if not errand_options.is_empty():   # 差事榜上沒東西可接：任何確定／取消都關掉
 		if confirm or cancel or event.is_action_pressed("interact"):
@@ -2865,6 +2975,8 @@ func menu_count() -> int:
 		return gear_options.size()
 	if not errand_options.is_empty():
 		return errand_options.size() if errand_options[0]["kind"] != "none" else 0
+	if not shop_options.is_empty():
+		return shop_options.size()
 	if dialogue_panel.visible:
 		return current_choices.size()
 	return 0
@@ -2877,6 +2989,8 @@ func choose_menu(i: int) -> void:
 		choose_gear(i)
 	elif not errand_options.is_empty():
 		choose_errand(i)
+	elif not shop_options.is_empty():
+		choose_shop(i)
 	else:
 		choose_visible(i)
 
@@ -3388,7 +3502,7 @@ func _refresh_status() -> void:
 	var gear := ""
 	if weapons.has(weapon_id()) and not gongfa().is_empty():
 		gear = "　%s・%s" % [gongfa()["name"], weapons[weapon_id()]["name"]]
-	hud_detail.text = "修為 %d／%d　氣血 %d／%d　%s%s" % [cultivation(), need, hp(), player_max_hp(), "　".join(karma), gear]
+	hud_detail.text = "修為 %d／%d　氣血 %d／%d　銀 %d 兩　%s%s" % [cultivation(), need, hp(), player_max_hp(), silver(), "　".join(karma), gear]
 	if tint != null:
 		var target := InkUI.time_tint(state.time_of_day) * InkUI.karma_tint(_karma_lean())
 		if vignette != null:
