@@ -53,6 +53,7 @@ func _run() -> void:
 	await test_wild_mobs()
 	await test_errand_board()
 	await test_keyboard_layout()
+	await test_mouse_controls()
 	await test_weapons_and_arts()
 	await test_wardrobe()
 	print("%d checks, %d failed" % [checks, failures])
@@ -1370,7 +1371,7 @@ func test_keyboard_layout() -> void:
 	pad.button_index = JOY_BUTTON_A
 	pad.pressed = true
 	expect(pad.is_action_pressed("jump"), "gamepad A jumps")
-	expect(main.help_label.text.contains("Z/K/空白 跳") and main.help_label.text.contains("X/J 攻擊"), "help bar lists both layouts")
+	expect(main.help_label.text.contains("Z/K/空白 跳") and main.help_label.text.contains("X/J/左鍵 攻擊"), "help bar lists both layouts")
 	# 真的從 InputMap 讀：按住「右」會往右走
 	player.test_input = null
 	var x0: float = player.position.x
@@ -1408,12 +1409,109 @@ func test_keyboard_layout() -> void:
 	main.key_panel.assign(KEY_K)
 	expect(press_key(KEY_K).is_action_pressed("attack") and not press_key(KEY_K).is_action_pressed("jump"), "K moves from jump to attack")
 	expect(Keys.bindings["jump"][1] == 0 and main.key_panel.status.text.contains("跳"), "the panel says jump lost K")
-	expect(main.help_label.text.contains("K/J 攻擊"), "help bar follows the new keys")
+	expect(main.help_label.text.contains("K/J/左鍵 攻擊"), "help bar follows the new keys")
 	main.key_panel.close()
 	expect(not player.input_blocked, "closing settings gives control back")
 	Keys.reset("")
 	expect(press_key(KEY_K).is_action_pressed("jump"), "reset brings the defaults back")
 	main.free()
+
+func click(main: Node, button: int, dx: float) -> InputEventMouseButton:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = button
+	ev.pressed = true
+	var p: CharacterBody2D = main.player
+	ev.position = p.get_canvas_transform() * (p.global_position + Vector2(dx, -30.0))
+	ev.global_position = ev.position
+	return ev
+
+
+## 滑鼠：左鍵攻擊、右鍵術法，朝游標那一邊出手；鍵盤照舊；滑鼠鍵也能在按鍵設定裡改，舊的 keys.json 會補上滑鼠鍵。
+func test_mouse_controls() -> void:
+	const Keys = preload("res://scripts/keys.gd")
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	player.test_input = {}
+	expect(click(main, MOUSE_BUTTON_LEFT, 0).is_action_pressed("attack"), "left click is attack")
+	expect(click(main, MOUSE_BUTTON_RIGHT, 0).is_action_pressed("art"), "right click is the art")
+	expect(main.help_label.text.contains("X/J/左鍵 攻擊") and main.help_label.text.contains("F/U/右鍵 術法"), "help bar names the mouse buttons")
+	# 點人物左邊：轉身往左砍
+	player.facing = 1
+	main.attack_cooldown = 0.0
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, -200.0))
+	expect(main.attack_cooldown > 0.0 and player.facing == -1, "left click left of the player attacks to the left")
+	main.attack_cooldown = 0.0
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, 200.0))
+	expect(main.attack_cooldown > 0.0 and player.facing == 1, "left click right of the player attacks to the right")
+	# 冷卻中亂點不會原地轉來轉去
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, -200.0))
+	expect(player.facing == 1, "clicking during the cooldown does not spin the player")
+	main.attack_cooldown = 0.0
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, 3.0))
+	expect(main.attack_cooldown > 0.0 and player.facing == 1, "clicking on the player keeps the facing")
+	# 鍵盤攻擊照舊看面向
+	player.facing = -1
+	main.attack_cooldown = 0.0
+	main.handle_input(press_key(KEY_X))
+	expect(main.attack_cooldown > 0.0 and player.facing == -1, "the keyboard still attacks where the player faces")
+	# 右鍵：術法朝游標飛
+	main.mp = 999.0
+	main.art_cooldown = 0.0
+	player.facing = -1
+	var before: int = main.projectiles.size()
+	main.handle_input(click(main, MOUSE_BUTTON_RIGHT, 250.0))
+	expect(main.art_cooldown > 0.0 and player.facing == 1, "right click casts toward the cursor")
+	if main.projectiles.size() > before:
+		expect(main.projectiles[-1]["dir"] == 1, "the 劍氣 flies toward the cursor")
+	# 走真的輸入流程：點在畫面上（沒有面板蓋住的地方）會出手
+	for dx in [-300.0, 300.0]:
+		main.attack_cooldown = 0.0
+		main.get_viewport().push_input(click(main, MOUSE_BUTTON_LEFT, dx))
+		expect(main.attack_cooldown > 0.0 and player.facing == (1 if dx > 0 else -1), "a real click at %d reaches the game" % dx)
+	# 對話框開著時，左鍵＝繼續
+	var npc: String = main.residents.keys()[0]
+	main.talk_to(npc)
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, 100.0))
+	expect(not main.dialogue_panel.visible, "left click continues dialogue")
+	# 改鍵：攻擊的「其他」格改成中鍵，左鍵就不攻擊了
+	main.open_key_panel()
+	main.key_panel._start_capture("attack", 2)
+	var mid := click(main, MOUSE_BUTTON_MIDDLE, 0)
+	main.key_panel._input(mid)
+	expect(Keys.bindings["attack"][2] == -MOUSE_BUTTON_MIDDLE, "a mouse button can be captured in key settings")
+	expect(main.key_panel.buttons["attack:2"].text == "中鍵", "the panel shows 中鍵")
+	expect(mid.is_action_pressed("attack") and not click(main, MOUSE_BUTTON_LEFT, 0).is_action_pressed("attack"), "middle click now attacks, left click no longer does")
+	# 把右鍵給跳：術法就沒有右鍵了
+	main.key_panel._start_capture("jump", 2)
+	main.key_panel._input(click(main, MOUSE_BUTTON_RIGHT, 0))
+	expect(Keys.bindings["art"][2] == 0 and click(main, MOUSE_BUTTON_RIGHT, 0).is_action_pressed("jump"), "right click moves from art to jump")
+	# 滾輪不收
+	main.key_panel._start_capture("dash", 2)
+	main.key_panel._input(click(main, MOUSE_BUTTON_WHEEL_UP, 0))
+	expect(Keys.bindings["dash"][2] == KEY_SHIFT and not main.key_panel.capturing.is_empty(), "the wheel is not bindable")
+	main.key_panel.close()
+	Keys.reset("")
+	# 舊的 keys.json（沒有滑鼠鍵）讀進來會補上左鍵、右鍵；已經有人用的不補
+	var path := "user://test_keys_old.json"
+	var old := {}
+	for a in Keys.ACTIONS:
+		old[a["id"]] = (a["keys"] as Array).map(func(k): return k if k > 0 else 0)
+	old["attack"] = [KEY_K, KEY_J, 0]
+	old["jump"] = [KEY_Z, 0, KEY_SPACE]
+	old["art"] = [KEY_F, KEY_U, 0]
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(old))
+	f.close()
+	Keys.setup(path)
+	expect(Keys.bindings["attack"] == [KEY_K, KEY_J, -MOUSE_BUTTON_LEFT] and Keys.bindings["art"][2] == -MOUSE_BUTTON_RIGHT, "old key files get the mouse buttons")
+	Keys.save(path)
+	Keys.rebind("art", 2, 0, path)
+	Keys.setup(path)
+	expect(Keys.bindings["art"][2] == 0 and Keys.bindings["attack"][2] == -MOUSE_BUTTON_LEFT, "a cleared mouse slot stays cleared in new key files")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	Keys.reset("")
+	main.free()
+
 
 ## 依地圖與事件切換配樂：走進村落換村落曲、事件裡換劇情曲、事件裡有敵人換戰鬥曲、心魔事件換心魔對決曲。
 func test_music_by_map_and_event() -> void:
@@ -1598,7 +1696,7 @@ func test_weapons_and_arts() -> void:
 	main.state.game_data["hp"] = 30
 	main.handle_input(press_key(KEY_F))
 	expect(main.art_cooldown > 0.0, "F casts the art")
-	expect(main.help_label.text.contains("F/U 術法") and main.help_label.text.contains("G/O 兵器"), "help bar lists the art and gear keys")
+	expect(main.help_label.text.contains("F/U/右鍵 術法") and main.help_label.text.contains("G/O 兵器"), "help bar lists the art and gear keys")
 	main.free()
 ## 衣櫃與容貌：每個選項都有圖層、疊出來跟原本立繪同尺寸、解鎖照條件、試穿關掉會換回、存檔帶著走。
 func test_wardrobe() -> void:

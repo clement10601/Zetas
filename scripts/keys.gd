@@ -2,7 +2,9 @@
 ##   方向鍵組（右手方向、左手動作，楓之谷／九日式）：←→↑↓ 移動，Z 跳、X 攻擊、C 閃避、V 御劍
 ##   WASD 組（左手方向、右手動作，空洞騎士鍵盤式）：WASD 移動，K 跳、J 攻擊、L 閃避、I 御劍
 ##   兩組都能用的：空白 跳、Shift 閃避、E 交談／傳送（↑、W 也可以）
+##   滑鼠：左鍵 攻擊、右鍵 術法（放在「其他」格，攻擊與術法朝游標那一邊出手）
 ## 每個動作三格鍵位（方向鍵組／WASD 組／其他），玩家可以在按鍵設定畫面改，存在 user://keys.json。
+## 鍵碼是正數＝鍵盤實體鍵；負數＝滑鼠按鈕（-MOUSE_BUTTON_LEFT 就是左鍵），所以滑鼠鍵也能改。
 ## 改鍵時同一個鍵只會留在一個動作上（↑／W 同時是「上」和「交談」例外）。
 extends RefCounted
 
@@ -22,11 +24,11 @@ const ACTIONS := [
 	{"id": "move_down", "name": "下（爬繩梯、下平台）", "keys": [KEY_DOWN, KEY_S, 0],
 		"pad": [JOY_BUTTON_DPAD_DOWN], "axis": [JOY_AXIS_LEFT_Y, 1.0]},
 	{"id": "jump", "name": "跳", "keys": [KEY_Z, KEY_K, KEY_SPACE], "pad": [JOY_BUTTON_A]},
-	{"id": "attack", "name": "攻擊", "keys": [KEY_X, KEY_J, 0], "pad": [JOY_BUTTON_X]},
+	{"id": "attack", "name": "攻擊", "keys": [KEY_X, KEY_J, -MOUSE_BUTTON_LEFT], "pad": [JOY_BUTTON_X]},
 	{"id": "dash", "name": "閃避", "keys": [KEY_C, KEY_L, KEY_SHIFT],
 		"pad": [JOY_BUTTON_B, JOY_BUTTON_RIGHT_SHOULDER]},
 	{"id": "fly", "name": "御劍（空中）", "keys": [KEY_V, KEY_I, 0], "pad": [JOY_BUTTON_Y]},
-	{"id": "art", "name": "術法（主修功法的招牌術法）", "keys": [KEY_F, KEY_U, 0], "pad": []},
+	{"id": "art", "name": "術法（主修功法的招牌術法）", "keys": [KEY_F, KEY_U, -MOUSE_BUTTON_RIGHT], "pad": []},
 	{"id": "gear", "name": "兵器・功法", "keys": [KEY_G, KEY_O, 0], "pad": []},
 	{"id": "interact", "name": "交談・傳送・拿取", "keys": [KEY_UP, KEY_W, KEY_E], "pad": [JOY_BUTTON_DPAD_UP]},
 	{"id": "meditate", "name": "打坐", "keys": [KEY_M, 0, 0], "pad": [JOY_BUTTON_LEFT_SHOULDER]},
@@ -47,6 +49,14 @@ const NAMES := {
 	KEY_BACKSPACE: "Backspace", KEY_CAPSLOCK: "CapsLock",
 }
 
+## 滑鼠按鈕（滾輪不算，滾一下會連發好幾次）
+const MOUSE_NAMES := {
+	MOUSE_BUTTON_LEFT: "左鍵", MOUSE_BUTTON_RIGHT: "右鍵", MOUSE_BUTTON_MIDDLE: "中鍵",
+	MOUSE_BUTTON_XBUTTON1: "側鍵1", MOUSE_BUTTON_XBUTTON2: "側鍵2",
+}
+## keys.json 的格式版本：2 起有滑鼠鍵。舊檔讀進來時，預設的滑鼠鍵補到空著的格子。
+const SAVE_VERSION := 2
+
 static var bindings := {}   # id -> [三格鍵碼]
 static var _initialized := false
 
@@ -62,8 +72,36 @@ static func setup(path := "") -> void:
 			for id in saved:
 				if bindings.has(id) and saved[id] is Array and saved[id].size() == SLOTS:
 					bindings[id] = saved[id].map(func(k): return int(k))
+			if int(saved.get("_v", 1)) < SAVE_VERSION:
+				_add_default_mouse()
 	_apply()
 	_initialized = true
+
+
+## 舊存檔沒有滑鼠鍵：預設有滑鼠鍵的動作，那一格還空著、滑鼠鍵也沒被別的動作用，就補上。
+static func _add_default_mouse() -> void:
+	for a in ACTIONS:
+		for i in SLOTS:
+			var kc: int = a["keys"][i]
+			if kc < 0 and bindings[a["id"]][i] == 0 and owner_of(kc) == "":
+				bindings[a["id"]][i] = kc
+
+
+## 哪個動作用了 kc（沒有就是空字串）。
+static func owner_of(kc: int) -> String:
+	for id in bindings:
+		if kc in bindings[id]:
+			return id
+	return ""
+
+
+static func is_mouse(kc: int) -> bool:
+	return kc < 0
+
+
+## 滑鼠按鈕 → 鍵碼（負數）
+static func mouse_code(button: int) -> int:
+	return -button
 
 
 static func ensure() -> void:
@@ -76,7 +114,9 @@ static func save(path: String) -> void:
 		return
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f != null:
-		f.store_string(JSON.stringify(bindings))
+		var data := bindings.duplicate()
+		data["_v"] = SAVE_VERSION
+		f.store_string(JSON.stringify(data))
 
 
 static func reset(path := "") -> void:
@@ -101,10 +141,14 @@ static func _apply() -> void:
 			InputMap.erase_action(id)
 		InputMap.add_action(id, DEADZONE)
 		for kc in bindings[id]:
-			if kc != 0:
+			if kc > 0:
 				var ev := InputEventKey.new()
 				ev.physical_keycode = kc
 				InputMap.action_add_event(id, ev)
+			elif kc < 0:
+				var mb := InputEventMouseButton.new()
+				mb.button_index = -kc
+				InputMap.action_add_event(id, mb)
 		for b in a.get("pad", []):
 			var pb := InputEventJoypadButton.new()
 			pb.button_index = b
@@ -147,6 +191,8 @@ static func rebind(id: String, slot: int, kc: int, path := "") -> Array:
 static func key_name(kc: int) -> String:
 	if kc == 0:
 		return "—"
+	if kc < 0:
+		return MOUSE_NAMES.get(-kc, "滑鼠%d" % -kc)
 	if NAMES.has(kc):
 		return NAMES[kc]
 	return OS.get_keycode_string(kc)
