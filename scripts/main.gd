@@ -60,6 +60,8 @@ const PROMPT_HEIGHT := 110.0       # 互動提示在角色腳上方多高
 const PORTAL_INSET := 50.0        # 傳送點離地圖邊緣多遠
 const INTERACT_RANGE := 40.0
 const ATTACK_COOLDOWN := 0.35
+## 滑鼠出手時游標離人物左右多遠以內不轉身
+const MOUSE_TURN_DEADZONE := 8.0
 const ENEMY_REACH := 44.0
 const ENEMY_STRIKE_REACH := 60.0  # 前搖結束時玩家還在這個距離內才算打中（看到紅字往後閃就躲得掉）
 const ENEMY_HIT_INTERVAL := 1.0
@@ -1955,6 +1957,18 @@ func attack() -> void:
 		player.move_and_collide(Vector2(player.facing * float(kind["finisher_lunge"]), 0))
 
 
+## 用滑鼠出手時，先轉身面向游標那一邊（游標在人物身上附近就不轉）。
+func face_mouse(event: InputEvent) -> void:
+	if not event is InputEventMouseButton or player == null:
+		return
+	if attack_cooldown > 0.0 and event.is_action_pressed("attack"):
+		return
+	var world: Vector2 = player.get_canvas_transform().affine_inverse() * event.position
+	var dx: float = world.x - player.global_position.x
+	if absf(dx) > MOUSE_TURN_DEADZONE:
+		player.facing = 1 if dx > 0.0 else -1
+
+
 ## 金剛崩拳：前後 120 的震地波
 func _quake(damage: int) -> void:
 	InkFx.ring(level, Vector2(player.position.x, player.feet()), 120.0, InkUI.GOLD, 0.45)
@@ -2549,6 +2563,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventJoypadButton:
 		if not event.pressed:
 			return
+	elif event is InputEventMouseButton:
+		# 滑鼠鍵（預設左鍵攻擊、右鍵術法）。點在面板、按鈕上的已經被介面吃掉，不會走到這裡。
+		if not event.pressed or not Keys.MOUSE_NAMES.has(event.button_index):
+			return
 	else:
 		return
 	handle_input(event)
@@ -2599,8 +2617,11 @@ func handle_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interact"):
 		interact()
 	elif event.is_action_pressed("attack"):
+		face_mouse(event)
 		attack()
 	elif event.is_action_pressed("art"):
+		if not blocking_input() and art_cooldown <= 0.0:
+			face_mouse(event)
 		cast_art()
 	elif event.is_action_pressed("gear"):
 		open_gear_menu()
