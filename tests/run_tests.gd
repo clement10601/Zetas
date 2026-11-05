@@ -56,6 +56,7 @@ func _run() -> void:
 	await test_weapons_and_arts()
 	await test_wardrobe()
 	await test_equipment()
+	await test_consumables()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -418,6 +419,14 @@ func test_cultivation() -> void:
 	main.advance_dialogue()
 	main.meditate()
 	expect(main.cultivation() == 8 + 15, "meditating in the sect: +15")
+	main.meditate()
+	expect(main.cultivation() == 8 + 15 + 7, "the third meditation in a row is halved (15 >> 1)")
+	main.meditate()
+	expect(main.cultivation() == 8 + 15 + 7 + 3, "and keeps halving while you only sit")
+	main.state.game_data["meditate_streak"] = 0  # 打倒敵人、走完事件會歸零
+	main.meditate()
+	expect(main.cultivation() == 8 + 15 + 7 + 3 + 15, "after training outside, meditation is full again")
+	main.state.game_data["exp"] = 23
 	main.gain_cultivation(100)
 	expect(main.try_breakthrough() and main.state.tier_name() == "築基", "full cultivation breaks through")
 	expect(main.cultivation() == 23 and main.hp() == 50, "breakthrough spends the threshold and heals to the new max")
@@ -1211,7 +1220,7 @@ func test_wild_mobs() -> void:
 		main.attack()
 		hits += 1
 	expect(hits == 3, "a 煉氣 ghost (power 0.8) takes 3 sword hits (the third of the combo is heavier)")
-	expect(main.cultivation() - exp_before == 4, "killing a wild mob gives a little cultivation (about half a meditation)")
+	expect(main.cultivation() - exp_before == 8, "killing a wild mob (power 0.8) gives as much cultivation as a meditation")
 	expect(main.state.items.has("陰魂殘絲"), "wild mobs drop common loot")
 	expect(g in main.wild_defeated(), "the defeat is remembered")
 	main.go_home()
@@ -1305,7 +1314,7 @@ func test_errand_board() -> void:
 		if main.runner != null:
 			expect(main.hud_objective.text == "目標：打倒2隻狌狌（1／2）", "objective shows progress")
 	expect(main.runner == null, "the errand completes after two kills")
-	expect(main.cultivation() - exp_before == 3 + 3 + main.Cultivation.EXP_REWARD["small"], "kills plus the errand reward")
+	expect(main.cultivation() - exp_before == 6 + 6 + main.Cultivation.EXP_REWARD["small"], "kills plus the errand reward")
 	expect(main.state.items.has("凝氣草"), "the errand gives its loot")
 	main.state.region = "region.qingyun_sect"
 	main.go_home()
@@ -1824,3 +1833,44 @@ func test_wardrobe() -> void:
 	expect(again.player_look()["hair_color"] == "crimson", "crimson hair with 仁殺 -40")
 	again.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func test_consumables() -> void:
+	var main: Node = await new_game()
+	var data: Dictionary = main.consumables
+	expect(data.has("凝氣草") and data.has("下品妖丹"), "consumables.json lists herbs and demon cores")
+	var dropped := {}
+	for table in main.loot.values():
+		if table is Dictionary:
+			for grade in table.values():
+				for it in grade:
+					dropped[it] = true
+	for name in data:
+		expect(dropped.has(name), "consumable %s actually drops somewhere" % name)
+	expect(not main.can_use_item("凝氣草"), "cannot use what you don't carry")
+	main.gain_item("凝氣草")
+	main.gain_item("凝氣草")
+	expect(main.can_use_item("凝氣草"), "can use a carried herb")
+	expect(main.use_item("凝氣草") and main.cultivation() == 12 and main.state.items.get("凝氣草", 0) == 1, "herb gives 12 cultivation and is used up one at a time")
+	main.state.game_data["hp"] = 5
+	main.gain_item("百年靈芝")
+	main.use_item("百年靈芝")
+	expect(main.hp() == main.player_max_hp() and not main.state.items.has("百年靈芝"), "靈芝 heals fully and leaves the bag")
+	main.gain_item("安魂香")
+	main.mp = 0.0
+	main.use_item("安魂香")
+	expect(main.mp == float(main.player_max_mp()), "安魂香 refills 靈力")
+	main.state.game_data["exp"] = 0
+	main.state.game_data["pills"] = {"day": main.state.day, "n": 3}
+	main.use_item("凝氣草")
+	expect(main.cultivation() == 6, "the fourth pill of the day is halved (丹毒)")
+	main.state.tier_index = 1
+	main.gain_item("築基丹")
+	expect(not main.can_use_item("築基丹"), "築基丹 is useless once you are 築基")
+	main.state.tier_index = 0
+	main.state.game_data["exp"] = 0
+	main.gain_item("下品妖丹")
+	main.gain_item("凝氣草")
+	main.quick_use_item()
+	expect(main.state.items.has("下品妖丹") and not main.state.items.has("凝氣草"), "quick use eats the weakest pill first")
+	main.free()

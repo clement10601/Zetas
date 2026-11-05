@@ -118,6 +118,7 @@ var chunks: Dictionary = {}
 var sky_colors: Dictionary = {}     # 區塊圖透明的天後面要補的天色（content/sky.json）
 var landmarks: Dictionary = {}      # 山門、殿宇等場景物件（content/landmarks.json，tools/inkpaint/landmarks.py）
 var loot: Dictionary = {}
+var consumables: Dictionary = {}  # content/consumables.json：可服用物品 -> 效果
 var regions: Dictionary = {}
 var runner = null
 
@@ -345,6 +346,7 @@ func load_content() -> void:
 	sky_colors = _read_json("res://content/sky.json")
 	landmarks = _read_json("res://content/landmarks.json")
 	loot = _read_json("res://content/loot.json")
+	consumables = _read_json("res://content/consumables.json").get("items", {})
 	art = AssetLibrary.from_file(assets_path)
 	regions = _read_json("res://content/regions.json")
 	regions.erase("_comment")
@@ -1759,6 +1761,7 @@ func _on_reward(effect: Dictionary) -> void:
 		add_log("獲得：" + "、".join(items))
 		audio.play("reward")
 	elif effect["type"] == "grant_exp":
+		state.game_data["meditate_streak"] = 0
 		gain_cultivation(int(Cultivation.EXP_REWARD.get(effect["amount"], 0)))
 
 
@@ -1859,13 +1862,18 @@ func gain_cultivation(amount: int) -> void:
 func meditate() -> void:
 	if blocking():
 		return
-	var gain: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
+	var base: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
+	var streak := int(state.game_data.get("meditate_streak", 0))
+	var gain := Cultivation.meditate_gain(base, streak)
+	state.game_data["meditate_streak"] = streak + 1
 	var new_day := advance_time(1)
 	state.game_data["hp"] = player_max_hp()
 	mp = player_max_mp()
 	audio.play("meditate")
 	player.sit(1.6)
 	add_log("打坐一個時辰。（第 %d 天・%s）" % [state.day, state.time_of_day])
+	if gain < base:
+		add_log("枯坐無所得，心浮氣躁。出去歷練一番（打怪、走完事件）再坐，收效才足。")
 	gain_cultivation(gain)
 	if new_day:
 		day_started()
@@ -1885,6 +1893,57 @@ func try_breakthrough() -> bool:
 	state.game_data["exp"] = cultivation() - need
 	breakthrough()
 	return true
+
+
+# ---------- 服用丹藥 ----------
+
+## 身上有、而且現在能服用（境界沒超過 tier_max）
+func can_use_item(item: String) -> bool:
+	if not consumables.has(item) or int(state.items.get(item, 0)) <= 0:
+		return false
+	return state.tier_index <= int(consumables[item].get("tier_max", 99))
+
+
+## 服用一樣丹藥、靈草或妖丹：扣一個、套效果。物品欄的「服用」與快捷鍵都走這裡。
+func use_item(item: String) -> bool:
+	if not can_use_item(item):
+		return false
+	var fx: Dictionary = consumables[item]
+	var left := int(state.items[item]) - 1
+	if left > 0:
+		state.items[item] = left
+	else:
+		state.items.erase(item)
+	add_log(fx.get("text", "服下%s。" % item))
+	audio.play("meditate")
+	if fx.has("hp"):
+		state.game_data["hp"] = mini(player_max_hp(), hp() + ceili(float(fx["hp"]) * player_max_hp()))
+	if fx.has("mp"):
+		mp = minf(float(player_max_mp()), mp + float(fx["mp"]) * player_max_mp())
+	if fx.has("exp"):
+		var rec: Dictionary = state.game_data.get("pills", {})
+		var taken := int(rec.get("n", 0)) if int(rec.get("day", -1)) == state.day else 0
+		var gain := Cultivation.pill_gain(int(fx["exp"]), taken)
+		state.game_data["pills"] = {"day": state.day, "n": taken + 1}
+		if gain < int(fx["exp"]):
+			add_log("今天服藥太多，丹毒積身，藥力只剩幾分。")
+		gain_cultivation(gain)
+	playlog.write("use_item", {"item": item, "region": state.region, "day": state.day})
+	_refresh_status()
+	autosave()
+	return true
+
+
+## 快捷鍵：服用身上修為最少的一樣（先吃小的，好東西留著）；沒有就說明
+func quick_use_item() -> void:
+	var best := ""
+	for item in state.items:
+		if can_use_item(item) and (best == "" or int(consumables[item].get("exp", 0)) < int(consumables[best].get("exp", 0))):
+			best = item
+	if best == "":
+		add_log("身上沒有能服用的丹藥。打野怪、跑差事會掉凝氣草、妖丹。")
+		return
+	use_item(best)
 
 
 # ---------- 戰鬥 ----------
@@ -2091,6 +2150,7 @@ func damage_actor(id: String, amount: int, knock: float = ENEMY_KNOCKBACK, stop:
 			var floor_v := int(passive.get("karma_floor", -60))
 			if zx > floor_v:
 				state.add_karma("正邪", maxi(int(passive["kill_karma"]), floor_v - zx))
+		state.game_data["meditate_streak"] = 0
 		if wild.has(id):
 			_wild_defeated(id)
 		else:
@@ -2595,6 +2655,8 @@ func handle_input(event: InputEvent) -> void:
 		open_gear_menu()
 	elif event.is_action_pressed("meditate"):
 		meditate()
+	elif event.is_action_pressed("use_item"):
+		quick_use_item()
 	elif event.is_action_pressed("breakthrough"):
 		try_breakthrough()
 	elif event.is_action_pressed("music"):
