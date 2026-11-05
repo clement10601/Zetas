@@ -1,7 +1,7 @@
 ## 玩家外觀：衣著逐件可換（上衣、下裳、外罩、腰封、護腕、鞋靴；套裝一鍵換一整組）、配件（頭飾、髮飾、肩飾、背飾、腰飾）與容貌。
 ## 選項與解鎖條件在 content/wardrobe.json；每個選項的分層立繪在 art/wardrobe/，位移在 content/wardrobe_layers.json
 ## （由 tools/inkpaint/wardrobe.py 畫出來）。compose() 照固定順序把圖層疊成一張全身立繪，跟原本的 player.disciple 同尺寸。
-## 外觀存在 state.game_data["look"]，只管長相，不加數值。這是「時裝」：裝備（scripts/equipment.gd）有品階數值，
+## 外觀存在 state.game_data["look"]，只管長相，不加數值。衣著、配件都要先拿到（物品欄裡有）才能穿，見 is_unlocked。這是「時裝」：裝備（scripts/equipment.gd）有品階數值，
 ## 穿在身上也有樣子；有裝備的欄位（衣袍、腰封、護腕、鞋靴、頭冠、佩飾）時裝選「隨裝備」（EQUIP）就顯示裝備，
 ## 選別的就蓋在裝備上面。resolve() 把「隨裝備」換成裝備的樣子，沒穿裝備就是預設那件。
 extends RefCounted
@@ -137,20 +137,84 @@ static func normalize(look) -> Dictionary:
 	return out
 
 
+## 這件能不能穿：容貌看條件；衣著、配件要物品欄裡有（「不穿」「隨裝備」永遠可以）。
 static func is_unlocked(slot: String, id: String, state) -> bool:
 	var o := option(slot, id)
 	if o.is_empty():
 		return false
-	return Conditions.all_true(o.get("unlock", []), state)
+	if is_appearance(slot):
+		return conditions_met(slot, id, state)
+	if id == "" or id == EQUIP:
+		return true
+	if _by_has_item(o):
+		return conditions_met(slot, id, state)
+	return int(state.items.get(item_name(slot, id), 0)) > 0
 
 
-## 外觀裡還沒解鎖的欄位換回預設（試穿過、或條件後來不成立時用）。
+static func conditions_met(slot: String, id: String, state) -> bool:
+	return Conditions.all_true(option(slot, id).get("unlock", []), state)
+
+
+## 容貌（髮型、臉型……）是身體，不是物品，不用取得
+static func is_appearance(slot: String) -> bool:
+	for s in slots():
+		if s["id"] == slot:
+			return s.get("group", "") == "容貌"
+	return false
+
+
+## unlock 寫 has_item 的：跟著那件物品走（仙裳、魔袍那種一件物品帶一整組樣子）
+static func _by_has_item(o: Dictionary) -> bool:
+	var u: Array = o.get("unlock", [])
+	return not u.is_empty() and u.all(func(c): return c.get("type", "") == "has_item")
+
+
+## 這件時裝在物品欄裡叫什麼（「不穿」沒有）
+static func item_name(slot: String, id: String) -> String:
+	var o := option(slot, id)
+	if o.is_empty() or id == "" or id == EQUIP or is_appearance(slot):
+		return ""
+	if _by_has_item(o):
+		return str(o["unlock"][0]["item"])
+	return str(o.get("item", o["name"]))
+
+
+## 條件（境界、旗標）一成立就發進物品欄的時裝
+static func granted_by_conditions(slot: String, id: String) -> bool:
+	var o := option(slot, id)
+	return not is_appearance(slot) and not o.get("unlock", []).is_empty() and not _by_has_item(o)
+
+
+## 物品名 -> [欄位, 選項 id]（不是時裝就空陣列）；只認時裝自己的名字，裝備名由 equipment.gd 管
+static func by_item(name: String) -> Array:
+	for slot in catalog()["options"]:
+		if is_appearance(slot):
+			continue
+		for o in catalog()["options"][slot]:
+			if o["id"] != "" and not _by_has_item(o) and str(o.get("item", o["name"])) == name:
+				return [slot, o["id"]]
+	return []
+
+
+## 開局就有的時裝物品名
+static func starter_items() -> Array:
+	return catalog().get("starter", []).map(func(ref): return item_name(str(ref).get_slice("/", 0), str(ref).get_slice("/", 1)))
+
+
+## 這一欄能穿的選項（含「不穿」「隨裝備」），照清單順序
+static func owned_options(slot: String, state) -> Array:
+	return options(slot).filter(func(o): return is_unlocked(slot, o["id"], state))
+
+
+## 外觀裡沒有（還沒拿到、或條件後來不成立）的欄位換回預設；預設那件也沒有就不穿。
 static func only_unlocked(look: Dictionary, state) -> Dictionary:
 	var out := look.duplicate()
 	var d := default_look()
 	for slot in out:
 		if not is_unlocked(slot, out[slot], state):
 			out[slot] = d[slot]
+			if not is_unlocked(slot, out[slot], state) and not option(slot, "").is_empty():
+				out[slot] = ""
 	return out
 
 
@@ -220,3 +284,10 @@ static func compose(look: Dictionary, part := "all") -> Texture2D:
 	var tex := ImageTexture.create_from_image(canvas)
 	_textures[sig] = tex
 	return tex
+
+
+static func slot_title(slot: String) -> String:
+	for s in slots():
+		if s["id"] == slot:
+			return s["name"]
+	return slot

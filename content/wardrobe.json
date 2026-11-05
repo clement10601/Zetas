@@ -1,5 +1,5 @@
 {
- "_comment": "玩家外觀：衣著逐件可換（上衣、下裳、外罩、腰封、護腕、鞋靴）、配件（頭飾、髮飾、肩飾、背飾、腰飾）與容貌。每件一張圖層，長相在 tools/inkpaint/wardrobe.py＋garments.py，圖在 art/wardrobe/。unlock 是引擎條件（全部成立才解鎖，空的＝一開始就有）；source 是沒解鎖時給玩家看的取得方式。sets 是套裝：一鍵換上一整組衣著，之後每件還能自己換。top 的 sleeve 決定護腕畫哪一版。外觀不加任何數值。設計見 docs/design/attire.md。",
+ "_comment": "玩家外觀：衣著逐件可換（上衣、下裳、外罩、腰封、護腕、鞋靴）、配件（頭飾、髮飾、肩飾、背飾、腰飾）與容貌。每件一張圖層，長相在 tools/inkpaint/wardrobe.py＋garments.py，圖在 art/wardrobe/。衣著與配件都要先拿到才能穿（容貌除外）：擁有＝物品欄裡有 item（沒寫就是 name）。unlock 是引擎條件：寫 has_item 的跟著那件物品走；寫境界、旗標的，條件一成立就把這件時裝放進物品欄。沒寫 unlock 的靠 starter（開局就有）或 loot.json 的 fashion 檔（野怪偶爾掉、差事獎賞）取得。source 是還沒拿到時給玩家看的取得方式。容貌的 unlock 照舊是條件。sets 是套裝：一鍵換上一整組衣著，之後每件還能自己換。top 的 sleeve 決定護腕畫哪一版。外觀不加任何數值。設計見 docs/design/attire.md。",
  "slots": [
   {
    "id": "top",
@@ -249,14 +249,16 @@
     "name": "灰青短褐",
     "line": "青雲",
     "desc": "外門弟子幹活穿的短衣，袖口收緊，跑山路方便。",
-    "sleeve": "tight"
+    "sleeve": "tight",
+    "source": "外門雜役差事、山腳野怪"
    },
    {
     "id": "ochre_robe",
     "name": "赭布長衫",
     "line": "散修",
     "desc": "褪色的赭布長衫，前襬開衩，走過很多地方的人都這樣穿。",
-    "sleeve": "tight"
+    "sleeve": "tight",
+    "source": "山賊身上扒的"
    },
    {
     "id": "sky_robe",
@@ -284,7 +286,8 @@
       "tier": "金丹"
      }
     ],
-    "source": "結成金丹，師父賜下"
+    "source": "結成金丹，師父賜下",
+    "item": "雲紋道袍・常服"
    },
    {
     "id": "ink_robe",
@@ -334,7 +337,8 @@
     "name": "青雲劍袍",
     "line": "青雲",
     "desc": "劍修練劍穿的窄袖長袍，前襬開衩，踢腿出劍都不絆。",
-    "sleeve": "tight"
+    "sleeve": "tight",
+    "source": "妖丹洞差事獎賞"
    }
   ],
   "bottom": [
@@ -348,19 +352,22 @@
     "id": "grey_pants",
     "name": "灰布褲",
     "line": "青雲",
-    "desc": "耐髒的灰布褲。"
+    "desc": "耐髒的灰布褲。",
+    "source": "外門雜役差事、山腳野怪"
    },
    {
     "id": "teal_pants",
     "name": "青褲",
     "line": "青雲",
-    "desc": "劍修常穿的深青褲。"
+    "desc": "劍修常穿的深青褲。",
+    "source": "妖丹洞差事獎賞"
    },
    {
     "id": "ochre_pants",
     "name": "赭褲",
     "line": "散修",
-    "desc": "跟布衫一個顏色，風塵裡洗不乾淨的那種赭。"
+    "desc": "跟布衫一個顏色，風塵裡洗不乾淨的那種赭。",
+    "source": "山賊身上扒的"
    },
    {
     "id": "ink_pants",
@@ -380,7 +387,8 @@
     "id": "moon_skirt",
     "name": "月白長裳",
     "line": "青雲",
-    "desc": "從腰垂到腳踝的月白裳，下緣一道天青。"
+    "desc": "從腰垂到腳踝的月白裳，下緣一道天青。",
+    "source": "破廟遊魂身上的遺物"
    },
    {
     "id": "gauze_skirt",
@@ -437,7 +445,8 @@
     "id": "old_vest",
     "name": "舊布褂",
     "line": "散修",
-    "desc": "洗到發白的舊褂子，口袋比衣服多。"
+    "desc": "洗到發白的舊褂子，口袋比衣服多。",
+    "source": "山賊身上扒的"
    },
    {
     "id": "gold_cloak",
@@ -477,25 +486,29 @@
     "id": "sash",
     "name": "細腰帶",
     "line": "青雲",
-    "desc": "一條素青細帶，什麼都配。"
+    "desc": "一條素青細帶，什麼都配。",
+    "source": "山腳野怪"
    },
    {
     "id": "cloth_wrap",
     "name": "粗布腰封",
     "line": "青雲",
-    "desc": "外門幹活綁的粗布腰封，打個結就走。"
+    "desc": "外門幹活綁的粗布腰封，打個結就走。",
+    "source": "山腳野怪"
    },
    {
     "id": "rope",
     "name": "繩腰帶",
     "line": "散修",
-    "desc": "麻繩繞兩圈，垂一顆舊銅穗。"
+    "desc": "麻繩繞兩圈，垂一顆舊銅穗。",
+    "source": "山賊身上扒的"
    },
    {
     "id": "sword_wrap",
     "name": "劍修腰封",
     "line": "青雲",
-    "desc": "深青腰封，垂帶特別長，出劍時甩成一道弧。"
+    "desc": "深青腰封，垂帶特別長，出劍時甩成一道弧。",
+    "source": "妖丹洞差事獎賞"
    },
    {
     "id": "silver_wrap",
@@ -508,7 +521,8 @@
       "tier": "築基"
      }
     ],
-    "source": "突破築基"
+    "source": "突破築基",
+    "item": "銀邊腰封・常服"
    },
    {
     "id": "gold_wrap",
@@ -579,7 +593,8 @@
     "id": "leather_bracer",
     "name": "皮護腕",
     "line": "散修",
-    "desc": "舊皮護腕，釘一顆銅釘。"
+    "desc": "舊皮護腕，釘一顆銅釘。",
+    "source": "山賊身上扒的"
    },
    {
     "id": "jade_bracer",
@@ -592,7 +607,8 @@
       "tier": "築基"
      }
     ],
-    "source": "突破築基"
+    "source": "突破築基",
+    "item": "青玉護腕・常服"
    },
    {
     "id": "ink_bracer",
@@ -620,7 +636,8 @@
     "id": "cloth_shoes",
     "name": "布鞋",
     "line": "青雲",
-    "desc": "一雙軟底布鞋。"
+    "desc": "一雙軟底布鞋。",
+    "source": "山腳野怪"
    },
    {
     "id": "straw_wraps",
@@ -671,7 +688,8 @@
     "id": "weimao",
     "name": "帷帽",
     "line": "散修",
-    "desc": "竹笠垂一圈薄紗，行走江湖不想被認出來時戴。"
+    "desc": "竹笠垂一圈薄紗，行走江湖不想被認出來時戴。",
+    "source": "山賊身上扒的"
    },
    {
     "id": "crown",
@@ -684,7 +702,8 @@
       "tier": "築基"
      }
     ],
-    "source": "突破築基"
+    "source": "突破築基",
+    "item": "束髮銀冠・常服"
    },
    {
     "id": "lotus_crown",
@@ -728,25 +747,29 @@
     "id": "jade_pin",
     "name": "青玉簪",
     "line": "青雲",
-    "desc": "一根白玉長簪，簪頭一顆青玉。"
+    "desc": "一根白玉長簪，簪頭一顆青玉。",
+    "source": "破廟遊魂身上的遺物"
    },
    {
     "id": "red_ribbon",
     "name": "朱紅髮帶",
     "line": "散修",
-    "desc": "綁頭髮的朱紅髮帶，兩條長尾往後飄。"
+    "desc": "綁頭髮的朱紅髮帶，兩條長尾往後飄。",
+    "source": "山賊身上扒的"
    },
    {
     "id": "teal_ribbon",
     "name": "青髮帶",
     "line": "青雲",
-    "desc": "青雲宗的青髮帶。"
+    "desc": "青雲宗的青髮帶。",
+    "source": "蠱雕差事獎賞"
    },
    {
     "id": "flower",
     "name": "簪花",
     "line": "因果",
-    "desc": "鬢邊一朵粉花。"
+    "desc": "鬢邊一朵粉花。",
+    "source": "破廟遊魂身上的遺物"
    }
   ],
   "shoulder": [
@@ -771,7 +794,8 @@
     "id": "pauldron",
     "name": "玄鐵護肩",
     "line": "散修",
-    "desc": "前肩三片疊甲，皮繩斜綁過胸。擋不了法寶，擋得了山風。"
+    "desc": "前肩三片疊甲，皮繩斜綁過胸。擋不了法寶，擋得了山風。",
+    "source": "蠱雕差事獎賞"
    },
    {
     "id": "fur_collar",
@@ -845,7 +869,8 @@
     "id": "jade_pendant",
     "name": "白玉佩",
     "line": "青雲",
-    "desc": "一枚圓玉，垂著青色流蘇。"
+    "desc": "一枚圓玉，垂著青色流蘇。",
+    "source": "破廟遊魂身上的遺物"
    },
    {
     "id": "talismans",
@@ -995,5 +1020,14 @@
     "name": "柳葉眉"
    }
   ]
- }
+ },
+ "starter": [
+  "top/moon_robe",
+  "bottom/white_pants",
+  "coat/jade_half",
+  "belt/teal_wrap",
+  "shoes/boots",
+  "hair_acc/buyao",
+  "back/ribbon_jade"
+ ]
 }

@@ -117,9 +117,9 @@ Kc：「衣服配件等應該都要能換的，所以可能會堆疊好幾張圖
 
 - **分層立繪**：`tools/inkpaint/wardrobe.py` 用跟 NPC 同一套筆觸（`figures.py`）把每個選項畫成一張透明圖層，`python tools/paint_art.py --wardrobe` 重畫，輸出 `art/wardrobe/` 與位移 `content/wardrobe_layers.json`。髮色是每色各畫一份（不在遊戲裡染色），墨線才不會被染到。
 - **疊圖順序**（後到前）：背飾、後髮、後袖、背劍、袍身、腰飾、髮底、臉、瀏海與髮髻、眼、眉、頭飾、前袖與手、肩飾。`scripts/wardrobe.gd` 照這個順序疊成一張跟 `player.disciple.png` 一樣大的圖，再給原本的描邊光暈著色器，所以遊戲裡其他地方（殘影、打坐、頭像）都不用改。
-- **選項與解鎖**：`content/wardrobe.json`；`unlock` 是引擎條件（`tier_at_least`、`flag`、`karma`、`has_item`……），全部成立才解鎖；`source` 是沒解鎖時告訴玩家怎麼拿。
+- **選項與取得**（2026-11-05 改）：`content/wardrobe.json`。衣著、配件都要先拿到（物品欄裡有，物品名是 `item`，沒寫就是 `name`）才能穿；容貌不用。開局只有 `starter` 那套（月白弟子袍＋金步搖、青玉飄帶）。`unlock` 寫 `has_item` 的跟著那件物品走（仙裳、魔袍）；寫境界、旗標的，條件一成立就把時裝放進物品欄，之後條件不成立也不收回；跟裝備同名的（雲紋道袍、銀邊腰封、青玉護腕、束髮銀冠）時裝另叫「・常服」，免得變成發裝備。其他的在 `content/loot.json` 各表的 `fashion` 檔：野怪 8% 掉一件、差事做完給一件，都只挑還沒有的。`source` 告訴玩家去哪裡拿。
 - **存檔**：`state.game_data["look"]`。讀檔時不認得的選項換回預設；條件不成立的（例如心性變了）也換回預設，存檔裡的選擇保留，條件又成立就自動穿回來。
-- **衣櫃**：Y 鍵（手把 R3），事件進行中不能開。↑↓ 選欄、←→ 換；已解鎖的立刻穿上並存檔，沒解鎖的只是試穿，關掉換回。新解鎖時紀錄會提一句「衣櫃多了：……」。
+- **行囊**：Y 鍵（手把 R3），事件進行中不能開。五頁：物品（背包裡的東西和兵器，裝備、兵器、時裝在這頁 ←→ 直接穿上／換下；丹藥接 `use_item`）、裝備、衣著、配件、容貌。↑↓ 選、←→ 換，只在拿到的之間換（沒有試穿），下方列還沒取得的幾件和來源。拿到時紀錄寫「得到時裝……，放進物品欄」。舊存檔第一次讀檔時，身上穿的時裝和開局那套直接給（`game_data.fashion_owned`）。截圖 `tools/bag_shots.gd`。
 - **加一件新衣物**：在 `wardrobe.py` 的 `TOPS`／`BOTTOMS`／`COATS`／`BELTS`／`CUFFS`／`SHOES`／`HAIR_ACCS`（或 `HEADWEAR`、`BACKS`、`WAISTS`、`SHOULDERS`）加長相（畫法在 `garments.py`），在 `content/wardrobe.json` 加名稱與條件（上衣要寫 `sleeve`），要的話加進 `sets`，跑 `--wardrobe`；`--wardrobe` 會檢查兩邊一致，測試會檢查每個選項都有圖層。
 
 ## 之後要做的事
