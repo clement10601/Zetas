@@ -40,7 +40,7 @@ jobs:
         run: |
           curl -sSLo godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
           unzip -q godot.zip && mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 /usr/local/bin/godot
-      - run: pip install jsonschema
+      - run: pip install jsonschema fonttools
       - run: python tools/sync_engine.py
       - run: python engine/content-pack/validate.py --game zeworld.json
       - run: python tools/lore.py check

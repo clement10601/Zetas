@@ -56,7 +56,7 @@ func _init() -> void:
 		name_l.custom_minimum_size = Vector2(70, 0)
 		r.add_child(name_l)
 		var prev := Button.new()
-		prev.text = "◀"
+		prev.text = "←"
 		prev.focus_mode = Control.FOCUS_NONE
 		prev.pressed.connect(_click.bind(rows.size(), -1))
 		r.add_child(prev)
@@ -65,7 +65,7 @@ func _init() -> void:
 		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		r.add_child(value)
 		var nxt := Button.new()
-		nxt.text = "▶"
+		nxt.text = "→"
 		nxt.focus_mode = Control.FOCUS_NONE
 		nxt.pressed.connect(_click.bind(rows.size(), 1))
 		r.add_child(nxt)

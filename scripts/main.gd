@@ -2644,7 +2644,7 @@ func _set_menu_text(text: String) -> void:
 	_render_menu()
 
 
-## 編號選項那幾行（「  1. ……」）裡，游標所在的那行換成「▶ 1. ……」。
+## 編號選項那幾行（「  1. ……」）裡，游標所在的那行換成「◆ 1. ……」。
 func _render_menu() -> void:
 	var lines := menu_text.split("\n")
 	var n := 0
