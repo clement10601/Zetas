@@ -8,6 +8,10 @@ const EXP_REWARD := {"small": 15, "medium": 40, "large": 100}
 const HEART_DEMON_PREP := 0.8
 const MEDITATE_EXP := 8
 const MEDITATE_EXP_IN_SECT := 15
+## 連續打坐（中間沒打倒敵人、沒走完事件）前幾次足額，之後每次減半，最少 1：修為主要靠歷練，打坐是煉化與回血。
+const MEDITATE_FULL_SESSIONS := 2
+## 同一天服下的丹藥，前幾顆足額，之後藥力每顆減半（丹毒）。
+const PILLS_FULL_PER_DAY := 3
 ## 身法（docs/design/skill-tree.md）：名稱與領悟條件。
 ## tier 是境界 index，境界更高一定會；同境界時修為到 need 的 exp_ratio 倍也算（1.0＝圓滿）；
 ## flag 是事件可以直接傳授的旗標。水遁等雲夢澤有水域再加。
@@ -77,5 +81,16 @@ static func enemy_windup(pack_tier: int) -> float:
 	return maxf(ENEMY_WINDUP_MIN, ENEMY_WINDUP - 0.04 * pack_tier)
 
 
+## 打倒敵人的修為：一隻 power 1 的煉氣小怪約是突破門檻的一成
 static func kill_exp(power: float) -> int:
-	return maxi(1, roundi(5.0 * power))
+	return maxi(1, roundi(10.0 * power))
+
+
+## 這次打坐得到的修為；streak 是之前已經連續打坐幾次
+static func meditate_gain(base: int, streak: int) -> int:
+	return maxi(1, base >> maxi(0, streak - MEDITATE_FULL_SESSIONS + 1))
+
+
+## 今天第 n 顆（從 0 算）丹藥的修為
+static func pill_gain(base: int, taken_today: int) -> int:
+	return maxi(1, base >> maxi(0, taken_today - PILLS_FULL_PER_DAY + 1))

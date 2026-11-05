@@ -120,6 +120,8 @@ var chunks: Dictionary = {}
 var sky_colors: Dictionary = {}     # 區塊圖透明的天後面要補的天色（content/sky.json）
 var landmarks: Dictionary = {}      # 山門、殿宇等場景物件（content/landmarks.json，tools/inkpaint/landmarks.py）
 var loot: Dictionary = {}
+var consumables: Dictionary = {}
+var mob_moves: Dictionary = {}    # content/mob_moves.json：各模板的招式  # content/consumables.json：可服用物品 -> 效果
 var regions: Dictionary = {}
 var runner = null
 
@@ -161,6 +163,9 @@ var combo_timer := 0.0            # 連段還能接的時間
 var mp := 0.0                     # 靈力
 var art_cooldown := 0.0
 var armor_time := 0.0             # 金身剩下的秒數
+var enemy_engaged: Dictionary = {}  # 野怪 id -> 已經發現你（沒發現就在原地巡邏）
+var enemy_blink: Dictionary = {}    # 遊魂 id -> 再過幾秒閃到你背後
+var enemy_shots: Array = []         # 敵人擲出的飛刀 {view, dir, speed, left, damage}
 var projectiles: Array = []       # 劍氣、火符 {view, dir, speed, left, damage, hit, kind, radius}
 var gear_options: Array = []      # 兵器・功法選單開著時的選項 [{kind: weapon|gongfa, id}]
 var mp_bar: ProgressBar
@@ -349,6 +354,8 @@ func load_content() -> void:
 	sky_colors = _read_json("res://content/sky.json")
 	landmarks = _read_json("res://content/landmarks.json")
 	loot = _read_json("res://content/loot.json")
+	consumables = _read_json("res://content/consumables.json").get("items", {})
+	mob_moves = _read_json("res://content/mob_moves.json")
 	art = AssetLibrary.from_file(assets_path)
 	regions = _read_json("res://content/regions.json")
 	regions.erase("_comment")
@@ -1740,6 +1747,7 @@ func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
 		body.position = Vector2(-size.x / 2, -size.y)
 		view.add_child(body)
 	view.set_meta("height", size.y)
+	view.set_meta("template", actor["template"])
 	var label := Label.new()
 	label.text = "%s・%s" % [actor.get("title", ""), actor["name"]] if actor.has("title") else actor["name"]
 	label.size = Vector2(240, 0)
@@ -1754,6 +1762,8 @@ func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
 
 func _remove_actor_view(id: String) -> void:
 	enemy_windup.erase(id)
+	enemy_engaged.erase(id)
+	enemy_blink.erase(id)
 	if actor_views.has(id):
 		actor_views[id].queue_free()
 		actor_views.erase(id)
@@ -1769,6 +1779,7 @@ func _on_reward(effect: Dictionary) -> void:
 		add_log("獲得：" + "、".join(items))
 		audio.play("reward")
 	elif effect["type"] == "grant_exp":
+		state.game_data["meditate_streak"] = 0
 		gain_cultivation(int(Cultivation.EXP_REWARD.get(effect["amount"], 0)))
 
 
@@ -1869,13 +1880,18 @@ func gain_cultivation(amount: int) -> void:
 func meditate() -> void:
 	if blocking():
 		return
-	var gain: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
+	var base: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
+	var streak := int(state.game_data.get("meditate_streak", 0))
+	var gain := Cultivation.meditate_gain(base, streak)
+	state.game_data["meditate_streak"] = streak + 1
 	var new_day := advance_time(1)
 	state.game_data["hp"] = player_max_hp()
 	mp = player_max_mp()
 	audio.play("meditate")
 	player.sit(1.6)
 	add_log("打坐一個時辰。（第 %d 天・%s）" % [state.day, state.time_of_day])
+	if gain < base:
+		add_log("枯坐無所得，心浮氣躁。出去歷練一番（打怪、走完事件）再坐，收效才足。")
 	gain_cultivation(gain)
 	if new_day:
 		day_started()
@@ -1895,6 +1911,57 @@ func try_breakthrough() -> bool:
 	state.game_data["exp"] = cultivation() - need
 	breakthrough()
 	return true
+
+
+# ---------- 服用丹藥 ----------
+
+## 身上有、而且現在能服用（境界沒超過 tier_max）
+func can_use_item(item: String) -> bool:
+	if not consumables.has(item) or int(state.items.get(item, 0)) <= 0:
+		return false
+	return state.tier_index <= int(consumables[item].get("tier_max", 99))
+
+
+## 服用一樣丹藥、靈草或妖丹：扣一個、套效果。物品欄的「服用」與快捷鍵都走這裡。
+func use_item(item: String) -> bool:
+	if not can_use_item(item):
+		return false
+	var fx: Dictionary = consumables[item]
+	var left := int(state.items[item]) - 1
+	if left > 0:
+		state.items[item] = left
+	else:
+		state.items.erase(item)
+	add_log(fx.get("text", "服下%s。" % item))
+	audio.play("meditate")
+	if fx.has("hp"):
+		state.game_data["hp"] = mini(player_max_hp(), hp() + ceili(float(fx["hp"]) * player_max_hp()))
+	if fx.has("mp"):
+		mp = minf(float(player_max_mp()), mp + float(fx["mp"]) * player_max_mp())
+	if fx.has("exp"):
+		var rec: Dictionary = state.game_data.get("pills", {})
+		var taken := int(rec.get("n", 0)) if int(rec.get("day", -1)) == state.day else 0
+		var gain := Cultivation.pill_gain(int(fx["exp"]), taken)
+		state.game_data["pills"] = {"day": state.day, "n": taken + 1}
+		if gain < int(fx["exp"]):
+			add_log("今天服藥太多，丹毒積身，藥力只剩幾分。")
+		gain_cultivation(gain)
+	playlog.write("use_item", {"item": item, "region": state.region, "day": state.day})
+	_refresh_status()
+	autosave()
+	return true
+
+
+## 快捷鍵：服用身上修為最少的一樣（先吃小的，好東西留著）；沒有就說明
+func quick_use_item() -> void:
+	var best := ""
+	for item in state.items:
+		if can_use_item(item) and (best == "" or int(consumables[item].get("exp", 0)) < int(consumables[best].get("exp", 0))):
+			best = item
+	if best == "":
+		add_log("身上沒有能服用的丹藥。打野怪、跑差事會掉凝氣草、妖丹。")
+		return
+	use_item(best)
 
 
 # ---------- 戰鬥 ----------
@@ -1938,7 +2005,7 @@ func attack() -> void:
 			var view: Node2D = actor_views.get(id)
 			if view == null or not view.get_meta("hostile"):
 				continue
-			if Martial.in_reach(view.position.x - player.position.x, player.facing, kind):
+			if Martial.in_reach(view.position.x - player.position.x, player.facing, kind) and melee_hittable(view):
 				damage_actor(id, damage, knock, stop)
 				landed = true
 	if landed:
@@ -2081,6 +2148,7 @@ func damage_actor(id: String, amount: int, knock: float = ENEMY_KNOCKBACK, stop:
 	if not actor_views.has(id):
 		return
 	actor_hp[id] -= amount
+	enemy_engaged[id] = true
 	audio.play("hit")
 	add_log("擊中 %s（剩 %d）" % [actor_label(id), maxi(0, actor_hp[id])])
 	var view: Node2D = actor_views[id]
@@ -2113,6 +2181,7 @@ func damage_actor(id: String, amount: int, knock: float = ENEMY_KNOCKBACK, stop:
 			var floor_v := int(passive.get("karma_floor", -60))
 			if zx > floor_v:
 				state.add_karma("正邪", maxi(int(passive["kill_karma"]), floor_v - zx))
+		state.game_data["meditate_streak"] = 0
 		if wild.has(id):
 			_wild_defeated(id)
 		else:
@@ -2288,11 +2357,141 @@ func _cancel_windup(id: String) -> void:
 
 
 ## 前搖結束：玩家還在眼前、在地面附近、不在無敵時間，才算打中。
+## 這個敵人的招式（content/mob_moves.json，依模板；沒列的走近揮擊）
+func mob_move(id: String) -> Dictionary:
+	var view: Node2D = actor_views.get(id)
+	var tpl: String = view.get_meta("template", "") if view != null else ""
+	return mob_moves.get("default", {}).merged(mob_moves.get("moves", {}).get(tpl, {}), true)
+
+
+## 飛在高處的敵人近身砍不到，要等牠俯衝落地
+func melee_hittable(view: Node2D) -> bool:
+	return float(view.get("lift") if "lift" in view else 0.0) < 40.0
+
+
+## 野怪發現你了沒：走進 aggro 範圍就發現（頭上冒「！」），離開 1.8 倍才放棄
+func _enemy_notices(id: String, view: Node2D, dx: float, mv: Dictionary) -> bool:
+	var aggro := float(mv.get("aggro", 340))
+	var engaged: bool = enemy_engaged.get(id, false)
+	if not engaged and absf(dx) < aggro and absf(player.feet() - FLOOR_Y) < 200.0:
+		engaged = true
+		InkFx.number(level, view.position + Vector2(0, -float(view.get_meta("height", 120.0)) - 30.0 - _lift_of(view)), "！", Color("#e0503c"))
+	elif engaged and absf(dx) > aggro * 1.8:
+		engaged = false
+	enemy_engaged[id] = engaged
+	return engaged
+
+
+func _lift_of(view: Node2D) -> float:
+	return float(view.get("lift")) if "lift" in view else 0.0
+
+
+## 沒發現你的野怪在出生點左右慢慢來回走
+func _enemy_patrol(id: String, view: Node2D, mv: Dictionary, delta: float) -> void:
+	var home := float(wild[id].get("x", view.position.x))
+	var dir := float(view.get_meta("patrol", 1.0))
+	if (view.position.x - home) * dir > 90.0:
+		dir = -dir
+		view.set_meta("patrol", dir)
+	view.position.x += dir * HOSTILE_SPEED * 0.35 * float(mv.get("speed", 1.0)) * delta
+	if mv.get("move") == "dive" and "lift" in view:
+		view.lift = move_toward(view.lift, float(mv.get("hover", 130)), 120.0 * delta)
+
+
+## 依招式走位；回傳 true 表示到位、開始前搖
+func _enemy_approach(id: String, view: Node2D, dx: float, mv: Dictionary, delta: float) -> bool:
+	var speed := HOSTILE_SPEED * float(mv.get("speed", 1.0))
+	var reach := float(mv.get("reach", ENEMY_REACH))
+	match mv.get("move", "melee"):
+		"throw":
+			if absf(dx) > reach:
+				view.position.x += signf(dx) * speed * delta
+			return absf(dx) <= reach
+		"dive":
+			if "lift" in view:
+				view.lift = move_toward(view.lift, float(mv.get("hover", 130)), 160.0 * delta)
+			if absf(dx) > reach * 0.5:
+				view.position.x += signf(dx) * minf(speed * delta, absf(dx))
+			return absf(dx) <= reach and _lift_of(view) > 60.0
+		"blink":
+			var t := float(enemy_blink.get(id, float(mv.get("blink_every", 3.2)))) - delta
+			if t <= 0.0 and absf(dx) > 70.0:
+				# 化成一縷煙，出現在你背後
+				InkFx.ring(level, Vector2(view.position.x, FLOOR_Y - 50.0), 40.0, Color(0.55, 0.6, 0.7), 0.3)
+				view.position.x = player.position.x - player.facing * 60.0
+				InkFx.ring(level, Vector2(view.position.x, FLOOR_Y - 50.0), 40.0, Color(0.55, 0.6, 0.7), 0.3)
+				enemy_blink[id] = float(mv.get("blink_every", 3.2))
+				return player_near_ground()
+			enemy_blink[id] = t
+	# melee、lunge、blink：走近到 reach 再出手
+	if absf(dx) > minf(40.0, reach):
+		view.position.x += signf(dx) * minf(speed * delta, absf(dx))
+	return absf(dx) <= reach and player_near_ground()
+
+
+## 山賊擲飛刀：水平飛，跳過去或閃避就躲得掉
+func _enemy_throw(id: String, view: Node2D, mv: Dictionary) -> void:
+	var dir := signf(player.position.x - view.position.x)
+	if dir == 0.0:
+		dir = 1.0
+	var blade := Polygon2D.new()
+	blade.polygon = PackedVector2Array([Vector2(-14, 0), Vector2(0, -4), Vector2(16, 0), Vector2(0, 4)])
+	blade.color = Color(0.12, 0.1, 0.09)
+	blade.position = Vector2(view.position.x + dir * 20.0, FLOOR_Y - 46.0)
+	blade.scale.x = dir
+	blade.z_index = 6
+	level.add_child(blade)
+	enemy_shots.append({"view": blade, "dir": dir, "speed": float(mv.get("shot_speed", 380)),
+		"left": float(mv.get("reach", 300)) + 160.0,
+		"damage": Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), enemy_tier(id))})
+
+
+func _update_enemy_shots(delta: float) -> void:
+	for p in enemy_shots.duplicate():
+		var blade = p["view"]
+		if not is_instance_valid(blade):
+			enemy_shots.erase(p)
+			continue
+		var step: float = p["speed"] * delta
+		blade.position.x += p["dir"] * step
+		blade.rotation += 18.0 * delta * p["dir"]
+		p["left"] -= step
+		var hit: bool = absf(player.position.x - blade.position.x) < 22.0 and player_near_ground() \
+			and player_invuln <= 0.0 and player.dashing <= 0.0 and not blocking_input()
+		if hit:
+			player_invuln = PLAYER_INVULN
+			player.knock_back(blade.position.x - p["dir"] * 10.0)
+			damage_player(equipment_guard(Martial.damage_taken(int(p["damage"]), gongfa())))
+		if hit or p["left"] <= 0.0:
+			enemy_shots.erase(p)
+			blade.queue_free()
+
+
 func _enemy_strike(id: String) -> void:
 	_cancel_windup(id)
 	enemy_cooldown[id] = Cultivation.ENEMY_RECOVER * _enemy_speed(id)
 	var view: Node2D = actor_views[id]
-	if absf(player.position.x - view.position.x) > ENEMY_STRIKE_REACH or not player_near_ground() or player_invuln > 0.0 or player.dashing > 0.0:
+	var mv := mob_move(id)
+	var reach := ENEMY_STRIKE_REACH
+	match mv.get("move", "melee"):
+		"throw":
+			_enemy_throw(id, view, mv)
+			return
+		"lunge":
+			# 撲過去：衝到你身後一點；跳起來或閃避就撲空
+			var dir := signf(player.position.x - view.position.x)
+			var dist := minf(absf(player.position.x - view.position.x) + 40.0, float(mv.get("reach", 150)) + 40.0)
+			reach = float(mv.get("reach", 150)) + 20.0
+			var tw := view.create_tween()
+			tw.tween_property(view, "position:x", view.position.x + dir * dist, 0.16).set_ease(Tween.EASE_OUT)
+			audio.play_pitched("dash", 0.8)
+		"dive":
+			# 俯衝到地面，落地後停一會兒（這時才砍得到），再飛回去
+			var tw := view.create_tween()
+			tw.tween_property(view, "lift", 0.0, 0.14).set_ease(Tween.EASE_IN)
+			enemy_cooldown[id] = Cultivation.ENEMY_RECOVER * 2.0 * _enemy_speed(id)
+			reach = float(mv.get("reach", 50)) + 20.0
+	if absf(player.position.x - view.position.x) > reach or not player_near_ground() or player_invuln > 0.0 or player.dashing > 0.0:
 		return
 	player_invuln = PLAYER_INVULN
 	var raw := Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), enemy_tier(id))
@@ -2365,6 +2564,7 @@ func _process(delta: float) -> void:
 			mp_bar.max_value = mp_max
 			mp_bar.value = mp
 	_update_projectiles(delta)
+	_update_enemy_shots(delta)
 	player.camera_zone = active_camera_zone()
 	_update_ambience()
 	# 受傷後無敵時閃爍
@@ -2397,11 +2597,13 @@ func _process(delta: float) -> void:
 					return
 			continue
 		enemy_cooldown[id] = maxf(0.0, float(enemy_cooldown.get(id, 0.0)) - delta)
+		var mv := mob_move(id)
+		if wild.has(id) and not _enemy_notices(id, view, dx, mv):
+			_enemy_patrol(id, view, mv, delta)
+			continue
 		if enemy_cooldown[id] > 0.0:
 			continue
-		if absf(dx) > 40.0:
-			view.position.x += signf(dx) * HOSTILE_SPEED * delta
-		if absf(dx) <= ENEMY_REACH and player_near_ground():
+		if _enemy_approach(id, view, dx, mv, delta):
 			enemy_windup[id] = Cultivation.enemy_windup(enemy_tier(id)) * _enemy_speed(id)
 			if view.has_method("telegraph"):
 				view.telegraph(true, float(view.get_meta("height", 120.0)))
@@ -2627,6 +2829,8 @@ func handle_input(event: InputEvent) -> void:
 		open_gear_menu()
 	elif event.is_action_pressed("meditate"):
 		meditate()
+	elif event.is_action_pressed("use_item"):
+		quick_use_item()
 	elif event.is_action_pressed("breakthrough"):
 		try_breakthrough()
 	elif event.is_action_pressed("music"):
