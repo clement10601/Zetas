@@ -140,6 +140,7 @@ var actor_boss: Dictionary = {}   # Boss 的 actor id -> 是否已發狠
 var actor_tier: Dictionary = {}   # 野怪的 actor id -> 強度境界（事件裡的敵人跟著 pack_tier）
 var wild: Dictionary = {}         # 落腳地圖上的野怪 id -> regions.json 的 wild 條目
 var wild_drop_chance := 0.5       # 野怪掉普通物品的機率（測試設成 1）
+var fashion_drop_chance := 0.08   # 野怪另外掉一件還沒有的時裝的機率（loot.json 的 fashion 檔）
 var errands: Dictionary = {}      # content/errands.json：宗門差事榜
 var board_view: Node2D = null     # 差事榜（只在 errands.board 的地區）
 var errand_options: Array = []    # 差事榜開著時的選項 [{kind: accept|abandon, errand}]
@@ -218,6 +219,7 @@ func _ready() -> void:
 	if save_path != "" and state.load_file(save_path):
 		add_log("讀取存檔：第 %d 天。" % state.day)
 	ensure_equipment()
+	ensure_fashion()
 	apply_look()
 	note_new_looks(true)
 	if not regions.has(state.region):
@@ -1158,6 +1160,8 @@ func errand_pack(e: Dictionary) -> Dictionary:
 	var done := [{"type": "grant_exp", "amount": reward.get("exp", "small")}]
 	if reward.has("loot"):
 		done.append({"type": "give_loot", "loot_table": reward["loot"], "tier": "common"})
+		if loot.get(reward["loot"], {}).has("fashion"):
+			done.append({"type": "give_loot", "loot_table": reward["loot"], "tier": "fashion"})
 	return {
 		"id": errand_pack_id(e),
 		"meta": {"title": "差事・" + e["title"], "summary": e["text"], "author": "errand_board", "request_tag": "errand",
@@ -1254,6 +1258,8 @@ func _wild_defeated(id: String) -> void:
 			gain_item(item)
 			add_log("拾得：" + item)
 			audio.play("reward")
+	if table != "" and randf() < fashion_drop_chance:
+		gain_fashion_from(table)
 	# 擊殺數記在引擎（state.kills）：觸發條件、導演和打怪目標都看它
 	if runner != null:
 		runner.notify({"type": "monster_killed", "monster_tag": entry["template"]})
@@ -1752,7 +1758,9 @@ func _remove_actor_view(id: String) -> void:
 
 
 func _on_reward(effect: Dictionary) -> void:
-	if effect["type"] == "give_loot":
+	if effect["type"] == "give_loot" and effect["tier"] == "fashion":
+		gain_fashion_from(effect["loot_table"])
+	elif effect["type"] == "give_loot":
 		var items: Array = loot.get(effect["loot_table"], {}).get(effect["tier"], [])
 		for item in items:
 			gain_item(item)
@@ -2150,6 +2158,9 @@ func gain_item(item: String) -> void:
 			add_log("得到裝備%s，已穿上。" % Equipment.describe(eid))
 		else:
 			add_log("得到裝備%s，按 %s 在【裝備】頁換上。" % [Equipment.describe(eid), Keys.hint("wardrobe")])
+	var fashion := Wardrobe.by_item(item)
+	if not fashion.is_empty() and int(state.items.get(item, 0)) == 1:
+		add_log("得到時裝%s，放進物品欄（%s 打開換上）。" % [item, Keys.hint("wardrobe")])
 	var wid := Martial.weapon_by_name(weapons, item)
 	if wid != "" and not owned_weapons().has(wid):
 		state.game_data["weapons"] = owned_weapons() + [wid]
@@ -2781,15 +2792,18 @@ func open_wardrobe() -> void:
 		wardrobe_panel.equip_changed.connect(func(eq: Dictionary):
 			set_equipment(eq)
 			autosave())
+		wardrobe_panel.bag_used.connect(func(entry: Dictionary):
+			use_bag_entry(entry)
+			wardrobe_panel.sync(player_look(), equipment(), bag_entries()))
 		wardrobe_panel.closed.connect(func():
 			player.input_blocked = false
 			_refresh_status())
 		hud_layer.add_child(wardrobe_panel)
 	player.input_blocked = true
-	wardrobe_panel.open(state, player_look(), equipment())
+	wardrobe_panel.open(state, player_look(), equipment(), bag_entries())
 
 
-## 有新解鎖的外觀就在紀錄提一句。first：讀檔時只記下已有的，不提示。
+## 有新解鎖的外觀就在紀錄提一句；靠境界、旗標給的時裝，條件一成立就放進物品欄。first：讀檔時只記下已有的，不提示。
 func note_new_looks(first := false) -> void:
 	var seen: Array = state.game_data.get("looks_seen", [])
 	var fresh := []
@@ -2798,12 +2812,109 @@ func note_new_looks(first := false) -> void:
 			var key := "%s/%s" % [slot["id"], o["id"]]
 			if o.get("unlock", []).is_empty() or seen.has(key):
 				continue
-			if Wardrobe.is_unlocked(slot["id"], o["id"], state):
-				seen.append(key)
-				fresh.append(o["name"])
+			if not Wardrobe.conditions_met(slot["id"], o["id"], state):
+				continue
+			seen.append(key)
+			if Wardrobe.granted_by_conditions(slot["id"], o["id"]):
+				var item := Wardrobe.item_name(slot["id"], o["id"])
+				if not state.items.has(item):
+					state.add_item(item)
+			fresh.append(o["name"])
 	state.game_data["looks_seen"] = seen
 	if not fresh.is_empty() and not first:
-		add_log("衣櫃多了：%s（%s 打開）" % ["、".join(fresh), Keys.hint("wardrobe")])
+		add_log("得到時裝：%s，放進物品欄（%s 打開換上）。" % ["、".join(fresh), Keys.hint("wardrobe")])
+
+
+## 衣著、配件要拿到才能穿：新角色發開局那套；還沒有這規矩的舊存檔，身上穿的也一起給，免得一讀檔衣服被扒掉。
+func ensure_fashion() -> void:
+	if state.game_data.get("fashion_owned", false):
+		return
+	for item in Wardrobe.starter_items():
+		if not state.items.has(item):
+			state.add_item(item)
+	var look: Dictionary = Wardrobe.normalize(state.game_data.get("look", {}))
+	for slot in look:
+		var item := Wardrobe.item_name(slot, str(look[slot]))
+		if item != "" and Wardrobe.by_item(item).size() > 0 and not state.items.has(item):
+			state.add_item(item)
+	state.game_data["fashion_owned"] = true
+
+
+## 從掉落表的 fashion 檔挑一件還沒有的時裝給玩家（都有了就不給）
+func gain_fashion_from(table: String) -> String:
+	var pool: Array = loot.get(table, {}).get("fashion", []).filter(func(n): return not state.items.has(n))
+	if pool.is_empty():
+		return ""
+	var item: String = pool[randi() % pool.size()]
+	gain_item(item)
+	audio.play("reward")
+	return item
+
+
+## 物品欄：背包裡每樣東西＋身上的兵器，分類排好給行囊介面用。
+## 每筆 {name, count, kind（裝備／兵器／時裝／功法／道具）, note, worn, action（equip/weapon/fashion/""）, ref}
+func bag_entries() -> Array:
+	var out := []
+	var look := player_look()
+	var eq := equipment()
+	for wid in owned_weapons():
+		if weapons.has(wid):
+			var w: Dictionary = weapons[wid]
+			out.append({"name": w["name"], "count": 1, "kind": "兵器", "worn": weapon_id() == wid, "action": "weapon", "ref": wid,
+				"note": "%s・%s。%s" % [weapons["kinds"][w["kind"]]["name"], weapons["grades"][int(w.get("grade", 0))], w.get("note", "")]})
+	for item in state.items:
+		var n := int(state.items[item])
+		if n <= 0 or Martial.weapon_by_name(weapons, item) != "":
+			continue
+		var eid := Equipment.by_name(item)
+		var f := Wardrobe.by_item(item)
+		if eid != "":
+			out.append({"name": item, "count": n, "kind": "裝備", "worn": eq.values().has(eid), "action": "equip", "ref": eid,
+				"note": Equipment.describe(eid) + "\n" + str(Equipment.item(eid).get("note", ""))})
+		elif not f.is_empty():
+			var o := Wardrobe.option(f[0], f[1])
+			out.append({"name": item, "count": n, "kind": "時裝", "worn": look.get(f[0], "") == f[1], "action": "fashion", "ref": "%s/%s" % f,
+				"note": "時裝・%s：%s" % [Wardrobe.slot_title(f[0]), o.get("desc", "")]})
+		elif arts.values().any(func(a): return a.get("requires", {}).get("item", "") == item):
+			out.append({"name": item, "count": n, "kind": "功法", "worn": false, "action": "", "ref": "", "note": "功法典籍，按 %s 在兵器・功法選單修練。" % Keys.hint("gear")})
+		elif has_method("can_use_item") and call("can_use_item", item):
+			out.append({"name": item, "count": n, "kind": "道具", "worn": false, "action": "use", "ref": item, "note": "可以服用。"})
+		else:
+			out.append({"name": item, "count": n, "kind": "道具", "worn": false, "action": "", "ref": "", "note": "收著，事件、差事或之後煉丹交易用得到。"})
+	var order := ["裝備", "兵器", "時裝", "功法", "道具"]
+	out.sort_custom(func(a, b): return order.find(a["kind"]) < order.find(b["kind"]) if a["kind"] != b["kind"] else a["name"] < b["name"])
+	return out
+
+
+## 物品欄裡按了「穿上／換下」
+func use_bag_entry(entry: Dictionary) -> void:
+	match entry.get("action", ""):
+		"equip":
+			var eid: String = entry["ref"]
+			var eq := equipment()
+			var slot: String = Equipment.item(eid)["slot"]
+			if eq.get(slot, "") == eid:
+				eq.erase(slot)
+			else:
+				eq[slot] = eid
+			set_equipment(eq)
+		"weapon":
+			equip_weapon(entry["ref"])
+		"use":
+			# 服用丹藥、妖丹：效果在「提升遊戲性」那邊的 use_item（content/consumables.json）
+			if has_method("use_item"):
+				call("use_item", entry["ref"])
+		"fashion":
+			var slot: String = str(entry["ref"]).get_slice("/", 0)
+			var id: String = str(entry["ref"]).get_slice("/", 1)
+			var look := player_look()
+			if look.get(slot, "") == id:
+				look[slot] = Wardrobe.EQUIP if Wardrobe.EQUIP_SLOTS.has(slot) else ("" if not Wardrobe.option(slot, "").is_empty() else Wardrobe.default_look()[slot])
+			else:
+				look[slot] = id
+			state.game_data["look"] = look
+			apply_look()
+	autosave()
 
 
 func _on_keys_changed() -> void:
