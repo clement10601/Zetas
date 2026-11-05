@@ -53,7 +53,7 @@ static func art_damage(base: int, gongfa: Dictionary) -> int:
 	return maxi(1, roundi(base * mult))
 
 
-## 敵人在不在這把兵器打得到的地方：dx＝敵人 x − 玩家 x
+## 敵人在不在這把兵器打得到的地方：dx＝敵人 x - 玩家 x
 static func in_reach(dx: float, facing: int, kind: Dictionary) -> bool:
 	var ahead := dx * facing
 	return ahead <= float(kind.get("reach", 90)) and ahead >= -float(kind.get("behind", 20))
@@ -73,7 +73,7 @@ static func requirement_text(gongfa: Dictionary) -> String:
 	var req: Dictionary = gongfa.get("requires", {})
 	var parts := []
 	if req.has("karma_max"):
-		parts.append("正邪 ≤ %d" % int(req["karma_max"]))
+		parts.append("正邪 ≦ %d" % int(req["karma_max"]))
 	if req.has("item"):
 		parts.append("得到《%s》" % req["item"])
 	return "或".join(parts)
