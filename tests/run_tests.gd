@@ -57,6 +57,7 @@ func _run() -> void:
 	await test_wardrobe()
 	await test_equipment()
 	await test_consumables()
+	await test_mob_moves()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -729,6 +730,7 @@ func test_walk_and_jump() -> void:
 ## 橫向卷軸：鏡頭往前看、小跳不跟高度、按住 ↓ 往下看；背景畫比地面慢；山嵐與近景層。
 func test_scrolling_camera_and_parallax() -> void:
 	var main: Node = await new_game()
+	main.clear_wild()  # 野怪會發現你、撲過來，這裡只測鏡頭與身法
 	var player: CharacterBody2D = main.player
 	var cam: Camera2D = player.camera
 	player.position = Vector2(900, main.FLOOR_Y - 27)
@@ -808,6 +810,7 @@ func test_scrolling_camera_and_parallax() -> void:
 ## 墨影步：閃 120 左右、期間無敵、有冷卻、空中只能一次。
 func test_dash() -> void:
 	var main: Node = await new_game()
+	main.clear_wild()  # 野怪會發現你、撲過來，這裡只測鏡頭與身法
 	var player: CharacterBody2D = main.player
 	player.position = Vector2(1700, main.FLOOR_Y - 27)
 	await step(main, {}, 10)
@@ -1873,4 +1876,64 @@ func test_consumables() -> void:
 	main.gain_item("凝氣草")
 	main.quick_use_item()
 	expect(main.state.items.has("下品妖丹") and not main.state.items.has("凝氣草"), "quick use eats the weakest pill first")
+	main.free()
+
+
+func _spawn_foe(main: Node, id: String, template: String, dx: float) -> Node2D:
+	main._on_actor_spawned({"id": id, "template": template, "name": id, "disposition": "hostile"})
+	var view: Node2D = main.actor_views[id]
+	view.position.x = main.player.position.x + dx
+	return view
+
+
+func test_mob_moves() -> void:
+	var main: Node = await new_game()
+	main.clear_wild()
+	main.player.position = Vector2(1200, main.FLOOR_Y - 27)
+	expect(main.mob_move("nobody").get("move") == "melee", "unknown templates fall back to walking up and swinging")
+	# 野怪沒發現你就在家附近巡邏
+	main.refresh_wild()
+	var far_id := ""
+	for id in main.wild:
+		if absf(main.actor_views[id].position.x - main.player.position.x) > 700.0:
+			far_id = id
+	if far_id != "":
+		var home: float = main.wild[far_id]["x"]
+		await step(main, {}, 120)
+		expect(absf(main.actor_views[far_id].position.x - home) <= 100.0 and not main.enemy_engaged.get(far_id, false), "a wild mob far away patrols near home instead of chasing across the map")
+	main.clear_wild()
+	# 山賊：遠遠擲飛刀，站著會中，閃避躲得掉
+	var bandit := _spawn_foe(main, "b", "mob.bandit", 250)
+	await step(main, {}, 40)
+	expect(main.enemy_shots.size() == 1 or main.hp() < main.player_max_hp(), "a bandit throws a knife from range instead of walking up")
+	expect(absf(bandit.position.x - main.player.position.x) > 200.0, "the bandit keeps his distance")
+	await step(main, {}, 60)
+	expect(main.hp() < main.player_max_hp(), "standing still, the knife hits")
+	main._remove_actor_view("b")
+	main.enemy_shots.clear()
+	# 蠱雕：盤旋時砍不到，俯衝落地後才砍得到
+	main.state.game_data["hp"] = main.player_max_hp()
+	main.player_invuln = 0.0
+	var bird := _spawn_foe(main, "g", "mob.gudiao", 300)
+	await step(main, {}, 30)
+	expect(bird.lift > 60.0, "蠱雕 hovers in the air")
+	expect(not main.melee_hittable(bird), "a hovering 蠱雕 is out of sword reach")
+	bird.lift = 0.0
+	expect(main.melee_hittable(bird), "once it dives to the ground it can be cut")
+	main._remove_actor_view("g")
+	# 遊魂：會閃到背後
+	main.player.facing = 1
+	var ghost := _spawn_foe(main, "w", "mob.wandering_ghost", 300)
+	main.enemy_blink["w"] = 0.05
+	await step(main, {}, 6)
+	expect(ghost.position.x < main.player.position.x, "a wandering ghost blinks behind you")
+	main._remove_actor_view("w")
+	# 狼妖：遠遠蓄力後撲過來，跳起來就撲空
+	main.state.game_data["hp"] = main.player_max_hp()
+	main.player_invuln = 0.0
+	var wolf := _spawn_foe(main, "l", "mob.wolf_demon", 170)
+	var x0 := wolf.position.x
+	await step(main, {}, 50)
+	expect(wolf.position.x < x0 - 100.0, "a wolf demon lunges from far away")
+	expect(main.hp() < main.player_max_hp(), "standing still, the lunge bites")
 	main.free()
