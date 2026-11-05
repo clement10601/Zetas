@@ -34,7 +34,7 @@ const ACTIONS := [
 	{"id": "meditate", "name": "打坐", "keys": [KEY_M, 0, 0], "pad": [JOY_BUTTON_LEFT_SHOULDER]},
 	{"id": "breakthrough", "name": "突破", "keys": [KEY_B, 0, 0], "pad": [JOY_BUTTON_LEFT_STICK]},
 	{"id": "map", "name": "地圖", "keys": [KEY_T, 0, 0], "pad": [JOY_BUTTON_BACK]},
-	{"id": "wardrobe", "name": "衣櫃・容貌", "keys": [KEY_Y, 0, 0], "pad": [JOY_BUTTON_RIGHT_STICK]},
+	{"id": "wardrobe", "name": "行囊・裝備・衣櫃", "keys": [KEY_Y, 0, 0], "pad": [JOY_BUTTON_RIGHT_STICK]},
 	{"id": "music", "name": "配樂開關", "keys": [KEY_N, 0, 0], "pad": []},
 	{"id": "settings", "name": "按鍵設定", "keys": [KEY_ESCAPE, KEY_F10, 0], "pad": [JOY_BUTTON_START]},
 ]
@@ -235,7 +235,7 @@ static func help_line() -> String:
 		"%s 地圖" % hint("map"),
 		"%s 打坐" % hint("meditate"),
 		"%s 突破" % hint("breakthrough"),
-		"%s 衣櫃" % hint("wardrobe"),
+		"%s 行囊" % hint("wardrobe"),
 		"%s 按鍵設定" % hint("settings"),
 	])
 
