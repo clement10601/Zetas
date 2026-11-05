@@ -15,6 +15,8 @@ var _shadow: TextureRect
 var _omen: Label            # 出招前搖時頭上的朱紅「煞」字
 var _windup := 0.0          # 前搖蓄力，0–1
 var winding := false
+var lift := 0.0             # 飛在空中多高（蠱雕盤旋）：立繪、名字往上移，影子留在地上
+var _lift_applied := 0.0
 
 
 func _ready() -> void:
@@ -35,6 +37,12 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _dying:
 		return
+	if lift != _lift_applied:
+		for c in get_children():
+			if c != _shadow and (c is CanvasItem):
+				c.position.y -= lift - _lift_applied
+		_lift_applied = lift
+		_shadow.modulate.a = 0.55 * clampf(1.0 - lift / 260.0, 0.25, 1.0)
 	var dx := position.x - _last_x
 	_last_x = position.x
 	var speed := absf(dx) / maxf(delta, 0.0001)

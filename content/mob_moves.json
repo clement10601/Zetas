@@ -1,0 +1,11 @@
+{
+  "_comment": "野怪與事件敵人的招式，依 actors 模板。move：melee 走近揮擊（預設）、lunge 遠遠蓄力後撲過去（跳起或閃避躲）、throw 停在遠處擲飛刀（跳過或閃避）、dive 在空中盤旋、對準後俯衝（盤旋時要跳起來才砍得到）、blink 隔幾秒閃到你背後再出手。reach 是開始前搖的距離，speed 是走路速度倍數，aggro 是野怪發現你的距離（離開 1.8 倍就回去巡邏）。沒列的模板用 melee。",
+  "default": {"move": "melee", "reach": 44, "speed": 1.0, "aggro": 340},
+  "moves": {
+    "mob.shengsheng": {"move": "lunge", "reach": 150, "speed": 1.5, "aggro": 300, "note": "跑得飛快，遠遠一撲"},
+    "mob.wolf_demon": {"move": "lunge", "reach": 180, "speed": 1.2, "aggro": 380, "note": "低伏蓄力，猛撲咬人"},
+    "mob.bandit": {"move": "throw", "reach": 300, "speed": 0.9, "aggro": 400, "shot_speed": 380, "note": "站遠了擲飛刀"},
+    "mob.gudiao": {"move": "dive", "reach": 50, "speed": 1.3, "hover": 130, "aggro": 420, "note": "盤旋，對準了俯衝"},
+    "mob.wandering_ghost": {"move": "blink", "reach": 44, "speed": 0.6, "blink_every": 3.2, "aggro": 320, "note": "飄得慢，會閃到背後"}
+  }
+}

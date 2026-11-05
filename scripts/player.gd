@@ -98,9 +98,14 @@ var _zone_blend := 0.0
 var _zone_last: Dictionary = {}
 var _base_limit_top := 0
 var sprite: Sprite2D            # 有立繪時用；沒有就是色塊
+var flow_sprite: Sprite2D       # 會飄的圖層（背飾飄帶、後髮、髮帶），疊在身體後面，單獨擺動
 var rig: Node2D                 # 立繪的軸心放在腳底：走路一頓一頓、跳起拉長、落地壓扁都繞這裡
 var shadow: TextureRect
 var weapon_view: Node2D         # 身上的兵器（scripts/weapon_view.gd）
+var speed_mult := 1.0           # 裝備的身法加成
+var equip_grade := 0            # 裝備品階的周身光效（set_equip_aura）
+var equip_line := ""
+var _motes: CPUParticles2D
 
 var _walk := 0.0
 var _squash := 0.0              # 落地壓扁，1 → 0
@@ -154,24 +159,38 @@ func _ready() -> void:
 
 
 ## 換上立繪（面朝右、腳底貼齊圖的底邊），height 是畫面上的身高；碰撞框不變。
-func set_look(tex: Texture2D, height: float) -> void:
+## flow_tex：會飄的圖層（左右各多 flow_pad 空白），疊在身體後面，跑、跳、御劍時跟衣襬一起飄。
+func set_look(tex: Texture2D, height: float, flow_tex: Texture2D = null, flow_pad := 0) -> void:
 	if tex == null:
 		return
 	if sprite == null:
+		flow_sprite = Sprite2D.new()
+		flow_sprite.name = "Flow"
+		flow_sprite.centered = false
+		flow_sprite.material = preload("res://scripts/ink_ui.gd").halo_material("player").duplicate()
+		rig.add_child(flow_sprite)
 		sprite = Sprite2D.new()
 		sprite.centered = false
-		sprite.material = preload("res://scripts/ink_ui.gd").halo_material("player")
+		sprite.material = preload("res://scripts/ink_ui.gd").halo_material("player").duplicate()
 		rig.add_child(sprite)
+		_apply_equip_aura()
 	sprite.texture = tex
 	sprite.scale = Vector2.ONE * height / tex.get_height()
 	sprite.position = Vector2(-tex.get_width() * sprite.scale.x / 2, -height)
+	flow_sprite.texture = flow_tex
+	flow_sprite.visible = flow_tex != null
+	flow_sprite.scale = sprite.scale
+	if flow_tex != null:
+		flow_sprite.position = Vector2(-flow_tex.get_width() * sprite.scale.x / 2, -height)
 	get_node("Body").visible = false
 
 
 func _process(delta: float) -> void:
 	if sprite:
 		sprite.flip_h = facing < 0
+		flow_sprite.flip_h = facing < 0
 	_animate(delta)
+	_flow(delta)
 	_update_camera(delta)
 
 
@@ -247,7 +266,7 @@ func _dash(dir: float, delta: float) -> void:
 		dashing = 0.0
 	if dashing <= 0.0:
 		# 還按著同方向就接著跑，否則停住
-		velocity.x = _dash_dir * SPEED if int(dir) == _dash_dir else 0.0
+		velocity.x = _dash_dir * SPEED * speed_mult if int(dir) == _dash_dir else 0.0
 
 
 ## 殘影：立繪的墨色拷貝，原地淡掉。
@@ -351,8 +370,9 @@ func _animate(delta: float) -> void:
 		var b := sin(_time * 1.6) * 0.02
 		target_scale = Vector2(1.12, 0.64 + b)
 	elif flying > 0.0:
-		target_rot = facing * 0.35
-		target_scale = Vector2(1.06, 0.95)
+		# 御劍：前傾、上下浮動（像奇幻之境的死靈浮空），腿由飄動往後收
+		target_rot = facing * 0.22
+		bob = sin(_time * 2.4) * 3.0
 	elif climbing:
 		_walk += delta * absf(velocity.y) / 18.0
 		target_rot = sin(_walk) * 0.06
@@ -386,6 +406,63 @@ func _animate(delta: float) -> void:
 	rig.position = Vector2(facing * 10.0 * _lunge, SIZE.y / 2 + bob)
 	shadow.modulate.a = move_toward(shadow.modulate.a, 0.55 if grounded else 0.0, delta * 6.0)
 	weapon_view.scale.x = facing
+
+
+## 飄動（參考奇幻之境：衣片掛在骨頭上整片轉、不拉伸）：ink_halo.gdshader 以軸為中心把下方整片往背後彎，長度不變。
+## 飄動層（飄帶、後髮、髮帶）軸在肩頸；身體那張軸在胯，只有御劍、御風、下落時讓腿往後收一點，地上不動，腳不會滑。
+## 每個狀態 [彎多少（弧度，正＝往背後）, 擺動幅度（弧度）, 擺動快慢]。
+const FLOW_TAIL := {"idle": [0.03, 0.04, 1.6], "run": [0.3, 0.1, 6.0], "rise": [0.08, 0.06, 4.0],
+	"fall": [0.42, 0.12, 5.0], "glide": [0.55, 0.16, 2.6], "fly": [0.7, 0.14, 8.0]}
+const FLOW_LEGS := {"idle": [0.0, 0.0], "run": [0.0, 0.0], "rise": [0.0, 0.0], "fall": [0.06, 0.0],
+	"glide": [0.14, 0.02], "fly": [0.38, 0.015]}
+const TAIL_PIVOT := Vector2(0.5, 0.24)
+const LEGS_PIVOT := Vector2(0.5, 0.52)
+var flow_state := "idle"
+var flow_override := ""             # 截圖、除錯用：強制某個飄動狀態
+var _flow_tail := Vector3(0.03, 0.04, 1.6)   # 目前的 (彎, 擺幅, 快慢)，往目標慢慢靠，換狀態才不會一下彈過去
+var _flow_legs := Vector2.ZERO
+var _flow_phase := 0.0
+
+
+func _flow_target() -> String:
+	if flow_override != "":
+		return flow_override
+	if sitting > 0.0 or climbing:
+		return "idle"
+	if flying > 0.0:
+		return "fly"
+	if not is_on_floor():
+		if velocity.y < -60.0:
+			return "rise"
+		if glide and velocity.y > 0.0 and velocity.y <= GLIDE_FALL + 1.0:
+			return "glide"
+		return "fall"
+	return "run" if absf(velocity.x) > 40.0 else "idle"
+
+
+func _flow(delta: float) -> void:
+	if sprite == null:
+		return
+	flow_state = _flow_target()
+	# 跑的快慢決定往後甩多少；往後退（面朝反方向移動）就不甩
+	var run := clampf(velocity.x * facing / (SPEED * speed_mult), 0.0, 1.0) if flow_state == "run" else 1.0
+	var t: Array = FLOW_TAIL[flow_state]
+	var l: Array = FLOW_LEGS[flow_state]
+	var k := minf(1.0, delta * 4.0)
+	_flow_tail = _flow_tail.lerp(Vector3(t[0] * run + (1.0 - run) * 0.03, t[1], t[2]), k)
+	_flow_legs = _flow_legs.lerp(Vector2(l[0], l[1]), k)
+	_flow_phase = fmod(_flow_phase + delta * _flow_tail.z, TAU * 1000.0)
+	_set_bend(flow_sprite, TAIL_PIVOT, 300.0, _flow_tail.x, _flow_tail.y)
+	_set_bend(sprite, LEGS_PIVOT, 200.0, _flow_legs.x, _flow_legs.y)
+
+
+func _set_bend(sp: Sprite2D, pivot: Vector2, reach: float, bend: float, ripple: float) -> void:
+	var m: ShaderMaterial = sp.material
+	m.set_shader_parameter("pivot", pivot)
+	m.set_shader_parameter("reach", reach)
+	m.set_shader_parameter("bend", bend)
+	m.set_shader_parameter("ripple", ripple)
+	m.set_shader_parameter("ripple_phase", _flow_phase)
 
 
 ## 出手：往前一衝，畫出兵器的墨痕，前方依筆順寫出字訣（劍「斬」、刀「破」、槍「刺」、拳收招「拳」；
@@ -432,6 +509,63 @@ func set_weapon(kind: String, grade: int) -> void:
 	if weapon_view != null:
 		weapon_view.kind = kind
 		weapon_view.grade = grade
+
+
+## 裝備品階的周身光效：凡器只有平常的青玉光暈；法器光暈加亮；靈器起靈光點點；法寶光點變多、光暈轉金；
+## 仙器金光往上飄、魔器朱紅火星。時裝蓋不掉，也穿不出來。
+const AURA_HALO := [Color(0.69, 0.84, 0.79, 0.5), Color(0.62, 0.9, 0.8, 0.62), Color(0.62, 0.82, 0.98, 0.7),
+	Color(0.95, 0.85, 0.55, 0.72), Color(1.0, 0.88, 0.5, 0.8)]
+const AURA_RADIUS := [20.0, 24.0, 28.0, 32.0, 38.0]
+const AURA_MOTES := [0, 0, 10, 20, 32]
+const MO_HALO := Color(0.85, 0.22, 0.18, 0.78)
+
+
+func set_equip_aura(grade: int, line: String) -> void:
+	equip_grade = clampi(grade, 0, AURA_HALO.size() - 1)
+	equip_line = line
+	_apply_equip_aura()
+
+
+func _apply_equip_aura() -> void:
+	if sprite == null:
+		return
+	var mo := equip_grade >= 4 and equip_line == "mo"
+	var halo: Color = MO_HALO if mo else AURA_HALO[equip_grade]
+	for sp in [sprite, flow_sprite]:
+		sp.material.set_shader_parameter("halo_color", halo)
+		sp.material.set_shader_parameter("radius", AURA_RADIUS[equip_grade])
+	var n: int = AURA_MOTES[equip_grade]
+	if n == 0:
+		if _motes != null:
+			_motes.emitting = false
+			_motes.visible = false
+		return
+	if _motes == null:
+		_motes = CPUParticles2D.new()
+		_motes.name = "Motes"
+		_motes.position = Vector2(0, -SIZE.y * 0.55)
+		_motes.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		_motes.emission_rect_extents = Vector2(SIZE.x * 0.7, SIZE.y * 0.45)
+		_motes.direction = Vector2(0, -1)
+		_motes.spread = 25.0
+		_motes.gravity = Vector2(0, -18)
+		_motes.initial_velocity_min = 6.0
+		_motes.initial_velocity_max = 18.0
+		_motes.lifetime = 1.6
+		_motes.scale_amount_min = 2.5
+		_motes.scale_amount_max = 4.5
+		var fade := Gradient.new()
+		fade.set_color(0, Color(1, 1, 1, 0.0))
+		fade.add_point(0.25, Color(1, 1, 1, 1))
+		fade.set_color(fade.get_point_count() - 1, Color(1, 1, 1, 0.0))
+		_motes.color_ramp = fade
+		rig.add_child(_motes)
+	_motes.amount = n
+	_motes.color = Color(1.0, 0.45, 0.3) if mo else Color(halo.r, halo.g, halo.b, 1.0).lightened(0.2)
+	if mo:
+		_motes.gravity = Vector2(0, -40)
+	_motes.visible = true
+	_motes.emitting = true
 
 
 func set_aura(color: Color, seconds: float) -> void:
@@ -585,7 +719,7 @@ func _physics_process(delta: float) -> void:
 		sound.emit("double_jump")
 
 	if _wall_lock <= 0.0 and _hurt_lock <= 0.0:
-		var target := dir * SPEED
+		var target := dir * SPEED * speed_mult
 		var rate := AIR_ACCEL
 		if is_on_floor():
 			if dir == 0.0:

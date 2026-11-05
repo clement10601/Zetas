@@ -76,14 +76,22 @@ def figure(cv, s):
     hair = s.get("hair", "bun")
     hc = s.get("hair_color", INK)
     if on("hair_back"):
-        back_hair(f, hair, hc, alpha, ink)
+        back_hair(f, hair, hc, alpha, ink, s.get("hair_ribbon", (176, 46, 40)) if s.get("hair_ornament") else None)
     # 後袖
     sleeve = s.get("sleeve", "wide")
     if on("sleeve_back"):
         if sleeve == "wide":
             f.fill([(-36, .81), (-58, .7), (-74, .5), (-62, .44), (-46, .48), (-34, .64)], mix(robe, INK, 0.18), outline, 0.2, alpha, ink=ink)
+            if s.get("cuff"):
+                f.line([(-73, .5), (-62, .45), (-47, .485)], 6, mix(s["cuff"], INK, 0.15), alpha, taper=(0.05, 0.05))
         else:
             f.fill([(-34, .81), (-48, .66), (-50, .5), (-40, .48), (-34, .64)], mix(robe, INK, 0.18), outline, 0.2, alpha, ink=ink)
+            if s.get("cuff"):
+                f.fill([(-50, .56), (-36, .56), (-35, .49), (-49, .49)], mix(s["cuff"], INK, 0.15), 1.4, 0.2, alpha, ink=ink)
+        oc = s.get("overcoat")
+        if oc and oc.get("sleeve") == "long":  # 大氅的後袖：比袍袖更大、蓋在外面
+            f.fill([(-38, .82), (-64, .7), (-84, .44), (-66, .38), (-46, .44), (-34, .64)], mix(oc["color"], INK, 0.18), outline, 0.2, alpha, ink=ink)
+            f.line([(-83, .45), (-66, .39), (-47, .445)], 5, mix(oc.get("trim", oc["color"]), INK, 0.15), alpha, taper=(0.05, 0.05))
     if on("back_items"):
         for e in s.get("back_items", []):
             e(f)
@@ -104,18 +112,28 @@ def figure(cv, s):
     if on("front"):
         for e in s.get("front", []):
             e(f)
+    # 肩飾（雲肩、護肩、毛領）：蓋在前袖上面，所以最後畫
+    if on("shoulder"):
+        for e in s.get("shoulder_items", []):
+            e(f)
     return f
 
 
-def back_hair(f, hair, hc, alpha, ink):
+def back_hair(f, hair, hc, alpha, ink, rib=None):
     if hair in ("long", "long_bun"):
         f.fill([(-6, .97), (-34, .9), (-40, .7), (-34, .55), (-18, .6), (-14, .8), (6, .9)], hc, 1.6, 0, alpha, ink=ink)
     if hair == "ponytail":
         f.line([(-26, .97), (-46, .9), (-50, .78), (-44, .66)], 12, hc, alpha, taper=(0.0, 0.8))
+        if rib:
+            f.line([(-28, .975), (-40, .93), (-58, .9), (-70, .84)], 4, rib, alpha, taper=(0.1, 0.8))
+            f.line([(-28, .97), (-36, .9), (-38, .82)], 3, rib, alpha, taper=(0.1, 0.8))
     if hair == "high_tail":
         # 高馬尾：從頭頂後方束起，甩一道長弧到背後
         f.line([(-14, 1.06), (-44, 1.05), (-66, .96), (-74, .82), (-70, .68)], 15, hc, alpha, taper=(0.0, 0.85))
         f.line([(-30, 1.05), (-58, .99), (-70, .86)], 1.0, mix(hc, INK, 0.5), 0.5 * alpha, dry=0.5)
+        if rib:  # 髮帶：兩條長尾跟著馬尾甩
+            f.line([(-16, 1.07), (-40, 1.1), (-70, 1.06), (-92, .98)], 4, rib, alpha, taper=(0.1, 0.85))
+            f.line([(-16, 1.065), (-34, 1.02), (-54, .94), (-62, .86)], 3.4, rib, alpha, taper=(0.1, 0.85))
     if hair == "wild":
         # 散亂長髮：幾綹參差往後下散開
         for k, (x, y) in enumerate(((-44, .62), (-56, .7), (-50, .56), (-36, .58))):
@@ -126,9 +144,14 @@ def body_layer(f, s, robe, inner, sash, trim, flare, alpha, outline, ink):
     # 內袍下襬
     if not s.get("short_robe"):
         f.fill([(-46 * flare, .14), (52 * flare, .14), (50 * flare, .03), (10, .015), (-44 * flare, .03)], inner, outline * 0.8, 0.15, alpha, ink=ink)
-    # 鞋
+    # 鞋（boots＝長靴：靴筒到小腿，開衩、短褐看得到）
+    boots = s.get("boots")
     for x in (-16, 22):
-        f.fill([(x - 12, .03), (x + 14, .03), (x + 18, .0), (x - 12, .0)], s.get("shoes", (40, 36, 34)), 1.2, 0, alpha, ink=ink)
+        if boots:
+            f.fill([(x - 11, .13), (x + 11, .13), (x + 12, .03), (x + 19, .0), (x - 12, .0), (x - 12, .03)], boots, 1.4, 0.25, alpha, ink=ink)
+            f.line([(x - 11, .125), (x + 11, .125)], 3, mix(boots, (230, 220, 200), 0.35), 0.8 * alpha, smooth=0)
+        else:
+            f.fill([(x - 12, .03), (x + 14, .03), (x + 18, .0), (x - 12, .0)], s.get("shoes", (40, 36, 34)), 1.2, 0, alpha, ink=ink)
     # 外袍
     body = [(-12, .855), (-44, .815), (-42, .72), (-34, .6), (-40, .5), (-56 * flare, .2), (-62 * flare, .07),
             (-20, .055), (20, .065), (64 * flare, .08), (58 * flare, .22), (44, .5), (36, .6), (42, .72), (44, .815), (12, .855)]
@@ -136,6 +159,16 @@ def body_layer(f, s, robe, inner, sash, trim, flare, alpha, outline, ink):
         body = [(-12, .855), (-44, .815), (-42, .72), (-34, .6), (-44, .45), (-50, .36), (50, .36), (46, .45), (36, .6), (42, .72), (44, .815), (12, .855)]
         for x in (-18, 18):  # 褲腿
             f.fill([(x - 16, .37), (x + 16, .37), (x + 13, .04), (x - 13, .04)], s.get("pants", mix(robe, INK, 0.3)), outline, 0.25, alpha, ink=ink)
+        if s.get("leg_wraps"):  # 綁腿：小腿纏布，斜紋幾道
+            for x in (-18, 18):
+                f.fill([(x - 13, .2), (x + 13, .2), (x + 12, .1), (x - 12, .1)], s["leg_wraps"], 1.2, 0.2, alpha, ink=ink)
+                for k in range(3):
+                    f.line([(x - 12, .19 - k * .03), (x + 12, .17 - k * .03)], 1.0, INK, 0.45 * alpha, smooth=0)
+    # 多層紗裙：袍子底下襯幾層紗，一層比一層長、往後拖（仙裳），先畫才會被袍子蓋住上緣
+    for k, c in reversed(list(enumerate(s.get("skirt_layers", [])))):
+        d = (k + 1) * .016
+        f.fill([(-50 * flare, .3), (50 * flare, .3), (62 * flare + k * 3, .07 - d), (14, .055 - d),
+                (-30, .05 - d), (-70 * flare - k * 9, .065 - d * 0.6)], c, 1.2, 0.15, alpha, ink=ink)
     f.fill(body, robe, outline, 0.32, alpha, ink=ink)
     band = s.get("hem_band")
     if band:  # 下襬鑲邊：一道寬色帶沿著袍底
@@ -143,19 +176,80 @@ def body_layer(f, s, robe, inner, sash, trim, flare, alpha, outline, ink):
             f.fill([(-50, .40), (50, .40), (50, .36), (-50, .36)], band, 1.2, 0.2, alpha, ink=ink)
         else:
             f.fill([(-58 * flare, .15), (55 * flare, .17), (64 * flare, .08), (20, .065), (-20, .055), (-62 * flare, .07)], band, 1.2, 0.2, alpha, ink=ink)
+        pat = s.get("hem_pattern")
+        if pat:  # 鑲邊上的回紋：一排小方勾
+            y0, y1 = (.385, .375) if s.get("short_robe") else (.115, .125)
+            for k in range(8):
+                t = (k + 0.5) / 8
+                x = -50 + 100 * t if s.get("short_robe") else (-56 * flare) + (114 * flare) * t
+                cx_, cy_ = f.P(x, y0 + (y1 - y0) * t)
+                f.cv.stroke([(cx_ - 3, cy_ + 3), (cx_ - 3, cy_ - 3), (cx_ + 3, cy_ - 3), (cx_ + 3, cy_ + 1), (cx_, cy_ + 1)], 1.3, pat, 0.9 * alpha, smooth=0, taper=(0.05, 0.05))
+    # 開衩：袍子前片從下襬往上開到膝上，露出褲腿與靴
+    if s.get("split") and not s.get("short_robe"):
+        pants = s.get("pants", mix(robe, INK, 0.35))
+        f.fill([(10, .36), (34, .09), (30 * flare, .07), (6, .06), (0, .2)], pants, outline * 0.8, 0.3, alpha, ink=ink)
+        f.line([(10, .37), (36 * flare, .07)], 2.4, s.get("trim", INK), alpha, taper=(0.1, 0.1))
+        f.line([(10, .37), (2, .06)], 2.4, s.get("trim", INK), alpha, taper=(0.1, 0.1))
     for e in s.get("robe_marks", []):
         e(f)
     # 衣褶
     for x0, x1 in ((-20, -34), (8, 18), (26, 46)):
         if not s.get("short_robe"):
             f.line([(x0, .48), (x0 * 0.9 + x1 * 0.1, .3), (x1, .1)], 1.4, mix(robe, ink, 0.6), 0.5 * alpha, dry=0.5)
-    # 交領
-    f.line([(-10, .85), (8, .76), (16, .7)], 5, trim, alpha, taper=(0.05, 0.05), smooth=1)
-    f.line([(10, .85), (2, .79)], 4, trim, alpha, taper=(0.05, 0.05), smooth=0)
-    # 腰帶
-    f.fill([(-36, .63), (38, .635), (37, .585), (-35, .58)], sash, 1.4, 0.2, alpha, ink=ink)
-    if s.get("sash_tail", True):
-        f.line([(-4, .59), (-8, .48), (-4, .4)], 5, sash, alpha, taper=(0.1, 0.4))
+    # 外罩（半臂、褙子、大氅）：對襟敞開，前緣與下襬鑲邊，露出裡面的袍子
+    oc = s.get("overcoat")
+    if oc:
+        hem = oc.get("length", .3)
+        fl = oc.get("flare", 1.0)
+        c, tr = oc["color"], oc.get("trim", trim)
+        coat = [(-12, .86), (-46, .82), (-46, .72), (-40, .6), (-46, .5), (-60 * fl, hem + .06), (-66 * fl, hem),
+                (-20, hem - .01), (14 * fl, hem + .005), (10, .5), (8, .64), (4, .78), (6, .86)]
+        f.fill(coat, c, outline, 0.35, alpha, ink=ink)
+        f.line([(6, .855), (4, .78), (8, .64), (10, .5), (14 * fl, hem + .01)], 5, tr, alpha, taper=(0.05, 0.05))
+        f.line([(14 * fl, hem + .01), (-20, hem - .005), (-66 * fl, hem + .005)], 5, tr, alpha, taper=(0.05, 0.05))
+        if oc.get("slit"):  # 側開衩：後片在腰下分開，跑起來會飄
+            f.line([(-44, .44), (-52 * fl, hem + .02)], 2.0, mix(c, INK, 0.6), 0.8 * alpha)
+        for e in oc.get("marks", []):
+            e(f)
+    # 交領：collar＝寬領緣，裡面多露一道中衣的白
+    collar = s.get("collar")
+    if collar:
+        f.line([(-8, .855), (8, .77), (18, .7)], 9, (240, 238, 230), alpha, taper=(0.05, 0.05), smooth=1)
+        f.line([(-12, .86), (6, .77), (14, .7)], 7, collar, alpha, taper=(0.05, 0.05), smooth=1)
+        f.line([(10, .86), (0, .79)], 6, collar, alpha, taper=(0.05, 0.05), smooth=0)
+    else:
+        f.line([(-10, .85), (8, .76), (16, .7)], 5, trim, alpha, taper=(0.05, 0.05), smooth=1)
+        f.line([(10, .85), (2, .79)], 4, trim, alpha, taper=(0.05, 0.05), smooth=0)
+    # 腰帶；wrap＝寬腰封＋繩結＋兩條長垂帶（腰是全身的視覺中心）
+    wrap = s.get("waist_wrap")
+    if wrap:
+        wc, wt = wrap["color"], wrap.get("trim", GOLD)
+        f.fill([(-37, .655), (39, .66), (38, .565), (-36, .56)], wc, 1.6, 0.25, alpha, ink=ink)
+        f.line([(-36, .645), (38, .65)], 1.6, wt, 0.9 * alpha, smooth=0)
+        f.line([(-35, .575), (37, .58)], 1.6, wt, 0.9 * alpha, smooth=0)
+        tail = wrap.get("tail", wc)
+        n = wrap.get("tail_len", 1.0)
+        # 繩結在腰前側，兩條垂帶往後下飄（跑動時是第二道飄動的剪影）
+        streamer(f, [(20, .6), (15, .53), (19, .47), (12, .44 - .14 * n)], [.008, .012, .012, .008], tail, alpha)
+        streamer(f, [(18, .6), (-2, .54), (-26, .47 - .02 * n), (-46, .4 - .07 * n), (-54, .33 - .12 * n)],
+                 [.008, .013, .015, .014, .006], tail, alpha)
+        f.cv.paint(f.cv.ellipse(*f.P(20, .61), 6, 5, blur=0.4), mix(tail, INK, 0.2), alpha)
+        if wrap.get("tassel"):  # 垂帶末端的流蘇
+            tx, ty = f.P(12, .44 - .14 * n)
+            f.cv.paint(f.cv.ellipse(tx, ty, 3.5, 3.5, blur=0.4), wrap["tassel"], alpha)
+            for dx in (-2, 0, 2):
+                f.cv.stroke([(tx + dx, ty + 2), (tx + dx * 1.6, ty + 20)], 1.3, wrap["tassel"], 0.9 * alpha, taper=(0.1, 0.6))
+    else:
+        f.fill([(-36, .63), (38, .635), (37, .585), (-35, .58)], sash, 1.4, 0.2, alpha, ink=ink)
+        if s.get("sash_tail", True):
+            f.line([(-4, .59), (-8, .48), (-4, .4)], 5, sash, alpha, taper=(0.1, 0.4))
+
+
+def streamer(f, mid, wid, color, alpha=1.0):
+    """垂帶／綢帶：沿中線兩側各偏半個帶寬，填成一條有寬度的帶子（細線在 88px 的畫面上會消失）。"""
+    top = [(x, y + w) for (x, y), w in zip(mid, wid)]
+    bot = [(x + 3, y - w) for (x, y), w in reversed(list(zip(mid, wid)))]
+    f.fill(top + bot, color, 1.3, 0.25, alpha)
 
 
 def front_sleeve(f, s, pose, sleeve, robe, skin, alpha, outline, ink, draw=True):
@@ -179,6 +273,24 @@ def front_sleeve(f, s, pose, sleeve, robe, skin, alpha, outline, ink, draw=True)
             f.fill([(30, .82), (50, .79), (58, .64), (62, .5), (50, .49), (44, .62), (32, .7)], robe, outline, 0.3, alpha, ink=ink)
             f.fill([(52, .5), (64, .5), (64, .46), (52, .455)], skin, 1.2, 0, alpha, ink=ink)
             f.hand = f.P(58, .475)
+    if draw:
+        cuff = s.get("cuff")
+        if cuff and pose == "rest":
+            if sleeve == "wide":   # 廣袖袖口的寬鑲邊
+                f.line([(86, .49), (72, .44), (45, .465)], 7, cuff, alpha, taper=(0.05, 0.05))
+            else:                  # 束袖：手腕一截護腕，綁兩道繩
+                f.fill([(48, .575), (63, .57), (64, .5), (50, .5)], cuff, 1.4, 0.25, alpha, ink=ink)
+                for y in (.555, .52):
+                    f.line([(49, y), (63, y - .004)], 1.2, mix(cuff, (240, 230, 200), 0.5), 0.9 * alpha, smooth=0)
+        oc = s.get("overcoat")
+        if oc and pose == "rest":
+            c, tr = oc["color"], oc.get("trim", s.get("trim", INK))
+            if oc.get("sleeve") == "half":   # 半臂：短袖罩在上臂
+                f.fill([(26, .83), (52, .8), (60, .68), (40, .66), (28, .72)], c, outline, 0.3, alpha, ink=ink)
+                f.line([(60, .68), (40, .66)], 5, tr, alpha, taper=(0.05, 0.05))
+            elif oc.get("sleeve") == "long":  # 大氅：寬大外袖，袖口比袍袖更低
+                f.fill([(26, .83), (54, .8), (72, .6), (94, .42), (78, .36), (46, .42), (30, .6)], c, outline, 0.32, alpha, ink=ink)
+                f.line([(94, .42), (78, .365), (47, .425)], 6, tr, alpha, taper=(0.05, 0.05))
     if not draw:
         f.real.hand = f.hand
 
@@ -313,6 +425,27 @@ def hair_top(f, s, hx, hy, rx, ry, hair, hc, alpha, ink):
         for k, (dx, dy) in enumerate(((0.95, -0.05), (0.7, 0.1), (0.4, -0.1))):
             cv.stroke([(hx + rx * (0.1 + k * 0.15), hy - ry * 0.75), (hx + rx * (dx - 0.1), hy - ry * 0.3), (hx + rx * dx, hy + ry * dy)], 7 - k, hc, alpha, taper=(0.05, 0.9))
     cv.stroke(chaikin([(hx - rx * 1.1, hy + ry * 0.1), (hx - rx * 1.05, hy - ry * 0.7), (hx - rx * 0.2, hy - ry * 1.15), (hx + rx * 0.7, hy - ry * 0.9)], 2), 1.8, ink, 0.8 * alpha, dry=0.4)
+    if s.get("hair_ornament"):
+        hair_ornament(f, s, hx, hy, rx, ry, hair, alpha)
+
+
+def hair_ornament(f, s, hx, hy, rx, ry, hair, alpha):
+    """髮飾：髻上的簪與步搖、馬尾的髮帶。小畫面裡靠它在頭上多一個顏色點與一道飄動的線。"""
+    cv = f.cv
+    rib = s.get("hair_ribbon", (176, 46, 40))
+    if hair in ("bun", "long_bun", "topknot"):
+        bx, by = hx - rx * (0.35 if hair != "topknot" else 0.2), hy - ry * 1.08
+        # 步搖：簪頭一串珠子垂下來
+        px, py = bx + rx * 0.45, by - ry * 0.05
+        cv.paint(cv.ellipse(px, py, 3.2, 3.2, blur=0.3), GOLD, alpha)
+        for k in range(3):
+            cv.stroke([(px, py + 3), (px + 1 + k, py + 12 + k * 3)], 0.9, GOLD, 0.9 * alpha, smooth=0)
+            cv.paint(cv.ellipse(px + 1 + k, py + 13 + k * 3, 1.8, 1.8, blur=0.3), (110, 190, 190) if k != 1 else (200, 60, 50), alpha)
+    elif hair == "twin":
+        for dx in (-0.7, 0.25):
+            cx_, cy_ = hx + rx * dx, hy - ry * 0.95
+            cv.stroke([(cx_ - rx * 0.3, cy_ + ry * 0.2), (cx_ + rx * 0.3, cy_ + ry * 0.24)], 3, rib, alpha, taper=(0.1, 0.1))
+            cv.stroke([(cx_, cy_ + ry * 0.22), (cx_ - rx * 0.4, cy_ + ry * 0.8), (cx_ - rx * 0.3, cy_ + ry * 1.2)], 2.6, rib, alpha, taper=(0.1, 0.8))
 
 
 # ---------- 配件 ----------

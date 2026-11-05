@@ -33,6 +33,7 @@ const Martial = preload("res://scripts/martial.gd")
 const InkGlyph = preload("res://scripts/ink_glyph.gd")
 const Wardrobe = preload("res://scripts/wardrobe.gd")
 const WardrobePanel = preload("res://scripts/wardrobe_panel.gd")
+const Equipment = preload("res://scripts/equipment.gd")
 
 const FLOOR_Y := 560.0
 ## 鏡頭下緣在地面下多少：留一條地面給操作說明，其餘都給畫面
@@ -59,6 +60,8 @@ const PROMPT_HEIGHT := 110.0       # 互動提示在角色腳上方多高
 const PORTAL_INSET := 50.0        # 傳送點離地圖邊緣多遠
 const INTERACT_RANGE := 40.0
 const ATTACK_COOLDOWN := 0.35
+## 滑鼠出手時游標離人物左右多遠以內不轉身
+const MOUSE_TURN_DEADZONE := 8.0
 const ENEMY_REACH := 44.0
 const ENEMY_STRIKE_REACH := 60.0  # 前搖結束時玩家還在這個距離內才算打中（看到紅字往後閃就躲得掉）
 const ENEMY_HIT_INTERVAL := 1.0
@@ -117,6 +120,8 @@ var chunks: Dictionary = {}
 var sky_colors: Dictionary = {}     # 區塊圖透明的天後面要補的天色（content/sky.json）
 var landmarks: Dictionary = {}      # 山門、殿宇等場景物件（content/landmarks.json，tools/inkpaint/landmarks.py）
 var loot: Dictionary = {}
+var consumables: Dictionary = {}
+var mob_moves: Dictionary = {}    # content/mob_moves.json：各模板的招式  # content/consumables.json：可服用物品 -> 效果
 var regions: Dictionary = {}
 var runner = null
 
@@ -139,6 +144,7 @@ var actor_boss: Dictionary = {}   # Boss 的 actor id -> 是否已發狠
 var actor_tier: Dictionary = {}   # 野怪的 actor id -> 強度境界（事件裡的敵人跟著 pack_tier）
 var wild: Dictionary = {}         # 落腳地圖上的野怪 id -> regions.json 的 wild 條目
 var wild_drop_chance := 0.5       # 野怪掉普通物品的機率（測試設成 1）
+var fashion_drop_chance := 0.08   # 野怪另外掉一件還沒有的時裝的機率（loot.json 的 fashion 檔）
 var errands: Dictionary = {}      # content/errands.json：宗門差事榜
 var board_view: Node2D = null     # 差事榜（只在 errands.board 的地區）
 var errand_options: Array = []    # 差事榜開著時的選項 [{kind: accept|abandon, errand}]
@@ -157,6 +163,9 @@ var combo_timer := 0.0            # 連段還能接的時間
 var mp := 0.0                     # 靈力
 var art_cooldown := 0.0
 var armor_time := 0.0             # 金身剩下的秒數
+var enemy_engaged: Dictionary = {}  # 野怪 id -> 已經發現你（沒發現就在原地巡邏）
+var enemy_blink: Dictionary = {}    # 遊魂 id -> 再過幾秒閃到你背後
+var enemy_shots: Array = []         # 敵人擲出的飛刀 {view, dir, speed, left, damage}
 var projectiles: Array = []       # 劍氣、火符 {view, dir, speed, left, damage, hit, kind, radius}
 var gear_options: Array = []      # 兵器・功法選單開著時的選項 [{kind: weapon|gongfa, id}]
 var mp_bar: ProgressBar
@@ -216,15 +225,17 @@ func _ready() -> void:
 	player.sound.connect(func(n): audio.play(n))
 	if save_path != "" and state.load_file(save_path):
 		add_log("讀取存檔：第 %d 天。" % state.day)
+	ensure_equipment()
+	ensure_fashion()
 	apply_look()
 	note_new_looks(true)
 	if not regions.has(state.region):
 		state.region = START_REGION
 	if not state.game_data.has("hp"):
-		state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
+		state.game_data["hp"] = player_max_hp()
 	update_movement_skills()
 	_apply_gear()
-	mp = Martial.max_mp(state.tier_index)
+	mp = player_max_mp()
 	go_home()
 	add_log(("%s。" + Keys.hint("map") + " 地圖、" + Keys.hint("settings") + " 按鍵設定、F1 放走白狐、F2 過一天、F3 換時辰、F4 突破境界、F6 新事件。") % region_name())
 	playlog.write("session_start", {"version": ProjectSettings.get_setting("application/config/version", ""),
@@ -343,6 +354,8 @@ func load_content() -> void:
 	sky_colors = _read_json("res://content/sky.json")
 	landmarks = _read_json("res://content/landmarks.json")
 	loot = _read_json("res://content/loot.json")
+	consumables = _read_json("res://content/consumables.json").get("items", {})
+	mob_moves = _read_json("res://content/mob_moves.json")
 	art = AssetLibrary.from_file(assets_path)
 	regions = _read_json("res://content/regions.json")
 	regions.erase("_comment")
@@ -1156,6 +1169,8 @@ func errand_pack(e: Dictionary) -> Dictionary:
 	var done := [{"type": "grant_exp", "amount": reward.get("exp", "small")}]
 	if reward.has("loot"):
 		done.append({"type": "give_loot", "loot_table": reward["loot"], "tier": "common"})
+		if loot.get(reward["loot"], {}).has("fashion"):
+			done.append({"type": "give_loot", "loot_table": reward["loot"], "tier": "fashion"})
 	return {
 		"id": errand_pack_id(e),
 		"meta": {"title": "差事・" + e["title"], "summary": e["text"], "author": "errand_board", "request_tag": "errand",
@@ -1252,6 +1267,8 @@ func _wild_defeated(id: String) -> void:
 			gain_item(item)
 			add_log("拾得：" + item)
 			audio.play("reward")
+	if table != "" and randf() < fashion_drop_chance:
+		gain_fashion_from(table)
 	# 擊殺數記在引擎（state.kills）：觸發條件、導演和打怪目標都看它
 	if runner != null:
 		runner.notify({"type": "monster_killed", "monster_tag": entry["template"]})
@@ -1730,6 +1747,7 @@ func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
 		body.position = Vector2(-size.x / 2, -size.y)
 		view.add_child(body)
 	view.set_meta("height", size.y)
+	view.set_meta("template", actor["template"])
 	var label := Label.new()
 	label.text = "%s・%s" % [actor.get("title", ""), actor["name"]] if actor.has("title") else actor["name"]
 	label.size = Vector2(240, 0)
@@ -1744,19 +1762,24 @@ func _make_actor_view(actor: Dictionary, hostile: bool) -> Node2D:
 
 func _remove_actor_view(id: String) -> void:
 	enemy_windup.erase(id)
+	enemy_engaged.erase(id)
+	enemy_blink.erase(id)
 	if actor_views.has(id):
 		actor_views[id].queue_free()
 		actor_views.erase(id)
 
 
 func _on_reward(effect: Dictionary) -> void:
-	if effect["type"] == "give_loot":
+	if effect["type"] == "give_loot" and effect["tier"] == "fashion":
+		gain_fashion_from(effect["loot_table"])
+	elif effect["type"] == "give_loot":
 		var items: Array = loot.get(effect["loot_table"], {}).get(effect["tier"], [])
 		for item in items:
 			gain_item(item)
 		add_log("獲得：" + "、".join(items))
 		audio.play("reward")
 	elif effect["type"] == "grant_exp":
+		state.game_data["meditate_streak"] = 0
 		gain_cultivation(int(Cultivation.EXP_REWARD.get(effect["amount"], 0)))
 
 
@@ -1839,7 +1862,7 @@ func cultivation() -> int:
 
 
 func hp() -> int:
-	return int(state.game_data.get("hp", Cultivation.max_hp(state.tier_index)))
+	return int(state.game_data.get("hp", player_max_hp()))
 
 
 func gain_cultivation(amount: int) -> void:
@@ -1857,13 +1880,18 @@ func gain_cultivation(amount: int) -> void:
 func meditate() -> void:
 	if blocking():
 		return
-	var gain: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
+	var base: int = Cultivation.MEDITATE_EXP_IN_SECT if state.region == "region.qingyun_sect" else Cultivation.MEDITATE_EXP
+	var streak := int(state.game_data.get("meditate_streak", 0))
+	var gain := Cultivation.meditate_gain(base, streak)
+	state.game_data["meditate_streak"] = streak + 1
 	var new_day := advance_time(1)
-	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
-	mp = Martial.max_mp(state.tier_index)
+	state.game_data["hp"] = player_max_hp()
+	mp = player_max_mp()
 	audio.play("meditate")
 	player.sit(1.6)
 	add_log("打坐一個時辰。（第 %d 天・%s）" % [state.day, state.time_of_day])
+	if gain < base:
+		add_log("枯坐無所得，心浮氣躁。出去歷練一番（打怪、走完事件）再坐，收效才足。")
 	gain_cultivation(gain)
 	if new_day:
 		day_started()
@@ -1883,6 +1911,57 @@ func try_breakthrough() -> bool:
 	state.game_data["exp"] = cultivation() - need
 	breakthrough()
 	return true
+
+
+# ---------- 服用丹藥 ----------
+
+## 身上有、而且現在能服用（境界沒超過 tier_max）
+func can_use_item(item: String) -> bool:
+	if not consumables.has(item) or int(state.items.get(item, 0)) <= 0:
+		return false
+	return state.tier_index <= int(consumables[item].get("tier_max", 99))
+
+
+## 服用一樣丹藥、靈草或妖丹：扣一個、套效果。物品欄的「服用」與快捷鍵都走這裡。
+func use_item(item: String) -> bool:
+	if not can_use_item(item):
+		return false
+	var fx: Dictionary = consumables[item]
+	var left := int(state.items[item]) - 1
+	if left > 0:
+		state.items[item] = left
+	else:
+		state.items.erase(item)
+	add_log(fx.get("text", "服下%s。" % item))
+	audio.play("meditate")
+	if fx.has("hp"):
+		state.game_data["hp"] = mini(player_max_hp(), hp() + ceili(float(fx["hp"]) * player_max_hp()))
+	if fx.has("mp"):
+		mp = minf(float(player_max_mp()), mp + float(fx["mp"]) * player_max_mp())
+	if fx.has("exp"):
+		var rec: Dictionary = state.game_data.get("pills", {})
+		var taken := int(rec.get("n", 0)) if int(rec.get("day", -1)) == state.day else 0
+		var gain := Cultivation.pill_gain(int(fx["exp"]), taken)
+		state.game_data["pills"] = {"day": state.day, "n": taken + 1}
+		if gain < int(fx["exp"]):
+			add_log("今天服藥太多，丹毒積身，藥力只剩幾分。")
+		gain_cultivation(gain)
+	playlog.write("use_item", {"item": item, "region": state.region, "day": state.day})
+	_refresh_status()
+	autosave()
+	return true
+
+
+## 快捷鍵：服用身上修為最少的一樣（先吃小的，好東西留著）；沒有就說明
+func quick_use_item() -> void:
+	var best := ""
+	for item in state.items:
+		if can_use_item(item) and (best == "" or int(consumables[item].get("exp", 0)) < int(consumables[best].get("exp", 0))):
+			best = item
+	if best == "":
+		add_log("身上沒有能服用的丹藥。打野怪、跑差事會掉凝氣草、妖丹。")
+		return
+	use_item(best)
 
 
 # ---------- 戰鬥 ----------
@@ -1926,7 +2005,7 @@ func attack() -> void:
 			var view: Node2D = actor_views.get(id)
 			if view == null or not view.get_meta("hostile"):
 				continue
-			if Martial.in_reach(view.position.x - player.position.x, player.facing, kind):
+			if Martial.in_reach(view.position.x - player.position.x, player.facing, kind) and melee_hittable(view):
 				damage_actor(id, damage, knock, stop)
 				landed = true
 	if landed:
@@ -1943,6 +2022,18 @@ func attack() -> void:
 	# 槍的最後一下往前突進
 	if finisher and kind.has("finisher_lunge"):
 		player.move_and_collide(Vector2(player.facing * float(kind["finisher_lunge"]), 0))
+
+
+## 用滑鼠出手時，先轉身面向游標那一邊（游標在人物身上附近就不轉）。
+func face_mouse(event: InputEvent) -> void:
+	if not event is InputEventMouseButton or player == null:
+		return
+	if attack_cooldown > 0.0 and event.is_action_pressed("attack"):
+		return
+	var world: Vector2 = player.get_canvas_transform().affine_inverse() * event.position
+	var dx: float = world.x - player.global_position.x
+	if absf(dx) > MOUSE_TURN_DEADZONE:
+		player.facing = 1 if dx > 0.0 else -1
 
 
 ## 金剛崩拳：前後 120 的震地波
@@ -1986,7 +2077,7 @@ func cast_art() -> bool:
 			player.set_aura(InkUI.GOLD, armor_time)
 			audio.play_pitched("meditate", 1.3)
 		"blood":
-			var cost := maxi(1, roundi(Cultivation.max_hp(state.tier_index) * float(a.get("hp_cost", 0.2))))
+			var cost := maxi(1, roundi(player_max_hp() * float(a.get("hp_cost", 0.2))))
 			state.game_data["hp"] = maxi(1, hp() - cost)
 			InkFx.number(level, player.position + Vector2(0, -90), "-%d" % cost, Color("#e0503c"))
 			var r := float(a.get("radius", 140))
@@ -2057,6 +2148,7 @@ func damage_actor(id: String, amount: int, knock: float = ENEMY_KNOCKBACK, stop:
 	if not actor_views.has(id):
 		return
 	actor_hp[id] -= amount
+	enemy_engaged[id] = true
 	audio.play("hit")
 	add_log("擊中 %s（剩 %d）" % [actor_label(id), maxi(0, actor_hp[id])])
 	var view: Node2D = actor_views[id]
@@ -2072,8 +2164,8 @@ func damage_actor(id: String, amount: int, knock: float = ENEMY_KNOCKBACK, stop:
 	_cancel_windup(id)
 	InkFx.number(level, view.position + Vector2(0, -110), str(amount), Color("#f3ecd9"))
 	var passive: Dictionary = gongfa().get("passive", {})
-	if int(passive.get("lifesteal", 0)) > 0 and hp() < Cultivation.max_hp(state.tier_index):
-		state.game_data["hp"] = mini(Cultivation.max_hp(state.tier_index), hp() + int(passive["lifesteal"]))
+	if int(passive.get("lifesteal", 0)) > 0 and hp() < player_max_hp():
+		state.game_data["hp"] = mini(player_max_hp(), hp() + int(passive["lifesteal"]))
 	if actor_hp[id] <= 0:
 		hitstop(maxf(HITSTOP_KILL, stop))
 		player.shake(5.0)
@@ -2089,6 +2181,7 @@ func damage_actor(id: String, amount: int, knock: float = ENEMY_KNOCKBACK, stop:
 			var floor_v := int(passive.get("karma_floor", -60))
 			if zx > floor_v:
 				state.add_karma("正邪", maxi(int(passive["kill_karma"]), floor_v - zx))
+		state.game_data["meditate_streak"] = 0
 		if wild.has(id):
 			_wild_defeated(id)
 		else:
@@ -2131,9 +2224,26 @@ func zhengxie() -> int:
 	return int(state.karma.get("正邪", 0))
 
 
-## 拿到物品；物品名是兵器表上的兵器就入手
+## 拿到物品；物品名是兵器表上的兵器、裝備表上的裝備就入手
 func gain_item(item: String) -> void:
+	var eid := Equipment.by_name(item)
+	var fresh := eid != "" and not Equipment.owns(state, eid)
 	state.add_item(item)
+	if fresh:
+		var slot: String = Equipment.item(eid)["slot"]
+		var cur := equipment()
+		if not cur.has(slot):
+			var before := player_max_hp()
+			cur[slot] = eid
+			state.game_data["equip"] = cur
+			_gain_max_hp(before)
+			apply_look()
+			add_log("得到裝備%s，已穿上。" % Equipment.describe(eid))
+		else:
+			add_log("得到裝備%s，按 %s 在【裝備】頁換上。" % [Equipment.describe(eid), Keys.hint("wardrobe")])
+	var fashion := Wardrobe.by_item(item)
+	if not fashion.is_empty() and int(state.items.get(item, 0)) == 1:
+		add_log("得到時裝%s，放進物品欄（%s 打開換上）。" % [item, Keys.hint("wardrobe")])
 	var wid := Martial.weapon_by_name(weapons, item)
 	if wid != "" and not owned_weapons().has(wid):
 		state.game_data["weapons"] = owned_weapons() + [wid]
@@ -2247,11 +2357,141 @@ func _cancel_windup(id: String) -> void:
 
 
 ## 前搖結束：玩家還在眼前、在地面附近、不在無敵時間，才算打中。
+## 這個敵人的招式（content/mob_moves.json，依模板；沒列的走近揮擊）
+func mob_move(id: String) -> Dictionary:
+	var view: Node2D = actor_views.get(id)
+	var tpl: String = view.get_meta("template", "") if view != null else ""
+	return mob_moves.get("default", {}).merged(mob_moves.get("moves", {}).get(tpl, {}), true)
+
+
+## 飛在高處的敵人近身砍不到，要等牠俯衝落地
+func melee_hittable(view: Node2D) -> bool:
+	return float(view.get("lift") if "lift" in view else 0.0) < 40.0
+
+
+## 野怪發現你了沒：走進 aggro 範圍就發現（頭上冒「！」），離開 1.8 倍才放棄
+func _enemy_notices(id: String, view: Node2D, dx: float, mv: Dictionary) -> bool:
+	var aggro := float(mv.get("aggro", 340))
+	var engaged: bool = enemy_engaged.get(id, false)
+	if not engaged and absf(dx) < aggro and absf(player.feet() - FLOOR_Y) < 200.0:
+		engaged = true
+		InkFx.number(level, view.position + Vector2(0, -float(view.get_meta("height", 120.0)) - 30.0 - _lift_of(view)), "！", Color("#e0503c"))
+	elif engaged and absf(dx) > aggro * 1.8:
+		engaged = false
+	enemy_engaged[id] = engaged
+	return engaged
+
+
+func _lift_of(view: Node2D) -> float:
+	return float(view.get("lift")) if "lift" in view else 0.0
+
+
+## 沒發現你的野怪在出生點左右慢慢來回走
+func _enemy_patrol(id: String, view: Node2D, mv: Dictionary, delta: float) -> void:
+	var home := float(wild[id].get("x", view.position.x))
+	var dir := float(view.get_meta("patrol", 1.0))
+	if (view.position.x - home) * dir > 90.0:
+		dir = -dir
+		view.set_meta("patrol", dir)
+	view.position.x += dir * HOSTILE_SPEED * 0.35 * float(mv.get("speed", 1.0)) * delta
+	if mv.get("move") == "dive" and "lift" in view:
+		view.lift = move_toward(view.lift, float(mv.get("hover", 130)), 120.0 * delta)
+
+
+## 依招式走位；回傳 true 表示到位、開始前搖
+func _enemy_approach(id: String, view: Node2D, dx: float, mv: Dictionary, delta: float) -> bool:
+	var speed := HOSTILE_SPEED * float(mv.get("speed", 1.0))
+	var reach := float(mv.get("reach", ENEMY_REACH))
+	match mv.get("move", "melee"):
+		"throw":
+			if absf(dx) > reach:
+				view.position.x += signf(dx) * speed * delta
+			return absf(dx) <= reach
+		"dive":
+			if "lift" in view:
+				view.lift = move_toward(view.lift, float(mv.get("hover", 130)), 160.0 * delta)
+			if absf(dx) > reach * 0.5:
+				view.position.x += signf(dx) * minf(speed * delta, absf(dx))
+			return absf(dx) <= reach and _lift_of(view) > 60.0
+		"blink":
+			var t := float(enemy_blink.get(id, float(mv.get("blink_every", 3.2)))) - delta
+			if t <= 0.0 and absf(dx) > 70.0:
+				# 化成一縷煙，出現在你背後
+				InkFx.ring(level, Vector2(view.position.x, FLOOR_Y - 50.0), 40.0, Color(0.55, 0.6, 0.7), 0.3)
+				view.position.x = player.position.x - player.facing * 60.0
+				InkFx.ring(level, Vector2(view.position.x, FLOOR_Y - 50.0), 40.0, Color(0.55, 0.6, 0.7), 0.3)
+				enemy_blink[id] = float(mv.get("blink_every", 3.2))
+				return player_near_ground()
+			enemy_blink[id] = t
+	# melee、lunge、blink：走近到 reach 再出手
+	if absf(dx) > minf(40.0, reach):
+		view.position.x += signf(dx) * minf(speed * delta, absf(dx))
+	return absf(dx) <= reach and player_near_ground()
+
+
+## 山賊擲飛刀：水平飛，跳過去或閃避就躲得掉
+func _enemy_throw(id: String, view: Node2D, mv: Dictionary) -> void:
+	var dir := signf(player.position.x - view.position.x)
+	if dir == 0.0:
+		dir = 1.0
+	var blade := Polygon2D.new()
+	blade.polygon = PackedVector2Array([Vector2(-14, 0), Vector2(0, -4), Vector2(16, 0), Vector2(0, 4)])
+	blade.color = Color(0.12, 0.1, 0.09)
+	blade.position = Vector2(view.position.x + dir * 20.0, FLOOR_Y - 46.0)
+	blade.scale.x = dir
+	blade.z_index = 6
+	level.add_child(blade)
+	enemy_shots.append({"view": blade, "dir": dir, "speed": float(mv.get("shot_speed", 380)),
+		"left": float(mv.get("reach", 300)) + 160.0,
+		"damage": Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), enemy_tier(id))})
+
+
+func _update_enemy_shots(delta: float) -> void:
+	for p in enemy_shots.duplicate():
+		var blade = p["view"]
+		if not is_instance_valid(blade):
+			enemy_shots.erase(p)
+			continue
+		var step: float = p["speed"] * delta
+		blade.position.x += p["dir"] * step
+		blade.rotation += 18.0 * delta * p["dir"]
+		p["left"] -= step
+		var hit: bool = absf(player.position.x - blade.position.x) < 22.0 and player_near_ground() \
+			and player_invuln <= 0.0 and player.dashing <= 0.0 and not blocking_input()
+		if hit:
+			player_invuln = PLAYER_INVULN
+			player.knock_back(blade.position.x - p["dir"] * 10.0)
+			damage_player(equipment_guard(Martial.damage_taken(int(p["damage"]), gongfa())))
+		if hit or p["left"] <= 0.0:
+			enemy_shots.erase(p)
+			blade.queue_free()
+
+
 func _enemy_strike(id: String) -> void:
 	_cancel_windup(id)
 	enemy_cooldown[id] = Cultivation.ENEMY_RECOVER * _enemy_speed(id)
 	var view: Node2D = actor_views[id]
-	if absf(player.position.x - view.position.x) > ENEMY_STRIKE_REACH or not player_near_ground() or player_invuln > 0.0 or player.dashing > 0.0:
+	var mv := mob_move(id)
+	var reach := ENEMY_STRIKE_REACH
+	match mv.get("move", "melee"):
+		"throw":
+			_enemy_throw(id, view, mv)
+			return
+		"lunge":
+			# 撲過去：衝到你身後一點；跳起來或閃避就撲空
+			var dir := signf(player.position.x - view.position.x)
+			var dist := minf(absf(player.position.x - view.position.x) + 40.0, float(mv.get("reach", 150)) + 40.0)
+			reach = float(mv.get("reach", 150)) + 20.0
+			var tw := view.create_tween()
+			tw.tween_property(view, "position:x", view.position.x + dir * dist, 0.16).set_ease(Tween.EASE_OUT)
+			audio.play_pitched("dash", 0.8)
+		"dive":
+			# 俯衝到地面，落地後停一會兒（這時才砍得到），再飛回去
+			var tw := view.create_tween()
+			tw.tween_property(view, "lift", 0.0, 0.14).set_ease(Tween.EASE_IN)
+			enemy_cooldown[id] = Cultivation.ENEMY_RECOVER * 2.0 * _enemy_speed(id)
+			reach = float(mv.get("reach", 50)) + 20.0
+	if absf(player.position.x - view.position.x) > reach or not player_near_ground() or player_invuln > 0.0 or player.dashing > 0.0:
 		return
 	player_invuln = PLAYER_INVULN
 	var raw := Cultivation.enemy_damage(float(actor_power.get(id, 1.0)), enemy_tier(id))
@@ -2262,7 +2502,7 @@ func _enemy_strike(id: String) -> void:
 		damage_actor(id, maxi(1, roundi(Cultivation.player_damage(state.tier_index) * float(a.get("reflect", 1.0)))), 30.0, 0.05)
 		return
 	player.knock_back(view.position.x)
-	damage_player(Martial.damage_taken(raw, gongfa()))
+	damage_player(equipment_guard(Martial.damage_taken(raw, gongfa())))
 
 
 func actor_label(id: String) -> String:
@@ -2299,7 +2539,7 @@ func player_down() -> void:
 	var in_event := blocking()
 	if in_event:
 		runner.abort("fail")
-	state.game_data["hp"] = Cultivation.max_hp(state.tier_index) / 2
+	state.game_data["hp"] = player_max_hp() / 2
 	if advance_time(1):
 		day_started()
 	add_log("醒來時已是%s。" % state.time_of_day)
@@ -2317,13 +2557,14 @@ func _process(delta: float) -> void:
 	combo_timer = maxf(0.0, combo_timer - delta)
 	art_cooldown = maxf(0.0, art_cooldown - delta)
 	armor_time = maxf(0.0, armor_time - delta)
-	var mp_max := float(Martial.max_mp(state.tier_index))
+	var mp_max := float(player_max_mp())
 	if mp < mp_max:
-		mp = minf(mp_max, mp + Martial.mp_regen(gongfa()) * delta)
+		mp = minf(mp_max, mp + Martial.mp_regen(gongfa()) * (1.0 + float(equipment_stats()["regen"])) * delta)
 		if mp_bar != null:
 			mp_bar.max_value = mp_max
 			mp_bar.value = mp
 	_update_projectiles(delta)
+	_update_enemy_shots(delta)
 	player.camera_zone = active_camera_zone()
 	_update_ambience()
 	# 受傷後無敵時閃爍
@@ -2356,11 +2597,13 @@ func _process(delta: float) -> void:
 					return
 			continue
 		enemy_cooldown[id] = maxf(0.0, float(enemy_cooldown.get(id, 0.0)) - delta)
+		var mv := mob_move(id)
+		if wild.has(id) and not _enemy_notices(id, view, dx, mv):
+			_enemy_patrol(id, view, mv, delta)
+			continue
 		if enemy_cooldown[id] > 0.0:
 			continue
-		if absf(dx) > 40.0:
-			view.position.x += signf(dx) * HOSTILE_SPEED * delta
-		if absf(dx) <= ENEMY_REACH and player_near_ground():
+		if _enemy_approach(id, view, dx, mv, delta):
 			enemy_windup[id] = Cultivation.enemy_windup(enemy_tier(id)) * _enemy_speed(id)
 			if view.has_method("telegraph"):
 				view.telegraph(true, float(view.get_meta("height", 120.0)))
@@ -2501,8 +2744,8 @@ func breakthrough() -> void:
 		return
 	state.tier_index += 1
 	_breakthrough_wash()
-	state.game_data["hp"] = Cultivation.max_hp(state.tier_index)
-	mp = Martial.max_mp(state.tier_index)
+	state.game_data["hp"] = player_max_hp()
+	mp = player_max_mp()
 	playlog.write("breakthrough", {"tier": state.tier_name(), "day": state.day})
 	audio.stinger("breakthrough", "breakthrough")
 	add_log("突破至" + state.tier_name() + "！")
@@ -2521,6 +2764,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 	elif event is InputEventJoypadButton:
 		if not event.pressed:
+			return
+	elif event is InputEventMouseButton:
+		# 滑鼠鍵（預設左鍵攻擊、右鍵術法）。點在面板、按鈕上的已經被介面吃掉，不會走到這裡。
+		if not event.pressed or not Keys.MOUSE_NAMES.has(event.button_index):
 			return
 	else:
 		return
@@ -2572,13 +2819,18 @@ func handle_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interact"):
 		interact()
 	elif event.is_action_pressed("attack"):
+		face_mouse(event)
 		attack()
 	elif event.is_action_pressed("art"):
+		if not blocking_input() and art_cooldown <= 0.0:
+			face_mouse(event)
 		cast_art()
 	elif event.is_action_pressed("gear"):
 		open_gear_menu()
 	elif event.is_action_pressed("meditate"):
 		meditate()
+	elif event.is_action_pressed("use_item"):
+		quick_use_item()
 	elif event.is_action_pressed("breakthrough"):
 		try_breakthrough()
 	elif event.is_action_pressed("music"):
@@ -2679,12 +2931,77 @@ func player_look() -> Dictionary:
 	return Wardrobe.only_unlocked(Wardrobe.normalize(state.game_data.get("look", {})), state)
 
 
-func player_texture() -> Texture2D:
-	return Wardrobe.compose(player_look())
+func player_texture(part := "all") -> Texture2D:
+	return Wardrobe.compose(Wardrobe.resolve(player_look(), Equipment.look_of(equipment())), part)
 
 
 func apply_look() -> void:
-	player.set_look(player_texture(), float(art.info("player.disciple").get("height", 88)))
+	if player == null:
+		return
+	player.set_look(player_texture("body"), float(art.info("player.disciple").get("height", 88)), player_texture("flow"), Wardrobe.FLOW_PAD)
+	var aura := Equipment.aura(equipment())
+	player.set_equip_aura(int(aura["grade"]), str(aura["line"]))
+	player.speed_mult = 1.0 + float(equipment_stats()["speed"])
+	if hp() > player_max_hp():
+		state.game_data["hp"] = player_max_hp()
+	mp = minf(mp, float(player_max_mp()))
+
+
+# ---------- 裝備（有品階數值；時裝只換外觀，見 scripts/equipment.gd） ----------
+
+## 身上穿的裝備（欄位 -> id），背包裡沒有的不算
+func equipment() -> Dictionary:
+	return Equipment.normalize(state.game_data.get("equip", {}), state)
+
+
+func equipment_stats() -> Dictionary:
+	return Equipment.totals(equipment())
+
+
+func player_max_hp() -> int:
+	return Cultivation.max_hp(state.tier_index) + int(equipment_stats()["hp"])
+
+
+func player_max_mp() -> int:
+	return Martial.max_mp(state.tier_index) + int(equipment_stats()["mp"])
+
+
+## 氣血上限變高時，多出來的那截直接補上（換上好裝備不會看起來像受了傷）
+func _gain_max_hp(before: int) -> void:
+	var after := player_max_hp()
+	if after > before and state.game_data.has("hp"):
+		state.game_data["hp"] = hp() + after - before
+
+
+## 護體：照比例少受傷，至少 1
+func equipment_guard(amount: int) -> int:
+	return maxi(1, roundi(amount * (1.0 - float(equipment_stats()["guard"]))))
+
+
+## 新角色（和還沒有裝備的舊存檔）：發入門裝備穿上；舊存檔原本穿預設那件的欄位改成「隨裝備」
+func ensure_equipment() -> void:
+	if state.game_data.has("equip"):
+		return
+	var eq := {}
+	for id in Equipment.data()["starter"]:
+		if not Equipment.owns(state, id):
+			state.add_item(Equipment.item(id)["name"])
+		eq[Equipment.item(id)["slot"]] = id
+	state.game_data["equip"] = eq
+	if state.game_data.has("look"):
+		var look: Dictionary = state.game_data["look"]
+		var d: Dictionary = Wardrobe.catalog()["default"]
+		for slot in Wardrobe.EQUIP_SLOTS:
+			if look.get(slot, d[slot]) == d[slot]:
+				look[slot] = Wardrobe.EQUIP
+
+
+func set_equipment(eq: Dictionary) -> void:
+	var before := player_max_hp()
+	state.game_data["equip"] = Equipment.normalize(eq, state)
+	_gain_max_hp(before)
+	apply_look()
+	_refresh_status()
 
 
 func open_wardrobe() -> void:
@@ -2697,15 +3014,21 @@ func open_wardrobe() -> void:
 			state.game_data["look"] = look
 			apply_look()
 			autosave())
+		wardrobe_panel.equip_changed.connect(func(eq: Dictionary):
+			set_equipment(eq)
+			autosave())
+		wardrobe_panel.bag_used.connect(func(entry: Dictionary):
+			use_bag_entry(entry)
+			wardrobe_panel.sync(player_look(), equipment(), bag_entries()))
 		wardrobe_panel.closed.connect(func():
 			player.input_blocked = false
 			_refresh_status())
 		hud_layer.add_child(wardrobe_panel)
 	player.input_blocked = true
-	wardrobe_panel.open(state, player_look())
+	wardrobe_panel.open(state, player_look(), equipment(), bag_entries())
 
 
-## 有新解鎖的外觀就在紀錄提一句。first：讀檔時只記下已有的，不提示。
+## 有新解鎖的外觀就在紀錄提一句；靠境界、旗標給的時裝，條件一成立就放進物品欄。first：讀檔時只記下已有的，不提示。
 func note_new_looks(first := false) -> void:
 	var seen: Array = state.game_data.get("looks_seen", [])
 	var fresh := []
@@ -2714,12 +3037,109 @@ func note_new_looks(first := false) -> void:
 			var key := "%s/%s" % [slot["id"], o["id"]]
 			if o.get("unlock", []).is_empty() or seen.has(key):
 				continue
-			if Wardrobe.is_unlocked(slot["id"], o["id"], state):
-				seen.append(key)
-				fresh.append(o["name"])
+			if not Wardrobe.conditions_met(slot["id"], o["id"], state):
+				continue
+			seen.append(key)
+			if Wardrobe.granted_by_conditions(slot["id"], o["id"]):
+				var item := Wardrobe.item_name(slot["id"], o["id"])
+				if not state.items.has(item):
+					state.add_item(item)
+			fresh.append(o["name"])
 	state.game_data["looks_seen"] = seen
 	if not fresh.is_empty() and not first:
-		add_log("衣櫃多了：%s（%s 打開）" % ["、".join(fresh), Keys.hint("wardrobe")])
+		add_log("得到時裝：%s，放進物品欄（%s 打開換上）。" % ["、".join(fresh), Keys.hint("wardrobe")])
+
+
+## 衣著、配件要拿到才能穿：新角色發開局那套；還沒有這規矩的舊存檔，身上穿的也一起給，免得一讀檔衣服被扒掉。
+func ensure_fashion() -> void:
+	if state.game_data.get("fashion_owned", false):
+		return
+	for item in Wardrobe.starter_items():
+		if not state.items.has(item):
+			state.add_item(item)
+	var look: Dictionary = Wardrobe.normalize(state.game_data.get("look", {}))
+	for slot in look:
+		var item := Wardrobe.item_name(slot, str(look[slot]))
+		if item != "" and Wardrobe.by_item(item).size() > 0 and not state.items.has(item):
+			state.add_item(item)
+	state.game_data["fashion_owned"] = true
+
+
+## 從掉落表的 fashion 檔挑一件還沒有的時裝給玩家（都有了就不給）
+func gain_fashion_from(table: String) -> String:
+	var pool: Array = loot.get(table, {}).get("fashion", []).filter(func(n): return not state.items.has(n))
+	if pool.is_empty():
+		return ""
+	var item: String = pool[randi() % pool.size()]
+	gain_item(item)
+	audio.play("reward")
+	return item
+
+
+## 物品欄：背包裡每樣東西＋身上的兵器，分類排好給行囊介面用。
+## 每筆 {name, count, kind（裝備／兵器／時裝／功法／道具）, note, worn, action（equip/weapon/fashion/""）, ref}
+func bag_entries() -> Array:
+	var out := []
+	var look := player_look()
+	var eq := equipment()
+	for wid in owned_weapons():
+		if weapons.has(wid):
+			var w: Dictionary = weapons[wid]
+			out.append({"name": w["name"], "count": 1, "kind": "兵器", "worn": weapon_id() == wid, "action": "weapon", "ref": wid,
+				"note": "%s・%s。%s" % [weapons["kinds"][w["kind"]]["name"], weapons["grades"][int(w.get("grade", 0))], w.get("note", "")]})
+	for item in state.items:
+		var n := int(state.items[item])
+		if n <= 0 or Martial.weapon_by_name(weapons, item) != "":
+			continue
+		var eid := Equipment.by_name(item)
+		var f := Wardrobe.by_item(item)
+		if eid != "":
+			out.append({"name": item, "count": n, "kind": "裝備", "worn": eq.values().has(eid), "action": "equip", "ref": eid,
+				"note": Equipment.describe(eid) + "\n" + str(Equipment.item(eid).get("note", ""))})
+		elif not f.is_empty():
+			var o := Wardrobe.option(f[0], f[1])
+			out.append({"name": item, "count": n, "kind": "時裝", "worn": look.get(f[0], "") == f[1], "action": "fashion", "ref": "%s/%s" % f,
+				"note": "時裝・%s：%s" % [Wardrobe.slot_title(f[0]), o.get("desc", "")]})
+		elif arts.values().any(func(a): return a.get("requires", {}).get("item", "") == item):
+			out.append({"name": item, "count": n, "kind": "功法", "worn": false, "action": "", "ref": "", "note": "功法典籍，按 %s 在兵器・功法選單修練。" % Keys.hint("gear")})
+		elif has_method("can_use_item") and call("can_use_item", item):
+			out.append({"name": item, "count": n, "kind": "道具", "worn": false, "action": "use", "ref": item, "note": "可以服用。"})
+		else:
+			out.append({"name": item, "count": n, "kind": "道具", "worn": false, "action": "", "ref": "", "note": "收著，事件、差事或之後煉丹交易用得到。"})
+	var order := ["裝備", "兵器", "時裝", "功法", "道具"]
+	out.sort_custom(func(a, b): return order.find(a["kind"]) < order.find(b["kind"]) if a["kind"] != b["kind"] else a["name"] < b["name"])
+	return out
+
+
+## 物品欄裡按了「穿上／換下」
+func use_bag_entry(entry: Dictionary) -> void:
+	match entry.get("action", ""):
+		"equip":
+			var eid: String = entry["ref"]
+			var eq := equipment()
+			var slot: String = Equipment.item(eid)["slot"]
+			if eq.get(slot, "") == eid:
+				eq.erase(slot)
+			else:
+				eq[slot] = eid
+			set_equipment(eq)
+		"weapon":
+			equip_weapon(entry["ref"])
+		"use":
+			# 服用丹藥、妖丹：效果在「提升遊戲性」那邊的 use_item（content/consumables.json）
+			if has_method("use_item"):
+				call("use_item", entry["ref"])
+		"fashion":
+			var slot: String = str(entry["ref"]).get_slice("/", 0)
+			var id: String = str(entry["ref"]).get_slice("/", 1)
+			var look := player_look()
+			if look.get(slot, "") == id:
+				look[slot] = Wardrobe.EQUIP if Wardrobe.EQUIP_SLOTS.has(slot) else ("" if not Wardrobe.option(slot, "").is_empty() else Wardrobe.default_look()[slot])
+			else:
+				look[slot] = id
+			state.game_data["look"] = look
+			apply_look()
+	autosave()
 
 
 func _on_keys_changed() -> void:
@@ -2960,15 +3380,15 @@ func _refresh_status() -> void:
 	var need := Cultivation.need(state.tier_index)
 	exp_bar.max_value = maxf(1.0, float(need))
 	exp_bar.value = cultivation()
-	hp_bar.max_value = maxf(1.0, float(Cultivation.max_hp(state.tier_index)))
+	hp_bar.max_value = maxf(1.0, float(player_max_hp()))
 	hp_bar.value = hp()
 	if mp_bar != null:
-		mp_bar.max_value = float(Martial.max_mp(state.tier_index))
+		mp_bar.max_value = float(player_max_mp())
 		mp_bar.value = mp
 	var gear := ""
 	if weapons.has(weapon_id()) and not gongfa().is_empty():
 		gear = "　%s・%s" % [gongfa()["name"], weapons[weapon_id()]["name"]]
-	hud_detail.text = "修為 %d／%d　氣血 %d／%d　%s%s" % [cultivation(), need, hp(), Cultivation.max_hp(state.tier_index), "　".join(karma), gear]
+	hud_detail.text = "修為 %d／%d　氣血 %d／%d　%s%s" % [cultivation(), need, hp(), player_max_hp(), "　".join(karma), gear]
 	if tint != null:
 		var target := InkUI.time_tint(state.time_of_day) * InkUI.karma_tint(_karma_lean())
 		if vignette != null:

@@ -1,5 +1,5 @@
 ## 按鍵設定畫面：Esc（或 F10、手把 Start）打開。每個動作三格鍵位（方向鍵組／WASD 組／其他），
-## 點一格再按新的鍵就換掉；Backspace 清空這格，Esc 取消。同一個鍵只會留在一個動作上。
+## 點一格再按新的鍵（或滑鼠左／右／中／側鍵）就換掉；Backspace 清空這格，Esc 取消。同一個鍵只會留在一個動作上。
 ## 手把按鍵固定（顯示在最右欄）。改完立刻生效，存在 keys_path。
 extends Control
 
@@ -95,7 +95,7 @@ func _label(text: String, head := false) -> Label:
 func open() -> void:
 	capturing = []
 	visible = true
-	_refresh("點一格，再按下新的鍵。Backspace 清空這格。")
+	_refresh("點一格，再按下新的鍵或滑鼠鍵。Backspace 清空這格。")
 	buttons["jump:0"].grab_focus()
 
 
@@ -107,7 +107,7 @@ func close() -> void:
 
 func _start_capture(id: String, slot: int) -> void:
 	capturing = [id, slot]
-	_refresh("請按下要給「%s」的新按鍵……（Esc 取消、Backspace 清空）" % Keys.action(id)["name"])
+	_refresh("請按下要給「%s」的新按鍵或滑鼠鍵……（Esc 取消、Backspace 清空）" % Keys.action(id)["name"])
 	buttons["%s:%d" % [id, slot]].text = "？"
 
 
@@ -122,6 +122,11 @@ func _input(event: InputEvent) -> void:
 		elif kc == KEY_ESCAPE or event.is_action_pressed("settings"):
 			get_viewport().set_input_as_handled()
 			close()
+	elif event is InputEventMouseButton and event.pressed and not capturing.is_empty():
+		# 滾輪不收；左鍵點下去那一下是「開始改鍵」的按鈕放開之後才算
+		if Keys.MOUSE_NAMES.has(event.button_index):
+			get_viewport().set_input_as_handled()
+			assign(Keys.mouse_code(event.button_index))
 	elif event is InputEventJoypadButton and event.pressed and capturing.is_empty():
 		if event.button_index in [JOY_BUTTON_START, JOY_BUTTON_B]:
 			get_viewport().set_input_as_handled()

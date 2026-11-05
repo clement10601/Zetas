@@ -14,30 +14,45 @@ from pathlib import Path
 import numpy as np
 
 from . import figures as F
+from . import garments as G
 from .ink import INK, Canvas, chaikin, mix, seed_of
 
 GOLD = F.GOLD
 SILVER = (178, 184, 192)
 JADE = (104, 178, 178)
+HEAD_SCALE = 1.36
+TEAL = (30, 110, 120)
+VERMILION = (176, 46, 40)
 
-# 疊圖順序（由後往前）。每一層：(圖層名, figure 的部位, 決定這層長相的選項欄位)
+# 疊圖順序（由後往前）。每一層：(圖層名, 決定這層長相的欄位)。key 規則見 layer_keys()。
+# 衣物一件一層（有些衣物分好幾層：上衣＝後袖／身／前袖），所以任何一件都能單獨換。
 ORDER = [
-    ("back", "behind", "back"),
-    ("hair_back", "hair_back", "hair"),
-    ("sleeve_back", "sleeve_back", "outfit"),
-    ("gear", "back_items", None),          # 背上的劍：武器另一串在做，先固定
-    ("body", "body", "outfit"),
-    ("waist", "belt", "waist"),
-    ("hair_under", "hair_under", "hair"),
-    ("face", "face", "face"),
-    ("hair_over", "hair_over", "hair"),     # 瀏海在眼眉下面（跟整張畫時的順序一樣）
-    ("eyes", "eyes", "eyes"),
-    ("brows", "brows", "brows"),
-    ("head", "head_items", "head"),
-    ("sleeve_front", "sleeve_front", "outfit"),
+    ("back", "back"),                 # 背飾（飄帶、披帛、披風）
+    ("hair_back", "hair"),
+    ("hair_acc_back", "hair_acc"),    # 髮帶長尾
+    ("sleeve_back", "top"),           # 上衣後袖
+    ("coat_sleeve_back", "coat"),     # 大氅後袖
+    ("gear", ""),                     # 背劍：武器另一串在做，先固定
+    ("bottom", "bottom"),             # 下裳
+    ("shoes", "shoes"),               # 鞋靴（靴筒蓋在褲腳外）
+    ("top", "top"),                   # 上衣的身
+    ("coat", "coat"),                 # 外罩的身
+    ("belt", "belt"),                 # 腰封
+    ("waist", "waist"),               # 腰飾
+    ("hair_under", "hair"),
+    ("face", "face"),
+    ("hair_over", "hair"),            # 瀏海在眼眉下面
+    ("eyes", "eyes"),
+    ("brows", "brows"),
+    ("hair_acc", "hair_acc"),         # 髮飾（步搖、簪、髮帶結）
+    ("head", "head"),                 # 頭飾
+    ("sleeve_front", "top"),          # 上衣前袖與手
+    ("cuffs", "cuffs"),               # 護腕
+    ("coat_sleeve", "coat"),          # 外罩前袖
+    ("shoulder", "shoulder"),         # 肩飾蓋在最外面
 ]
 
-BASE = dict(inner=(238, 236, 228), back_items=[F.sword_back])
+BASE = dict(inner=(238, 236, 228), back_items=[F.sword_back], head_scale=HEAD_SCALE)
 
 HAIR_COLORS = {
     "ink": (34, 30, 34),        # 墨黑
@@ -161,20 +176,115 @@ def flame_marks(color):
     return draw
 
 
-OUTFITS = {
-    "disciple": dict(robe=(240, 238, 230), trim=(30, 110, 120), sash=(30, 110, 120)),
-    "outer": dict(robe=(176, 188, 188), inner=(220, 220, 212), trim=(60, 92, 104), sash=(60, 92, 104), sleeve="tight",
-                  short_robe=True, pants=(110, 122, 126)),
-    "wanderer": dict(robe=(150, 128, 96), inner=(204, 190, 162), trim=(90, 70, 50), sash=(90, 70, 50), sleeve="tight"),
-    "inner": dict(robe=(160, 196, 214), trim=(36, 92, 130), sash=(36, 92, 130), hem_band=(232, 236, 232)),
-    "cloud_daoist": dict(robe=(66, 84, 108), inner=(226, 222, 210), trim=GOLD, sash=GOLD, hem_band=(42, 56, 76), flare=1.08,
-                         robe_marks=[cloud_marks((206, 176, 100))]),
-    "mirror": dict(robe=(40, 38, 44), inner=(96, 32, 36), trim=(156, 34, 36), sash=(156, 34, 36), sleeve="tight",
-                   shoes=(20, 18, 20)),
-    "xian": dict(robe=(248, 246, 238), inner=(214, 232, 236), trim=(204, 172, 98), sash=(204, 172, 98), hem_band=(180, 210, 222),
-                 flare=1.18, robe_marks=[cloud_marks((150, 190, 206))]),
-    "mo": dict(robe=(30, 24, 28), inner=(124, 22, 28), trim=(176, 32, 30), sash=(176, 32, 30), hem_band=(70, 18, 22), flare=1.1,
-               robe_marks=[flame_marks((196, 40, 32))], shoes=(16, 12, 14)),
+
+# ---------- 肩飾 ----------
+
+def cloud_collar(color=(70, 140, 150), edge=GOLD):
+    """雲肩：圍在頸肩的四瓣雲頭，瓣尖垂一點流蘇。"""
+    def draw(f):
+        lobes = [(-44, .74), (-20, .72), (8, .73), (34, .74)]
+        pts = [(-12, .86), (-40, .83)]
+        for x, y in lobes:
+            pts += [(x - 6, y + .03), (x, y), (x + 8, y + .025)]
+        pts += [(44, .8), (14, .855)]
+        f.fill(pts, color, 2.0, 0.3, 1.0)
+        f.line(pts[1:-1], 2.2, edge, 0.9, dry=0.2)
+        for x, y in lobes:  # 每瓣一朵小捲雲
+            cx, cy = f.P(x, y + .045)
+            f.cv.stroke([(cx - 4, cy + 2), (cx - 4, cy - 3), (cx + 3, cy - 3), (cx + 3, cy + 1)], 1.3, edge, 0.85, smooth=1)
+            tx, ty = f.P(x, y - .004)
+            f.cv.stroke([(tx, ty), (tx, ty + 12)], 1.4, VERMILION, 0.9, taper=(0.1, 0.6))
+    return draw
+
+
+def pauldron(f):
+    """護肩：前肩三片疊甲，皮繩斜綁過胸，劍修、散修的利落感。"""
+    f.line([(-30, .82), (8, .7), (40, .62)], 3, (96, 66, 44), 0.95, smooth=1)
+    for k in range(3):
+        y = .835 - k * .04
+        f.fill([(22 + k * 3, y + .015), (52 + k * 4, y), (62 + k * 4, y - .05), (52 + k * 3, y - .06), (26 + k * 2, y - .035)],
+               mix((84, 92, 100), (200, 200, 196), k * 0.12), 1.8, 0.35, 1.0)
+    cx, cy = f.P(44, .8)
+    f.cv.paint(f.cv.ellipse(cx, cy, 3, 3, blur=0.3), GOLD, 1.0)
+
+
+def fur_collar(f):
+    """毛領：頸肩一圈蓬鬆白毛，崑崙雪地的厚氅領子。"""
+    cv = f.cv
+    for x, y, r in ((-40, .81, 13), (-26, .835, 13), (-8, .845, 12), (12, .835, 12), (30, .815, 13), (44, .79, 11), (-46, .78, 10)):
+        cx, cy = f.P(x, y)
+        cv.paint(cv.ellipse(cx, cy + 2, r, r * 0.8, blur=2.0), (180, 176, 168), 1.0)
+        cv.paint(cv.textured(cv.ellipse(cx - 1, cy - 1, r * 0.9, r * 0.72, blur=1.5), 0.8, "cloud", lo=0.5), (248, 246, 240), 1.0)
+    for x, y in ((-36, .8), (-6, .825), (24, .805), (42, .78), (-18, .84), (8, .83)):
+        f.line([(x, y + .02), (x + 4, y - .015)], 1.2, INK, 0.5, dry=0.6)
+
+
+# ---------- 單件衣物（長相；名稱、解鎖、套裝在 content/wardrobe.json） ----------
+# 每件都照 docs/design/character-style.md 的層次去配：寬領緣、袖口鑲邊、下襬回紋、一個強調色。
+
+TOPS = {
+    "moon_robe": dict(color=(240, 238, 230), trim=TEAL, cuff=TEAL, sleeve="wide", hem_band=(196, 222, 222), hem_pattern=TEAL),
+    "grey_jacket": dict(color=(176, 188, 188), trim=(60, 92, 104), sleeve="tight", length="short"),
+    "ochre_robe": dict(color=(150, 128, 96), trim=(110, 86, 60), sleeve="tight", split=True),
+    "sky_robe": dict(color=(160, 196, 214), trim=(232, 236, 232), cuff=(232, 236, 232), sleeve="wide",
+                     hem_band=(232, 236, 232), hem_pattern=(36, 92, 130)),
+    "daoist_robe": dict(color=(66, 84, 108), trim=GOLD, cuff=GOLD, sleeve="wide", hem_band=(42, 56, 76), hem_pattern=GOLD,
+                        flare=1.08, marks=[cloud_marks((206, 176, 100))]),
+    "ink_robe": dict(color=(40, 38, 44), trim=(156, 34, 36), sleeve="tight", split=True),
+    "xian_robe": dict(color=(248, 246, 238), trim=(204, 172, 98), cuff=(180, 210, 222), sleeve="wide", hem_band=(180, 210, 222),
+                      flare=1.18, marks=[cloud_marks((150, 190, 206))]),
+    "mo_robe": dict(color=(30, 24, 28), trim=(176, 32, 30), cuff=(176, 32, 30), sleeve="wide", hem_band=(70, 18, 22), flare=1.1,
+                    marks=[flame_marks((196, 40, 32))]),
+    "sword_robe": dict(color=(214, 230, 232), trim=TEAL, sleeve="tight", split=True, hem_band=TEAL, hem_pattern=(232, 236, 228)),
+}
+BOTTOMS = {
+    "white_pants": dict(color=(232, 230, 220)),
+    "grey_pants": dict(color=(110, 122, 126)),
+    "teal_pants": dict(color=(54, 74, 84)),
+    "ochre_pants": dict(color=(96, 86, 72)),
+    "ink_pants": dict(color=(96, 32, 36)),
+    "moon_skirt": dict(kind="skirt", color=(236, 234, 226), hem=(196, 222, 222)),
+    "gauze_skirt": dict(kind="skirt", color=(214, 232, 236), layers=[(214, 232, 236), (190, 218, 228), (170, 204, 220)]),
+    "crimson_skirt": dict(kind="skirt", color=(124, 22, 28), hem=(70, 18, 22)),
+}
+COATS = {
+    "jade_half": dict(color=(150, 194, 200), trim=TEAL, length=.36, sleeve="half", slit=True),
+    "moon_beizi": dict(color=(236, 240, 238), trim=(36, 92, 130), length=.22, sleeve="half", slit=True),
+    "old_vest": dict(color=(118, 98, 72), trim=(80, 62, 46), length=.5, slit=True),
+    "gold_cloak": dict(color=(44, 58, 78), trim=GOLD, length=.1, sleeve="long", flare=1.12, marks=[cloud_marks((206, 176, 100))]),
+    "flame_cloak": dict(color=(20, 16, 18), trim=(176, 32, 30), length=.08, sleeve="long", flare=1.15, marks=[flame_marks((196, 40, 32))]),
+}
+BELTS = {
+    "teal_wrap": dict(color=TEAL, trim=(232, 236, 228), tail=(104, 178, 178), tassel=VERMILION),
+    "silver_wrap": dict(color=(36, 92, 130), trim=SILVER, tail=(232, 236, 232), tassel=JADE),
+    "cloth_wrap": dict(color=(60, 92, 104), trim=(214, 206, 188), tail=(60, 92, 104), tail_len=0.6),
+    "rope": dict(kind="rope", color=(196, 170, 120), tassel=(186, 140, 60)),
+    "gold_wrap": dict(color=GOLD, trim=(66, 84, 108), tail=(206, 176, 100), tassel=VERMILION),
+    "ink_wrap": dict(color=(30, 28, 32), trim=(156, 34, 36), tail=(156, 34, 36), tail_len=1.3),
+    "pale_gold_wrap": dict(color=(204, 172, 98), trim=(248, 246, 238), tail=(214, 232, 236), tail_len=1.4, tassel=(120, 200, 210)),
+    "crimson_wrap": dict(color=(176, 32, 30), trim=GOLD, tail=(124, 22, 28), tail_len=1.2),
+    "sword_wrap": dict(color=(54, 74, 84), trim=JADE, tail=TEAL, tail_len=1.3, tassel=(240, 238, 230)),
+    "sash": dict(kind="sash", color=TEAL),
+}
+CUFFS = {
+    "cloth_bracer": dict(color=(96, 78, 60)),
+    "leather_bracer": dict(color=(80, 62, 46), stud=GOLD),
+    "ink_bracer": dict(color=(70, 64, 72), cord=(156, 34, 36)),
+    "jade_bracer": dict(color=(54, 74, 84), cord=JADE, stud=(232, 236, 228)),
+}
+SHOES = {
+    "cloth_shoes": dict(color=(40, 36, 34)),
+    "boots": dict(kind="boots", color=(46, 52, 58)),
+    "straw_wraps": dict(kind="wraps", color=(150, 128, 80)),
+    "ink_boots": dict(kind="boots", color=(24, 22, 26), cuff=(156, 34, 36)),
+    "cloud_shoes": dict(kind="cloud", color=(236, 236, 228), tip=(204, 172, 98)),
+}
+HAIR_ACCS = {
+    "buyao": dict(kind="buyao", color=GOLD),
+    "jade_pin": dict(kind="pin", color=JADE),
+    "red_ribbon": dict(kind="ribbon", color=VERMILION),
+    "teal_ribbon": dict(kind="ribbon", color=TEAL),
+    "flower": dict(kind="flower", color=(236, 160, 170)),
 }
 
 HEADWEAR = {
@@ -189,6 +299,11 @@ BACKS = {
     "ribbon_cloud": cloud_ribbon,
     "ink_cape": ink_cape,
 }
+SHOULDERS = {
+    "cloud_collar": cloud_collar(),
+    "pauldron": pauldron,
+    "fur_collar": fur_collar,
+}
 WAISTS = {
     "gourd": F.gourd,
     "jade_pendant": jade_pendant,
@@ -197,8 +312,13 @@ WAISTS = {
 }
 
 
+def _front(fn):
+    """把一個 (f) 畫圖函式包成 figure 的 front 部位（只畫它）。"""
+    return ("front", {"front": [fn]})
+
+
 def jobs():
-    """圖層 key -> (部位, spec)。key 就是 wardrobe_layers.json 的鍵，也是 wardrobe.gd 組 key 的規則。"""
+    """圖層 key -> (figure 部位, spec)。key 就是 wardrobe_layers.json 的鍵，也是 wardrobe.gd 組 key 的規則。"""
     out = {"gear": ("back_items", {})}
     for fid in FACES:
         out[f"face/{fid}"] = ("face", {"face": fid})
@@ -211,16 +331,43 @@ def jobs():
         for cid, c in HAIR_COLORS.items():
             for part in ("hair_back", "hair_under", "hair_over"):
                 out[f"{part}/{hid}/{cid}"] = (part, {"hair": hid, "hair_color": c})
-    for oid, o in OUTFITS.items():
-        for part in ("sleeve_back", "body", "sleeve_front"):
-            out[f"{part}/{oid}"] = (part, o)
+    for tid, t in TOPS.items():
+        out[f"sleeve_back/{tid}"] = _front(partial(G.top_sleeve_back, t=t))
+        out[f"top/{tid}"] = _front(partial(G.top_body, t=t))
+        out[f"sleeve_front/{tid}"] = _front(partial(G.top_sleeve_front, t=t))
+    for bid, b in BOTTOMS.items():
+        out[f"bottom/{bid}"] = _front(partial(G.bottom, b=b))
+    for sid, sh in SHOES.items():
+        out[f"shoes/{sid}"] = _front(partial(G.shoes, s=sh))
+    for cid, o in COATS.items():
+        out[f"coat/{cid}"] = _front(partial(G.coat_body, o=o))
+        if o.get("sleeve") == "long":
+            out[f"coat_sleeve_back/{cid}"] = _front(partial(G.coat_sleeve_back, o=o))
+        if o.get("sleeve") in ("half", "long"):
+            out[f"coat_sleeve/{cid}"] = _front(partial(G.coat_sleeve_front, o=o))
+    for bid, w in BELTS.items():
+        out[f"belt/{bid}"] = _front(partial(G.belt, w=w))
+    for cid, c in CUFFS.items():
+        out[f"cuffs/{cid}/tight"] = _front(partial(G.cuffs, c=c))
+        out[f"cuffs/{cid}/wide"] = _front(partial(G.cuffs_wide, c=c))
+    for aid, a in HAIR_ACCS.items():
+        for hid in HAIRS:
+            out[f"hair_acc/{aid}/{hid}"] = ("head_items", {"head_items": [partial(_hair_acc_front, a=a, hair=hid)]})
+            if a["kind"] == "ribbon":
+                out[f"hair_acc_back/{aid}/{hid}"] = ("behind", {"behind": [partial(G.hair_acc_back, a=a, hair=hid)]})
     for hid, fn in HEADWEAR.items():
         out[f"head/{hid}"] = ("head_items", {"head_items": [fn]})
     for bid, fn in BACKS.items():
         out[f"back/{bid}"] = ("behind", {"behind": [fn]})
     for wid, fn in WAISTS.items():
         out[f"waist/{wid}"] = ("belt", {"belt": [fn]})
+    for sid, fn in SHOULDERS.items():
+        out[f"shoulder/{sid}"] = ("shoulder", {"shoulder_items": [fn]})
     return out
+
+
+def _hair_acc_front(f, hx, hy, rx, ry, a, hair):
+    G.hair_acc_front(f, a, hair, hx, hy, rx, ry)
 
 
 def render_layer(key, part, extra):
@@ -242,6 +389,7 @@ def crop(img):
 def paint_all(art_root: Path, only=None):
     out_dir = art_root / "wardrobe"
     out_dir.mkdir(parents=True, exist_ok=True)
+    _check_catalog(art_root)
     manifest = {"size": [F.W, F.H], "layers": {}}
     for key, (part, extra) in jobs().items():
         if only and not any(key.startswith(p) for p in only):
@@ -260,7 +408,22 @@ def paint_all(art_root: Path, only=None):
             old["layers"].update(manifest["layers"])
             manifest = old
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    # 主角的整張立繪（沒載入外觀前、心魔鏡像等地方用）＝預設外觀疊出來的樣子，兩邊才不會長得不一樣
+    catalog = json.loads((art_root.parent / "content/wardrobe.json").read_text(encoding="utf-8"))
+    compose(art_root, catalog["default"]).save(art_root / "sprites/player.disciple.png", optimize=True)
     return manifest
+
+
+def _check_catalog(art_root: Path):
+    """content/wardrobe.json 的每件衣物都要有長相；上衣的 sleeve 要跟這裡一致（遊戲靠它挑護腕版本）。"""
+    cat = json.loads((art_root.parent / "content/wardrobe.json").read_text(encoding="utf-8"))
+    tables = {"top": TOPS, "bottom": BOTTOMS, "coat": COATS, "belt": BELTS, "cuffs": CUFFS, "shoes": SHOES,
+              "hair_acc": HAIR_ACCS, "head": HEADWEAR, "back": BACKS, "waist": WAISTS, "shoulder": SHOULDERS}
+    for slot, table in tables.items():
+        ids = {o["id"] for o in cat["options"][slot]} - {""}
+        assert ids == set(table), f"{slot}: catalog {sorted(ids)} vs art {sorted(table)}"
+    for o in cat["options"]["top"]:
+        assert o["sleeve"] == TOPS[o["id"]]["sleeve"], o["id"]
 
 
 def compose(art_root: Path, look: dict):
@@ -277,16 +440,22 @@ def compose(art_root: Path, look: dict):
 
 
 def layer_keys(look):
+    """跟 wardrobe.gd 的 layer_keys 同一套規則。"""
     keys = []
-    for name, _part, field in ORDER:
-        if field is None:
+    for name, field in ORDER:
+        val = look.get(field, "") if field else ""
+        if field == "":
             keys.append(name)
-        elif field in ("hair",):
+        elif field == "hair":
             keys.append(f"{name}/{look['hair']}/{look['hair_color']}")
         elif field == "brows":
             keys.append(f"brows/{look['brows']}/{look['hair_color']}")
-        elif field == "outfit":
-            keys.append(f"{name}/{look['outfit']}")
-        elif look.get(field):
-            keys.append(f"{field}/{look[field]}")
+        elif not val:
+            continue
+        elif field == "hair_acc":
+            keys.append(f"{name}/{val}/{look['hair']}")
+        elif field == "cuffs":
+            keys.append(f"cuffs/{val}/{TOPS[look['top']]['sleeve']}")
+        else:
+            keys.append(f"{name}/{val}")
     return keys

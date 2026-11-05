@@ -53,8 +53,13 @@ func _run() -> void:
 	await test_wild_mobs()
 	await test_errand_board()
 	await test_keyboard_layout()
+	await test_mouse_controls()
 	await test_weapons_and_arts()
 	await test_wardrobe()
+	await test_bag()
+	await test_equipment()
+	await test_consumables()
+	await test_mob_moves()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -417,6 +422,14 @@ func test_cultivation() -> void:
 	main.advance_dialogue()
 	main.meditate()
 	expect(main.cultivation() == 8 + 15, "meditating in the sect: +15")
+	main.meditate()
+	expect(main.cultivation() == 8 + 15 + 7, "the third meditation in a row is halved (15 >> 1)")
+	main.meditate()
+	expect(main.cultivation() == 8 + 15 + 7 + 3, "and keeps halving while you only sit")
+	main.state.game_data["meditate_streak"] = 0  # 打倒敵人、走完事件會歸零
+	main.meditate()
+	expect(main.cultivation() == 8 + 15 + 7 + 3 + 15, "after training outside, meditation is full again")
+	main.state.game_data["exp"] = 23
 	main.gain_cultivation(100)
 	expect(main.try_breakthrough() and main.state.tier_name() == "築基", "full cultivation breaks through")
 	expect(main.cultivation() == 23 and main.hp() == 50, "breakthrough spends the threshold and heals to the new max")
@@ -719,6 +732,7 @@ func test_walk_and_jump() -> void:
 ## 橫向卷軸：鏡頭往前看、小跳不跟高度、按住 ↓ 往下看；背景畫比地面慢；山嵐與近景層。
 func test_scrolling_camera_and_parallax() -> void:
 	var main: Node = await new_game()
+	main.clear_wild()  # 野怪會發現你、撲過來，這裡只測鏡頭與身法
 	var player: CharacterBody2D = main.player
 	var cam: Camera2D = player.camera
 	player.position = Vector2(900, main.FLOOR_Y - 27)
@@ -798,6 +812,7 @@ func test_scrolling_camera_and_parallax() -> void:
 ## 墨影步：閃 120 左右、期間無敵、有冷卻、空中只能一次。
 func test_dash() -> void:
 	var main: Node = await new_game()
+	main.clear_wild()  # 野怪會發現你、撲過來，這裡只測鏡頭與身法
 	var player: CharacterBody2D = main.player
 	player.position = Vector2(1700, main.FLOOR_Y - 27)
 	await step(main, {}, 10)
@@ -1210,7 +1225,7 @@ func test_wild_mobs() -> void:
 		main.attack()
 		hits += 1
 	expect(hits == 3, "a 煉氣 ghost (power 0.8) takes 3 sword hits (the third of the combo is heavier)")
-	expect(main.cultivation() - exp_before == 4, "killing a wild mob gives a little cultivation (about half a meditation)")
+	expect(main.cultivation() - exp_before == 8, "killing a wild mob (power 0.8) gives as much cultivation as a meditation")
 	expect(main.state.items.has("陰魂殘絲"), "wild mobs drop common loot")
 	expect(g in main.wild_defeated(), "the defeat is remembered")
 	main.go_home()
@@ -1304,7 +1319,7 @@ func test_errand_board() -> void:
 		if main.runner != null:
 			expect(main.hud_objective.text == "目標：打倒2隻狌狌（1／2）", "objective shows progress")
 	expect(main.runner == null, "the errand completes after two kills")
-	expect(main.cultivation() - exp_before == 3 + 3 + main.Cultivation.EXP_REWARD["small"], "kills plus the errand reward")
+	expect(main.cultivation() - exp_before == 6 + 6 + main.Cultivation.EXP_REWARD["small"], "kills plus the errand reward")
 	expect(main.state.items.has("凝氣草"), "the errand gives its loot")
 	main.state.region = "region.qingyun_sect"
 	main.go_home()
@@ -1370,7 +1385,7 @@ func test_keyboard_layout() -> void:
 	pad.button_index = JOY_BUTTON_A
 	pad.pressed = true
 	expect(pad.is_action_pressed("jump"), "gamepad A jumps")
-	expect(main.help_label.text.contains("Z/K/空白 跳") and main.help_label.text.contains("X/J 攻擊"), "help bar lists both layouts")
+	expect(main.help_label.text.contains("Z/K/空白 跳") and main.help_label.text.contains("X/J/左鍵 攻擊"), "help bar lists both layouts")
 	# 真的從 InputMap 讀：按住「右」會往右走
 	player.test_input = null
 	var x0: float = player.position.x
@@ -1408,12 +1423,109 @@ func test_keyboard_layout() -> void:
 	main.key_panel.assign(KEY_K)
 	expect(press_key(KEY_K).is_action_pressed("attack") and not press_key(KEY_K).is_action_pressed("jump"), "K moves from jump to attack")
 	expect(Keys.bindings["jump"][1] == 0 and main.key_panel.status.text.contains("跳"), "the panel says jump lost K")
-	expect(main.help_label.text.contains("K/J 攻擊"), "help bar follows the new keys")
+	expect(main.help_label.text.contains("K/J/左鍵 攻擊"), "help bar follows the new keys")
 	main.key_panel.close()
 	expect(not player.input_blocked, "closing settings gives control back")
 	Keys.reset("")
 	expect(press_key(KEY_K).is_action_pressed("jump"), "reset brings the defaults back")
 	main.free()
+
+func click(main: Node, button: int, dx: float) -> InputEventMouseButton:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = button
+	ev.pressed = true
+	var p: CharacterBody2D = main.player
+	ev.position = p.get_canvas_transform() * (p.global_position + Vector2(dx, -30.0))
+	ev.global_position = ev.position
+	return ev
+
+
+## 滑鼠：左鍵攻擊、右鍵術法，朝游標那一邊出手；鍵盤照舊；滑鼠鍵也能在按鍵設定裡改，舊的 keys.json 會補上滑鼠鍵。
+func test_mouse_controls() -> void:
+	const Keys = preload("res://scripts/keys.gd")
+	var main: Node = await new_game()
+	var player: CharacterBody2D = main.player
+	player.test_input = {}
+	expect(click(main, MOUSE_BUTTON_LEFT, 0).is_action_pressed("attack"), "left click is attack")
+	expect(click(main, MOUSE_BUTTON_RIGHT, 0).is_action_pressed("art"), "right click is the art")
+	expect(main.help_label.text.contains("X/J/左鍵 攻擊") and main.help_label.text.contains("F/U/右鍵 術法"), "help bar names the mouse buttons")
+	# 點人物左邊：轉身往左砍
+	player.facing = 1
+	main.attack_cooldown = 0.0
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, -200.0))
+	expect(main.attack_cooldown > 0.0 and player.facing == -1, "left click left of the player attacks to the left")
+	main.attack_cooldown = 0.0
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, 200.0))
+	expect(main.attack_cooldown > 0.0 and player.facing == 1, "left click right of the player attacks to the right")
+	# 冷卻中亂點不會原地轉來轉去
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, -200.0))
+	expect(player.facing == 1, "clicking during the cooldown does not spin the player")
+	main.attack_cooldown = 0.0
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, 3.0))
+	expect(main.attack_cooldown > 0.0 and player.facing == 1, "clicking on the player keeps the facing")
+	# 鍵盤攻擊照舊看面向
+	player.facing = -1
+	main.attack_cooldown = 0.0
+	main.handle_input(press_key(KEY_X))
+	expect(main.attack_cooldown > 0.0 and player.facing == -1, "the keyboard still attacks where the player faces")
+	# 右鍵：術法朝游標飛
+	main.mp = 999.0
+	main.art_cooldown = 0.0
+	player.facing = -1
+	var before: int = main.projectiles.size()
+	main.handle_input(click(main, MOUSE_BUTTON_RIGHT, 250.0))
+	expect(main.art_cooldown > 0.0 and player.facing == 1, "right click casts toward the cursor")
+	if main.projectiles.size() > before:
+		expect(main.projectiles[-1]["dir"] == 1, "the 劍氣 flies toward the cursor")
+	# 走真的輸入流程：點在畫面上（沒有面板蓋住的地方）會出手
+	for dx in [-300.0, 300.0]:
+		main.attack_cooldown = 0.0
+		main.get_viewport().push_input(click(main, MOUSE_BUTTON_LEFT, dx))
+		expect(main.attack_cooldown > 0.0 and player.facing == (1 if dx > 0 else -1), "a real click at %d reaches the game" % dx)
+	# 對話框開著時，左鍵＝繼續
+	var npc: String = main.residents.keys()[0]
+	main.talk_to(npc)
+	main.handle_input(click(main, MOUSE_BUTTON_LEFT, 100.0))
+	expect(not main.dialogue_panel.visible, "left click continues dialogue")
+	# 改鍵：攻擊的「其他」格改成中鍵，左鍵就不攻擊了
+	main.open_key_panel()
+	main.key_panel._start_capture("attack", 2)
+	var mid := click(main, MOUSE_BUTTON_MIDDLE, 0)
+	main.key_panel._input(mid)
+	expect(Keys.bindings["attack"][2] == -MOUSE_BUTTON_MIDDLE, "a mouse button can be captured in key settings")
+	expect(main.key_panel.buttons["attack:2"].text == "中鍵", "the panel shows 中鍵")
+	expect(mid.is_action_pressed("attack") and not click(main, MOUSE_BUTTON_LEFT, 0).is_action_pressed("attack"), "middle click now attacks, left click no longer does")
+	# 把右鍵給跳：術法就沒有右鍵了
+	main.key_panel._start_capture("jump", 2)
+	main.key_panel._input(click(main, MOUSE_BUTTON_RIGHT, 0))
+	expect(Keys.bindings["art"][2] == 0 and click(main, MOUSE_BUTTON_RIGHT, 0).is_action_pressed("jump"), "right click moves from art to jump")
+	# 滾輪不收
+	main.key_panel._start_capture("dash", 2)
+	main.key_panel._input(click(main, MOUSE_BUTTON_WHEEL_UP, 0))
+	expect(Keys.bindings["dash"][2] == KEY_SHIFT and not main.key_panel.capturing.is_empty(), "the wheel is not bindable")
+	main.key_panel.close()
+	Keys.reset("")
+	# 舊的 keys.json（沒有滑鼠鍵）讀進來會補上左鍵、右鍵；已經有人用的不補
+	var path := "user://test_keys_old.json"
+	var old := {}
+	for a in Keys.ACTIONS:
+		old[a["id"]] = (a["keys"] as Array).map(func(k): return k if k > 0 else 0)
+	old["attack"] = [KEY_K, KEY_J, 0]
+	old["jump"] = [KEY_Z, 0, KEY_SPACE]
+	old["art"] = [KEY_F, KEY_U, 0]
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(old))
+	f.close()
+	Keys.setup(path)
+	expect(Keys.bindings["attack"] == [KEY_K, KEY_J, -MOUSE_BUTTON_LEFT] and Keys.bindings["art"][2] == -MOUSE_BUTTON_RIGHT, "old key files get the mouse buttons")
+	Keys.save(path)
+	Keys.rebind("art", 2, 0, path)
+	Keys.setup(path)
+	expect(Keys.bindings["art"][2] == 0 and Keys.bindings["attack"][2] == -MOUSE_BUTTON_LEFT, "a cleared mouse slot stays cleared in new key files")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	Keys.reset("")
+	main.free()
+
 
 ## 依地圖與事件切換配樂：走進村落換村落曲、事件裡換劇情曲、事件裡有敵人換戰鬥曲、心魔事件換心魔對決曲。
 func test_music_by_map_and_event() -> void:
@@ -1598,11 +1710,108 @@ func test_weapons_and_arts() -> void:
 	main.state.game_data["hp"] = 30
 	main.handle_input(press_key(KEY_F))
 	expect(main.art_cooldown > 0.0, "F casts the art")
-	expect(main.help_label.text.contains("F/U 術法") and main.help_label.text.contains("G/O 兵器"), "help bar lists the art and gear keys")
+	expect(main.help_label.text.contains("F/U/右鍵 術法") and main.help_label.text.contains("G/O 兵器"), "help bar lists the art and gear keys")
 	main.free()
 ## 衣櫃與容貌：每個選項都有圖層、疊出來跟原本立繪同尺寸、解鎖照條件、試穿關掉會換回、存檔帶著走。
+func test_equipment() -> void:
+	const Equipment = preload("res://scripts/equipment.gd")
+	const Wardrobe = preload("res://scripts/wardrobe.gd")
+	var weapons: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/weapons.json"))
+	var loot: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/loot.json"))
+	var dropped := []
+	for t in loot:
+		if loot[t] is Dictionary:
+			for tier in loot[t]:
+				dropped.append_array(loot[t][tier])
+	var names := {}
+	for id in Equipment.all_ids():
+		var it := Equipment.item(id)
+		expect(Equipment.slot_ids().has(it["slot"]), "%s slot" % id)
+		expect(not Wardrobe.option(it["slot"], it["look"]).is_empty(), "%s look %s is a wardrobe piece" % [id, it["look"]])
+		expect(int(it["grade"]) >= 0 and int(it["grade"]) < weapons["grades"].size(), "%s grade in the weapon grade table" % id)
+		expect(it.get("affixes", []).size() == int(Equipment.data()["affix_count"][int(it["grade"])]), "%s affix count fits its grade" % id)
+		expect(it.get("source", "") != "", "%s says where it comes from" % id)
+		expect(not names.has(it["name"]), "%s name unique" % id)
+		names[it["name"]] = true
+		expect(Equipment.by_name(it["name"]) == id, "%s found by item name" % id)
+		if int(it["grade"]) >= 4:
+			expect(it.get("line", "") in ["xian", "mo"], "%s 仙器／魔器 has a line" % id)
+		elif not Equipment.data()["starter"].has(id):
+			expect(dropped.has(it["name"]), "%s drops somewhere" % id)
+	# 品階跟兵器同名、同倍率；越高越強
+	expect(Equipment.grade_name("equip.sky_robe") == weapons["grades"][1], "法器 named like weapons")
+	expect(Equipment.grade_name("equip.mo_robe") == "魔器" and Equipment.grade_name("equip.xian_robe") == "仙器", "仙器／魔器")
+	expect(is_equal_approx(Equipment.multiplier(4), 1.0 + float(weapons["grade_bonus"]) * 4), "grade multiplier same as weapons")
+	expect(Equipment.stats("equip.disciple_robe").is_empty(), "starter robe is plain cloth")
+	expect(Equipment.stats("equip.cloud_robe")["hp"] > Equipment.stats("equip.sky_robe").get("hp", 0), "法寶 robe beats 法器 robe")
+	expect(Equipment.totals({"a": "equip.talisman_charm", "b": "equip.jade_bracer", "c": "equip.lotus_crown", "d": "equip.cloud_robe"})["guard"] <= 0.45, "guard capped")
+
+	var path := "user://zetas_test_equipment.json"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	var main: Node = await new_game(false, path)
+	expect(main.equipment() == {"top": "equip.disciple_robe", "belt": "equip.teal_wrap", "shoes": "equip.black_boots"}, "new disciple wears the starter gear")
+	expect(main.player_max_hp() == 30, "starter gear adds nothing")
+	expect(main.player.equip_grade == 0, "凡器: no extra aura")
+	# 掉落：空欄位直接穿上
+	main.gain_item("青玉護腕")
+	expect(main.equipment()["cuffs"] == "equip.jade_bracer", "new gear in an empty slot is put on")
+	expect(main.player_max_hp() == 30 + int(Equipment.stats("equip.jade_bracer")["hp"]), "gear adds 氣血")
+	expect(main.player.equip_grade == 2 and main.player._motes != null and main.player._motes.emitting, "靈器 lights up motes")
+	expect(main.player_look()["cuffs"] == Wardrobe.EQUIP and main.player.sprite.texture == Wardrobe.compose(Wardrobe.resolve(main.player_look(), {"top": "moon_robe", "belt": "teal_wrap", "shoes": "boots", "cuffs": "jade_bracer"}), "body"), "worn gear shows on the body")
+	expect(main.equipment_guard(100) == roundi(100 * (1.0 - Equipment.stats("equip.jade_bracer")["guard"])), "護體 cuts damage")
+	# 已經有東西的欄位：只進背包，到【裝備】頁換
+	main.gain_item("雲紋道袍")
+	expect(main.equipment()["top"] == "equip.disciple_robe", "an occupied slot keeps what it had")
+	main.open_wardrobe()
+	var panel = main.wardrobe_panel
+	expect(panel.current_slot() == "bag" and panel.tabs.text.contains("【物品】"), "Y opens on the 物品 page")
+	var kinds := {}
+	for e in panel.bag:
+		kinds[e["name"]] = e["kind"]
+	expect(kinds.get("雲紋道袍") == "裝備" and kinds.get("青鋒劍") == "兵器" and kinds.get("月白長袍") == "時裝", "bag lists gear, weapons and fashion (%s)" % kinds)
+	expect(panel.bag[0]["kind"] == "裝備", "bag sorted: gear first")
+	while panel.current_slot() != "eq.top":
+		panel.move_row(1)
+	expect(panel.tabs.text.contains("【裝備】"), "past the bag is the 裝備 page")
+	panel.cycle(1)
+	panel.cycle(1)
+	expect(not main.equipment().has("top"), "cycling past the last robe takes the top off")
+	panel.cycle(-1)
+	expect(main.equipment()["top"] == "equip.cloud_robe", "cycling puts on the 法寶 robe")
+	expect(main.player.equip_grade == 3, "法寶 aura")
+	expect(panel.note.text.contains("法寶") and panel.note.text.contains("全身合計"), "gear note shows grade and totals")
+	# 時裝蓋在裝備上：衣著頁上衣換成散修長衫，數值不變
+	var hp_before: int = main.player_max_hp()
+	while panel.current_slot() != "top":
+		panel.move_row(1)
+	panel.cycle(1)
+	expect(main.player_look()["top"] != Wardrobe.EQUIP, "fashion top chosen")
+	expect(main.player_max_hp() == hp_before and main.equipment()["top"] == "equip.cloud_robe", "fashion changes looks only")
+	expect(main.player.equip_grade == 3, "fashion can't hide the grade aura")
+	panel.close()
+	# 仙器、魔器
+	main.gain_item("墨焰魔袍")
+	main.set_equipment({"top": "equip.mo_robe"})
+	expect(main.player.equip_grade == 4 and main.player.equip_line == "mo", "魔器 aura")
+	main.autosave()
+	main.free()
+	var again: Node = await new_game(false, path)
+	expect(again.equipment() == {"top": "equip.mo_robe"}, "gear restored from save")
+	again.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	# 舊存檔（還沒有裝備）：發入門裝備，原本穿預設那件的欄位改成「隨裝備」
+	var old := preload("res://addons/zeworld/world_state.gd").new()
+	old.game_data["look"] = {"top": "moon_robe", "belt": "rope", "shoes": "boots"}
+	old.save_file(path)
+	var migrated: Node = await new_game(false, path)
+	expect(migrated.equipment().size() == 3 and migrated.player_look()["top"] == Wardrobe.EQUIP and migrated.player_look()["belt"] == "rope", "old save gets the starter gear, keeps its own fashion")
+	migrated.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
 func test_wardrobe() -> void:
 	const Wardrobe = preload("res://scripts/wardrobe.gd")
+	const Equipment = preload("res://scripts/equipment.gd")
 	var layers: Dictionary = Wardrobe.layers()["layers"]
 	var d := Wardrobe.default_look()
 	for slot in Wardrobe.slots():
@@ -1619,7 +1828,9 @@ func test_wardrobe() -> void:
 			look[id] = o["id"]
 			for key in Wardrobe.layer_keys(look):
 				# 短髮沒有後髮、沒戴配件沒有那層：那些 key 本來就可以沒有圖
-				if key.begins_with("hair_back/") or key.begins_with("hair_under/"):
+				# 只有髮帶有後面的長尾、只有半臂／大氅有外袖
+				if key.begins_with("hair_back/") or key.begins_with("hair_under/") or key.begins_with("hair_acc_back/") \
+						or key.begins_with("coat_sleeve"):
 					continue
 				expect(layers.has(key), "layer %s exists" % key)
 				if layers.has(key):
@@ -1632,33 +1843,116 @@ func test_wardrobe() -> void:
 	var old_used := old.get_image().get_used_rect()
 	expect(absi(used.position.y - old_used.position.y) <= 3 and absi(used.end.y - old_used.end.y) <= 3, "default look stands where the old sprite stood")
 	expect(Wardrobe.compose(d) == tex, "same look composed once")
-	expect(Wardrobe.normalize({"outfit": "nope", "hair": "twin"})["outfit"] == d["outfit"]
+	expect(Wardrobe.normalize({"top": "nope", "hair": "twin"})["top"] == d["top"]
 		and Wardrobe.normalize({"hair": "twin"})["hair"] == "twin", "normalize keeps known choices, drops unknown")
+	# 舊存檔只記一整套 outfit：換成那一套的各件
+	var migrated := Wardrobe.normalize({"outfit": "wanderer"})
+	expect(migrated["top"] == "ochre_robe" and migrated["belt"] == "rope" and migrated["coat"] == "old_vest", "old outfit save becomes its pieces")
+	# 每一套的每件都存在；預設外觀就是一套（月白弟子袍）
+	for st in Wardrobe.sets():
+		for slot in st["pieces"]:
+			expect(not Wardrobe.option(slot, st["pieces"][slot]).is_empty() or st["pieces"][slot] == "", "set %s piece %s" % [st["id"], slot])
+	expect(Wardrobe.matching_set(Wardrobe.resolve(d)) == "disciple", "default look (following the starter gear) is the disciple set")
+	# 每件單獨換都換得掉，而且只動到自己那幾層
+	var mix := d.duplicate()
+	mix["belt"] = "rope"
+	var diff := []
+	for k in Wardrobe.layer_keys(mix):
+		if not Wardrobe.layer_keys(d).has(k):
+			diff.append(k)
+	expect(diff == ["belt/rope"], "changing one piece swaps only its layer")
+	expect(Wardrobe.matching_set(mix) == "", "a mixed look matches no set")
+	var wide_cuff := d.duplicate()
+	wide_cuff["cuffs"] = "cloth_bracer"
+	expect(Wardrobe.layer_keys(wide_cuff).has("cuffs/cloth_bracer/wide"), "bracers follow the top's sleeve")
 
 	var path := "user://zetas_test_wardrobe.json"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	var main: Node = await new_game(false, path)
-	expect(main.player.sprite.texture == main.player_texture(), "player wears the composed look")
-	expect(not Wardrobe.is_unlocked("outfit", "inner", main.state), "內門青衫 locked at 煉氣")
+	expect(main.player.sprite.texture == main.player_texture("body") and main.player.flow_sprite.texture == main.player_texture("flow"), "player wears the composed look (body + flowing layer)")
+	# 飄動層：只有背飾、後髮、髮帶；身體那張沒有它們，整張＝兩張疊起來的層
+	var all_keys := Wardrobe.layer_keys(Wardrobe.resolve(main.player_look()))
+	expect(all_keys.any(func(k): return k.begins_with("back/")), "default look has a back ribbon to flutter")
+	expect(main.player.flow_sprite.texture.get_width() == main.player.sprite.texture.get_width() + 2 * Wardrobe.FLOW_PAD, "flowing layer has room to stream out")
+	# 御劍：整片往後拉
+	var pl = main.player
+	pl.flying = 0.5
+	expect(pl._flow_target() == "fly", "sword flight streams the robes")
+	for i in 60:
+		pl._flow(1.0 / 60.0)
+	var fl: float = pl.flow_sprite.material.get_shader_parameter("bend")
+	var lg: float = pl.sprite.material.get_shader_parameter("bend")
+	expect(fl > 0.6 and lg > 0.2, "in flight ribbons swing back and legs trail (%s, %s)" % [fl, lg])
+	pl.flying = 0.0
+	pl.flow_override = "run"
+	for i in 120:
+		pl._flow(1.0 / 60.0)
+	expect(float(pl.sprite.material.get_shader_parameter("bend")) < 0.02, "on the ground the body never bends (feet don't slide)")
+	pl.flow_override = ""
+	pl.flying = 0.0
+	# 衣著、配件要拿到才能穿：開局只有月白弟子袍那一套
+	for item in Wardrobe.starter_items():
+		expect(main.state.items.has(item), "new character owns starter piece %s" % item)
+	expect(not Wardrobe.is_unlocked("top", "grey_jacket", main.state), "灰青短褐 not owned at the start")
+	expect(Wardrobe.is_unlocked("top", Wardrobe.EQUIP, main.state) and Wardrobe.is_unlocked("coat", "", main.state), "隨裝備 and 不穿 always allowed")
+	expect(Wardrobe.is_unlocked("hair", "bun", main.state), "容貌 needs no item")
+	expect(Wardrobe.only_unlocked(Wardrobe.normalize({"top": "ochre_robe"}), main.state)["top"] == Wardrobe.EQUIP, "an unowned piece in the save falls back")
+	# 境界給的時裝：築基時放進物品欄
+	expect(not Wardrobe.is_unlocked("top", "sky_robe", main.state), "天青長衫 locked at 煉氣")
 	main.state.tier_index = 1
-	expect(Wardrobe.is_unlocked("outfit", "inner", main.state), "內門青衫 unlocked at 築基")
 	main.autosave()
-	expect(main.log_lines.any(func(l): return l.contains("內門青衫")), "new look announced")
+	expect(main.state.items.has("天青長衫") and Wardrobe.is_unlocked("top", "sky_robe", main.state), "天青長衫 put in the bag at 築基")
+	expect(main.state.items.has("束髮銀冠・常服") and Equipment.by_name("束髮銀冠・常服") == "", "a fashion piece named like gear gets its own item name")
+	expect(main.log_lines.any(func(l): return l.contains("天青長衫") and l.contains("物品欄")), "new look announced")
 	main.state.tier_index = 0
+	expect(Wardrobe.is_unlocked("top", "sky_robe", main.state), "a granted piece stays after the condition lapses")
 	main.open_wardrobe()
 	var panel = main.wardrobe_panel
 	expect(panel.visible and main.player.input_blocked, "Y opens the wardrobe")
-	# 衣著欄往後換：外門短褐（已解鎖）直接穿上
+	expect(panel.current_slot() == "bag" and panel.tabs.text.contains("【物品】"), "wardrobe opens on the 物品 page")
+	while panel.current_slot() != "set":
+		panel.move_row(1)
+	expect(panel.tabs.text.contains("【衣著】"), "past the gear rows is the 衣著 page")
+	# 外門短褐還沒湊齊：換不過去，下方寫還缺哪套
 	panel.cycle(1)
-	expect(main.state.game_data["look"]["outfit"] == "outer", "unlocked outfit is worn at once")
-	# 再往後：散修布衣、內門青衫（煉氣還沒解鎖）→ 試穿
-	panel.cycle(1)
-	panel.cycle(1)
-	expect(panel.look["outfit"] == "inner" and main.state.game_data["look"]["outfit"] == "wanderer", "locked outfit is only tried on")
-	expect(panel.note.text.contains("突破築基"), "locked outfit says where it comes from")
-	var tried: Texture2D = panel.preview.texture
+	expect(main.player_look()["top"] != "grey_jacket", "an uncollected set can't be put on")
+	expect(panel.note.text.contains("外門短褐"), "missing sets are listed")
+	# 上衣只在拿到的裡面換：不會跳到赭布長衫
+	while panel.current_slot() != "top":
+		panel.move_row(1)
+	var seen_tops := []
+	for i in 6:
+		panel.cycle(1)
+		seen_tops.append(main.player_look()["top"])
+	expect(not seen_tops.has("ochre_robe") and seen_tops.has("sky_robe") and seen_tops.has("moon_robe"), "only owned tops cycle (%s)" % [seen_tops])
+	expect(panel.note.text.contains("還沒取得") and panel.note.text.contains("山賊"), "the note says what is still missing and where")
+	panel.close()
+	# 撿齊外門短褐：一鍵換整套
+	for item in ["灰青短褐", "灰布褲", "粗布腰封", "布護腕", "綁腿草鞋"]:
+		main.gain_item(item)
+	expect(main.log_lines.any(func(l): return l.contains("得到時裝灰青短褐")), "picking up a fashion piece is logged")
+	main.open_wardrobe()
+	while panel.current_slot() != "set":
+		panel.move_row(1)
+	var sets_seen := []
+	for i in 3:
+		panel.cycle(1)
+		sets_seen.append(Wardrobe.matching_set(panel.shown()))
+		if main.state.game_data["look"]["top"] == "grey_jacket":
+			break
+	expect(sets_seen.all(func(x): return x in ["disciple", "outer"]), "only collected sets cycle (%s)" % [sets_seen])
+	expect(main.state.game_data["look"]["top"] == "grey_jacket" and main.state.game_data["look"]["shoes"] == "straw_wraps", "a set swaps every piece at once")
 	panel.close()
 	expect(not main.player.input_blocked, "closing gives control back")
-	expect(main.player.sprite.texture != tried and main.player_look()["outfit"] == "wanderer", "closing drops the try-on")
+	# 單件：只換腰封
+	main.gain_item("繩腰帶")
+	main.open_wardrobe()
+	while panel.current_slot() != "belt":
+		panel.move_row(1)
+	panel.cycle(1)
+	expect(main.player_look()["belt"] == "rope" and main.player_look()["top"] == "grey_jacket", "one piece changes alone")
+	expect(Wardrobe.matching_set(main.player_look()) == "", "mixing leaves the set")
+	panel.close()
 	# 容貌：髮型換一個
 	main.open_wardrobe()
 	while panel.current_slot() != "hair":
@@ -1666,15 +1960,218 @@ func test_wardrobe() -> void:
 	panel.cycle(1)
 	panel.close()
 	expect(main.player_look()["hair"] == "bun", "hair changed")
+	expect(panel.tabs.text.contains("【容貌】"), "moving down past 配件 turns to the 容貌 page")
 	expect(main._portrait_crop(main._speaker_texture("player")).region == Wardrobe.PORTRAIT_RECT, "player portrait uses the fixed head crop")
 	# 事件中不能換
 	main.free()
 	var again: Node = await new_game(false, path)
-	expect(again.player_look()["outfit"] == "wanderer" and again.player_look()["hair"] == "bun", "look restored from save")
+	expect(again.player_look()["top"] == "grey_jacket" and again.player_look()["hair"] == "bun", "look restored from save")
 	# 心性變了：赤霞髮色條件不成立就換回預設
 	again.state.game_data["look"]["hair_color"] = "crimson"
 	expect(again.player_look()["hair_color"] == "ink", "crimson hair needs a killer's heart")
 	again.state.karma["仁殺"] = -40
 	expect(again.player_look()["hair_color"] == "crimson", "crimson hair with 仁殺 -40")
 	again.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func test_consumables() -> void:
+	var main: Node = await new_game()
+	var data: Dictionary = main.consumables
+	expect(data.has("凝氣草") and data.has("下品妖丹"), "consumables.json lists herbs and demon cores")
+	var dropped := {}
+	for table in main.loot.values():
+		if table is Dictionary:
+			for grade in table.values():
+				for it in grade:
+					dropped[it] = true
+	for name in data:
+		expect(dropped.has(name), "consumable %s actually drops somewhere" % name)
+	expect(not main.can_use_item("凝氣草"), "cannot use what you don't carry")
+	main.gain_item("凝氣草")
+	main.gain_item("凝氣草")
+	expect(main.can_use_item("凝氣草"), "can use a carried herb")
+	expect(main.use_item("凝氣草") and main.cultivation() == 12 and main.state.items.get("凝氣草", 0) == 1, "herb gives 12 cultivation and is used up one at a time")
+	main.state.game_data["hp"] = 5
+	main.gain_item("百年靈芝")
+	main.use_item("百年靈芝")
+	expect(main.hp() == main.player_max_hp() and not main.state.items.has("百年靈芝"), "靈芝 heals fully and leaves the bag")
+	main.gain_item("安魂香")
+	main.mp = 0.0
+	main.use_item("安魂香")
+	expect(main.mp == float(main.player_max_mp()), "安魂香 refills 靈力")
+	main.state.game_data["exp"] = 0
+	main.state.game_data["pills"] = {"day": main.state.day, "n": 3}
+	main.use_item("凝氣草")
+	expect(main.cultivation() == 6, "the fourth pill of the day is halved (丹毒)")
+	main.state.tier_index = 1
+	main.gain_item("築基丹")
+	expect(not main.can_use_item("築基丹"), "築基丹 is useless once you are 築基")
+	main.state.tier_index = 0
+	main.state.game_data["exp"] = 0
+	main.gain_item("下品妖丹")
+	main.gain_item("凝氣草")
+	main.quick_use_item()
+	expect(main.state.items.has("下品妖丹") and not main.state.items.has("凝氣草"), "quick use eats the weakest pill first")
+	main.free()
+
+
+func _spawn_foe(main: Node, id: String, template: String, dx: float) -> Node2D:
+	main._on_actor_spawned({"id": id, "template": template, "name": id, "disposition": "hostile"})
+	var view: Node2D = main.actor_views[id]
+	view.position.x = main.player.position.x + dx
+	return view
+
+
+func test_mob_moves() -> void:
+	var main: Node = await new_game()
+	main.clear_wild()
+	main.player.position = Vector2(1200, main.FLOOR_Y - 27)
+	expect(main.mob_move("nobody").get("move") == "melee", "unknown templates fall back to walking up and swinging")
+	# 野怪沒發現你就在家附近巡邏
+	main.refresh_wild()
+	var far_id := ""
+	for id in main.wild:
+		if absf(main.actor_views[id].position.x - main.player.position.x) > 700.0:
+			far_id = id
+	if far_id != "":
+		var home: float = main.wild[far_id]["x"]
+		await step(main, {}, 120)
+		expect(absf(main.actor_views[far_id].position.x - home) <= 100.0 and not main.enemy_engaged.get(far_id, false), "a wild mob far away patrols near home instead of chasing across the map")
+	main.clear_wild()
+	# 山賊：遠遠擲飛刀，站著會中，閃避躲得掉
+	var bandit := _spawn_foe(main, "b", "mob.bandit", 250)
+	await step(main, {}, 40)
+	expect(main.enemy_shots.size() == 1 or main.hp() < main.player_max_hp(), "a bandit throws a knife from range instead of walking up")
+	expect(absf(bandit.position.x - main.player.position.x) > 200.0, "the bandit keeps his distance")
+	await step(main, {}, 60)
+	expect(main.hp() < main.player_max_hp(), "standing still, the knife hits")
+	main._remove_actor_view("b")
+	main.enemy_shots.clear()
+	# 蠱雕：盤旋時砍不到，俯衝落地後才砍得到
+	main.state.game_data["hp"] = main.player_max_hp()
+	main.player_invuln = 0.0
+	var bird := _spawn_foe(main, "g", "mob.gudiao", 300)
+	await step(main, {}, 30)
+	expect(bird.lift > 60.0, "蠱雕 hovers in the air")
+	expect(not main.melee_hittable(bird), "a hovering 蠱雕 is out of sword reach")
+	bird.lift = 0.0
+	expect(main.melee_hittable(bird), "once it dives to the ground it can be cut")
+	main._remove_actor_view("g")
+	# 遊魂：會閃到背後
+	main.player.facing = 1
+	var ghost := _spawn_foe(main, "w", "mob.wandering_ghost", 300)
+	main.enemy_blink["w"] = 0.05
+	await step(main, {}, 6)
+	expect(ghost.position.x < main.player.position.x, "a wandering ghost blinks behind you")
+	main._remove_actor_view("w")
+	# 狼妖：遠遠蓄力後撲過來，跳起來就撲空
+	main.state.game_data["hp"] = main.player_max_hp()
+	main.player_invuln = 0.0
+	var wolf := _spawn_foe(main, "l", "mob.wolf_demon", 170)
+	var x0 := wolf.position.x
+	await step(main, {}, 50)
+	expect(wolf.position.x < x0 - 100.0, "a wolf demon lunges from far away")
+	expect(main.hp() < main.player_max_hp(), "standing still, the lunge bites")
+	main.free()
+
+## 物品欄：時裝都拿得到、掉落只給還沒有的、物品頁能直接穿脫、舊存檔身上穿的不會被扒掉。
+func test_bag() -> void:
+	const Wardrobe = preload("res://scripts/wardrobe.gd")
+	const Equipment = preload("res://scripts/equipment.gd")
+	var loot: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/loot.json"))
+	var fashion_drops := []
+	for t in loot:
+		if loot[t] is Dictionary:
+			for n in loot[t].get("fashion", []):
+				expect(not Wardrobe.by_item(n).is_empty(), "%s fashion drop %s is a wardrobe piece" % [t, n])
+				expect(Equipment.by_name(n) == "", "fashion drop %s is not also gear" % n)
+				fashion_drops.append(n)
+	var item_names := {}
+	for slot in Wardrobe.slots():
+		var sid: String = slot["id"]
+		if Wardrobe.is_appearance(sid):
+			continue
+		for o in Wardrobe.options(sid):
+			var item := Wardrobe.item_name(sid, o["id"])
+			if item == "":
+				continue
+			var gettable: bool = Wardrobe.starter_items().has(item) or fashion_drops.has(item) or not o.get("unlock", []).is_empty() \
+				or Equipment.by_name(item) != ""
+			expect(gettable, "%s/%s (%s) can be obtained somewhere" % [sid, o["id"], item])
+			expect(o.get("source", "") != "" or Wardrobe.starter_items().has(item) or Equipment.by_name(item) != "", "%s/%s says where it comes from" % [sid, o["id"]])
+			if Wardrobe.granted_by_conditions(sid, o["id"]):
+				expect(Equipment.by_name(item) == "", "%s/%s granted item %s doesn't hand out gear" % [sid, o["id"], item])
+			if not o.get("unlock", []).is_empty() and o["unlock"][0]["type"] == "has_item":
+				continue
+			expect(not item_names.has(item), "fashion item name %s unique" % item)
+			item_names[item] = true
+
+	var path := "user://zetas_test_bag.json"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	var main: Node = await new_game(false, path)
+	# 掉落只給還沒有的；都有了就不給
+	var got := []
+	for i in 6:
+		got.append(main.gain_fashion_from("loot.wild_bandit"))
+	expect(got.filter(func(n): return n != "").size() == 6 and not got.slice(0, 6).any(func(n): return got.count(n) > 1), "fashion drops never repeat (%s)" % [got])
+	expect(main.gain_fashion_from("loot.wild_bandit") == "皮護腕" or main.state.items.has("皮護腕"), "the 7th bandit piece comes last")
+	expect(main.gain_fashion_from("loot.wild_bandit") == "", "nothing left to drop")
+	# 野怪：掉時裝的機率
+	main.fashion_drop_chance = 1.0
+	main.wild_drop_chance = 0.0
+	var before: int = main.state.items.size()
+	main.wild["test.wild"] = {"template": "monster.wild_ghost", "loot": "loot.wild_ghost", "power": 1.0}
+	main._wild_defeated("test.wild")
+	expect(main.state.items.size() == before + 1 and loot["loot.wild_ghost"]["fashion"].any(func(n): return main.state.items.has(n)), "a wild kill can drop a fashion piece")
+	# 差事獎賞多一件時裝
+	var errands: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://content/errands.json"))
+	var pack: Dictionary = main.errand_pack(errands["errands"][0])
+	expect(JSON.stringify(pack).contains("\"fashion\""), "errands reward a fashion piece")
+	# 物品頁：直接穿上、換下
+	main.open_wardrobe()
+	var panel = main.wardrobe_panel
+	var idx := -1
+	for i in panel.bag.size():
+		if panel.bag[i]["name"] == "赭布長衫":
+			idx = i
+	expect(idx >= 0 and panel.bag[idx]["kind"] == "時裝", "dropped fashion shows in the bag")
+	for i in idx:
+		panel.move_row(1)
+	expect(panel.current_entry()["name"] == "赭布長衫", "cursor walks the bag")
+	panel.cycle(1)
+	expect(main.player_look()["top"] == "ochre_robe" and panel.current_entry().get("worn", false), "putting on from the bag")
+	expect(main.player.sprite.texture == main.player_texture("body"), "player wears it right away")
+	panel.cycle(1)
+	expect(main.player_look()["top"] == Wardrobe.EQUIP, "taking it off goes back to the gear")
+	# 裝備從物品頁換
+	main.gain_item("雲紋道袍")
+	panel.sync(main.player_look(), main.equipment(), main.bag_entries())
+	panel.bag_index = 0
+	while panel.current_entry()["name"] != "雲紋道袍":
+		panel.move_row(1)
+	panel.cycle(1)
+	expect(main.equipment()["top"] == "equip.cloud_robe", "gear put on from the bag")
+	# 兵器
+	panel.bag_index = 0
+	while panel.current_entry()["name"] != "開山刀":
+		panel.move_row(1)
+	panel.cycle(1)
+	expect(main.weapon_id() == "weapon.kaishan_blade", "weapon switched from the bag")
+	# 一般道具：沒有動作
+	main.gain_item("凝氣草")
+	panel.sync(main.player_look(), main.equipment(), main.bag_entries())
+	expect(main.bag_entries().any(func(e): return e["name"] == "凝氣草" and e["kind"] == "道具"), "materials are 道具")
+	panel.close()
+	main.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	# 舊存檔（還沒有「要拿到才能穿」）：身上穿的時裝直接給，不會一讀檔就被換掉
+	var old := preload("res://addons/zeworld/world_state.gd").new()
+	old.game_data["equip"] = {}
+	old.game_data["look"] = {"top": "ochre_robe", "hair_acc": "flower"}
+	old.save_file(path)
+	var migrated: Node = await new_game(false, path)
+	expect(migrated.player_look()["top"] == "ochre_robe" and migrated.player_look()["hair_acc"] == "flower", "old save keeps what it was wearing")
+	expect(migrated.state.items.has("赭布長衫") and migrated.state.items.has("月白長袍"), "old save gets the worn pieces and the starter set")
+	migrated.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
