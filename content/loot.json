@@ -2,6 +2,7 @@
   "_comment": "掉落表。引擎只轉交 loot_table 與 tier，實際物品由遊戲決定。 fashion 檔是時裝（content/wardrobe.json 的物品名）：野怪偶爾掉一件、差事做完給一件，都只挑還沒有的。",
   "loot.yao_dan_cave": {
     "common": [
+      "碎銀 20 兩",
       "下品妖丹",
       "狼皮快靴"
     ],
@@ -84,6 +85,7 @@
   },
   "loot.wild_foothills": {
     "common": [
+      "碎銀 5 兩",
       "凝氣草",
       "布護腕"
     ],
@@ -126,6 +128,7 @@
   },
   "loot.wild_ghost": {
     "common": [
+      "碎銀 5 兩",
       "陰魂殘絲"
     ],
     "rare": [
@@ -145,6 +148,7 @@
   },
   "loot.wild_gudiao": {
     "common": [
+      "碎銀 20 兩",
       "蠱雕翎羽",
       "踏影靴"
     ],

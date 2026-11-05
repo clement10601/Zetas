@@ -60,6 +60,7 @@ func _run() -> void:
 	await test_equipment()
 	await test_consumables()
 	await test_mob_moves()
+	await test_shop()
 	print("%d checks, %d failed" % [checks, failures])
 	quit(1 if failures > 0 else 0)
 
@@ -1226,7 +1227,7 @@ func test_wild_mobs() -> void:
 		hits += 1
 	expect(hits == 3, "a 煉氣 ghost (power 0.8) takes 3 sword hits (the third of the combo is heavier)")
 	expect(main.cultivation() - exp_before == 8, "killing a wild mob (power 0.8) gives as much cultivation as a meditation")
-	expect(main.state.items.has("陰魂殘絲"), "wild mobs drop common loot")
+	expect(main.state.items.has("陰魂殘絲") or main.silver() == 5, "wild mobs drop common loot (materials or silver)")
 	expect(g in main.wild_defeated(), "the defeat is remembered")
 	main.go_home()
 	expect(not main.wild.has(g) and main.wild.size() == 1, "a defeated mob stays gone for the day")
@@ -1412,6 +1413,7 @@ func test_keyboard_layout() -> void:
 	expect(main.travel_options.is_empty() and not main.dialogue_panel.visible, "Esc closes the map")
 	# NPC 說話：K（跳）關掉
 	var npc: String = main.residents.keys()[0]
+	main.shop["merchant"] = ""  # 這裡測一般 NPC 說話，不開周掌櫃的店
 	main.talk_to(npc)
 	expect(main.dialogue_label.text.contains("Z/空白 繼續"), "dialogue names the real continue keys")
 	main.handle_input(press_key(KEY_K))
@@ -1484,6 +1486,7 @@ func test_mouse_controls() -> void:
 		expect(main.attack_cooldown > 0.0 and player.facing == (1 if dx > 0 else -1), "a real click at %d reaches the game" % dx)
 	# 對話框開著時，左鍵＝繼續
 	var npc: String = main.residents.keys()[0]
+	main.shop["merchant"] = ""  # 這裡測一般 NPC 說話，不開周掌櫃的店
 	main.talk_to(npc)
 	main.handle_input(click(main, MOUSE_BUTTON_LEFT, 100.0))
 	expect(not main.dialogue_panel.visible, "left click continues dialogue")
@@ -1985,8 +1988,10 @@ func test_consumables() -> void:
 			for grade in table.values():
 				for it in grade:
 					dropped[it] = true
+	for b in main.shop["buy"]:
+		dropped[b["item"]] = true
 	for name in data:
-		expect(dropped.has(name), "consumable %s actually drops somewhere" % name)
+		expect(dropped.has(name), "consumable %s drops somewhere or is sold in the shop" % name)
 	expect(not main.can_use_item("凝氣草"), "cannot use what you don't carry")
 	main.gain_item("凝氣草")
 	main.gain_item("凝氣草")
@@ -2175,3 +2180,39 @@ func test_bag() -> void:
 	expect(migrated.state.items.has("赭布長衫") and migrated.state.items.has("月白長袍"), "old save gets the worn pieces and the starter set")
 	migrated.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+func test_shop() -> void:
+	var main: Node = await new_game()
+	main.clear_wild()
+	for b in main.shop["buy"]:
+		expect(main.consumables.has(b["item"]), "shop item %s has an effect" % b["item"])
+	main.gain_item("碎銀 10 兩")
+	expect(main.silver() == 10 and not main.state.items.has("碎銀 10 兩"), "silver pieces go to the purse, not the bag")
+	expect(main.hud_detail.text.contains("銀 10 兩"), "the status line shows silver")
+	main.state.add_item("妖獸皮", 2)
+	main.state.add_item("陰魂殘絲")
+	# 走到周掌櫃旁邊按交談：開店
+	main.player.position.x = main.residents["zhou"]["view"].position.x + 20
+	main.interact()
+	expect(not main.shop_options.is_empty() and main.dialogue_panel.visible, "talking to 周掌櫃 opens his shop")
+	var sell := -1
+	var herb := -1
+	for i in main.shop_options.size():
+		if main.shop_options[i]["kind"] == "sell":
+			sell = i
+		if main.shop_options[i].get("item", "") == "凝氣草":
+			herb = i
+	expect(sell >= 0 and main.shop_options[sell]["price"] == 2 * 15 + 10, "the shop offers to buy all monster materials")
+	main.choose_menu(sell)
+	expect(main.silver() == 50 and not main.state.items.has("妖獸皮"), "selling turns materials into silver")
+	expect(main.dialogue_panel.visible and not main.shop_options.is_empty(), "the shop stays open after a trade")
+	main.choose_menu(herb)
+	main.choose_menu(herb)
+	expect(main.state.items.get("凝氣草", 0) == 2 and main.silver() == 50 - 2 * 18, "buying spends silver and stays on the same item")
+	main.choose_menu(herb)
+	expect(main.state.items.get("凝氣草", 0) == 2 and main.silver() == 14, "cannot buy without enough silver")
+	expect(main.shop_options[0]["kind"] == "leave", "the cursor starts on 改天再來 so a stray jump never buys")
+	main.choose_menu(0)
+	expect(not main.dialogue_panel.visible and main.shop_options.is_empty(), "leaving closes the shop")
+	main.free()
